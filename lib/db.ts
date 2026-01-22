@@ -1,17 +1,43 @@
-import Database from "better-sqlite3";
 import path from "path";
-import { Company, DatabaseCompany, PriceHistory, CompaniesQueryParams } from "./types";
+import fs from "fs";
+import { Company, DatabaseCompany, CompaniesQueryParams } from "./types";
 
 const dbPath = path.join(process.cwd(), "data", "companies.db");
+const jsonPath = path.join(process.cwd(), "data", "companies.json");
 
-// Get database connection
+// Cache for SQLite availability check
+let sqliteAvailable: boolean | null = null;
+
+// Check if we can use SQLite (local development) or need JSON (serverless)
+function canUseSqlite(): boolean {
+  if (sqliteAvailable !== null) return sqliteAvailable;
+
+  // In Vercel serverless, better-sqlite3 won't work
+  if (process.env.VERCEL) {
+    sqliteAvailable = false;
+    return false;
+  }
+
+  try {
+    require("better-sqlite3");
+    sqliteAvailable = fs.existsSync(dbPath);
+    return sqliteAvailable;
+  } catch {
+    sqliteAvailable = false;
+    return false;
+  }
+}
+
+// Get database connection (only works locally)
 export function getDatabase() {
+  // Dynamic require to avoid bundling issues in serverless
+  const Database = require("better-sqlite3");
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   return db;
 }
 
-// Initialize database schema
+// Initialize database schema (only works locally)
 export function initializeDatabase() {
   const db = getDatabase();
 
@@ -80,8 +106,82 @@ function dbRowToCompany(row: DatabaseCompany): Company {
   };
 }
 
+// JSON-based data loading for serverless
+interface JsonData {
+  companies: DatabaseCompany[];
+  lastUpdated: string | null;
+  exportedAt: string;
+}
+
+function loadJsonData(): JsonData {
+  const data = fs.readFileSync(jsonPath, "utf-8");
+  return JSON.parse(data);
+}
+
+function getCompaniesFromJson(params: CompaniesQueryParams = {}): { companies: Company[]; total: number } {
+  const jsonData = loadJsonData();
+  let companies = jsonData.companies.map(dbRowToCompany);
+
+  const {
+    search,
+    sortBy = "rank",
+    sortOrder = "asc",
+    minMarketCap,
+    maxMarketCap,
+    limit = 100,
+    offset = 0,
+  } = params;
+
+  // Apply search filter
+  if (search) {
+    const searchLower = search.toLowerCase();
+    companies = companies.filter(
+      (c) =>
+        c.name.toLowerCase().includes(searchLower) ||
+        c.symbol.toLowerCase().includes(searchLower)
+    );
+  }
+
+  // Apply market cap filters
+  if (minMarketCap !== undefined) {
+    companies = companies.filter((c) => c.marketCap !== null && c.marketCap >= minMarketCap);
+  }
+  if (maxMarketCap !== undefined) {
+    companies = companies.filter((c) => c.marketCap !== null && c.marketCap <= maxMarketCap);
+  }
+
+  const total = companies.length;
+
+  // Apply sorting
+  companies.sort((a, b) => {
+    const aVal = a[sortBy];
+    const bVal = b[sortBy];
+
+    if (aVal === null || aVal === undefined) return 1;
+    if (bVal === null || bVal === undefined) return -1;
+
+    if (typeof aVal === "string" && typeof bVal === "string") {
+      return sortOrder === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+
+    const numA = Number(aVal);
+    const numB = Number(bVal);
+    return sortOrder === "asc" ? numA - numB : numB - numA;
+  });
+
+  // Apply pagination
+  companies = companies.slice(offset, offset + limit);
+
+  return { companies, total };
+}
+
 // Get all companies with filtering and sorting
 export function getCompanies(params: CompaniesQueryParams = {}): { companies: Company[]; total: number } {
+  // Use JSON in serverless environment
+  if (!canUseSqlite()) {
+    return getCompaniesFromJson(params);
+  }
+
   const db = getDatabase();
 
   const {
@@ -94,8 +194,8 @@ export function getCompanies(params: CompaniesQueryParams = {}): { companies: Co
     offset = 0,
   } = params;
 
-  let whereClauses: string[] = [];
-  let queryParams: any[] = [];
+  const whereClauses: string[] = [];
+  const queryParams: (string | number)[] = [];
 
   // Add search filter
   if (search) {
@@ -157,6 +257,12 @@ export function getCompanies(params: CompaniesQueryParams = {}): { companies: Co
 
 // Get a single company by symbol
 export function getCompanyBySymbol(symbol: string): Company | null {
+  if (!canUseSqlite()) {
+    const jsonData = loadJsonData();
+    const row = jsonData.companies.find((c) => c.symbol === symbol);
+    return row ? dbRowToCompany(row) : null;
+  }
+
   const db = getDatabase();
   const row = db.prepare("SELECT * FROM companies WHERE symbol = ?").get(symbol) as DatabaseCompany | undefined;
   db.close();
@@ -164,7 +270,7 @@ export function getCompanyBySymbol(symbol: string): Company | null {
   return row ? dbRowToCompany(row) : null;
 }
 
-// Upsert company data
+// Upsert company data (SQLite only - for scraper)
 export function upsertCompany(company: Partial<Company> & { symbol: string }): void {
   const db = getDatabase();
 
@@ -207,7 +313,7 @@ export function upsertCompany(company: Partial<Company> & { symbol: string }): v
   db.close();
 }
 
-// Batch upsert companies
+// Batch upsert companies (SQLite only - for scraper)
 export function upsertCompanies(companies: Array<Partial<Company> & { symbol: string }>): void {
   const db = getDatabase();
 
@@ -232,7 +338,7 @@ export function upsertCompanies(companies: Array<Partial<Company> & { symbol: st
       last_updated = CURRENT_TIMESTAMP
   `);
 
-  const transaction = db.transaction((companies) => {
+  const transaction = db.transaction((companies: Array<Partial<Company> & { symbol: string }>) => {
     for (const company of companies) {
       stmt.run(
         company.symbol,
@@ -255,7 +361,7 @@ export function upsertCompanies(companies: Array<Partial<Company> & { symbol: st
   db.close();
 }
 
-// Add price history entry
+// Add price history entry (SQLite only - for scraper)
 export function addPriceHistory(symbol: string, price: number, date: string): void {
   const db = getDatabase();
 
@@ -268,7 +374,7 @@ export function addPriceHistory(symbol: string, price: number, date: string): vo
   db.close();
 }
 
-// Get previous day's price
+// Get previous day's price (SQLite only - for scraper)
 export function getPreviousPrice(symbol: string, currentDate: string): number | null {
   const db = getDatabase();
 
@@ -283,7 +389,7 @@ export function getPreviousPrice(symbol: string, currentDate: string): number | 
   return row ? row.price : null;
 }
 
-// Calculate and update daily change percent
+// Calculate and update daily change percent (SQLite only - for scraper)
 export function calculateDailyChange(symbol: string, currentPrice: number, currentDate: string): number | null {
   const previousPrice = getPreviousPrice(symbol, currentDate);
 
@@ -297,6 +403,11 @@ export function calculateDailyChange(symbol: string, currentPrice: number, curre
 
 // Get last updated timestamp
 export function getLastUpdated(): string | null {
+  if (!canUseSqlite()) {
+    const jsonData = loadJsonData();
+    return jsonData.lastUpdated;
+  }
+
   const db = getDatabase();
 
   const row = db.prepare(`

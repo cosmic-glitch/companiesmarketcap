@@ -4,6 +4,53 @@ import { useState, useEffect } from "react";
 import { Company } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, cn } from "@/lib/utils";
 
+// Company logo component with fallback
+function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <div className="w-8 h-8 bg-slate-200 rounded flex items-center justify-center text-xs font-medium text-slate-600 flex-shrink-0">
+        {name.charAt(0)}
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/logos/${symbol}.webp`}
+      alt={name}
+      className="w-8 h-8 rounded flex-shrink-0 object-cover"
+      onError={() => setError(true)}
+    />
+  );
+}
+
+// Daily change component with color coding
+function DailyChange({ value }: { value: number | null }) {
+  if (value === null || value === undefined) {
+    return <span className="text-slate-400">-</span>;
+  }
+
+  const isPositive = value > 0;
+  const isNegative = value < 0;
+  const formattedValue = `${isPositive ? "+" : ""}${value.toFixed(2)}%`;
+
+  return (
+    <span
+      className={cn(
+        "font-medium",
+        isPositive && "text-green-600",
+        isNegative && "text-red-600",
+        !isPositive && !isNegative && "text-slate-500"
+      )}
+    >
+      {formattedValue}
+    </span>
+  );
+}
+
 interface CompaniesTableProps {
   companies: Company[];
   lastUpdated?: string;
@@ -298,107 +345,113 @@ export default function CompaniesTable({ companies: initialCompanies, lastUpdate
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-gradient-to-r from-slate-50 to-slate-100 sticky top-0 z-10">
+      <div className="overflow-x-auto border border-slate-200 rounded-lg">
+        <table className="min-w-full">
+          <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th
                 onClick={() => handleSort("rank")}
-                className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors w-16"
               >
                 Rank <SortIndicator columnKey="rank" />
               </th>
               <th
                 onClick={() => handleSort("name")}
-                className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
-                Company <SortIndicator columnKey="name" />
-              </th>
-              <th
-                onClick={() => handleSort("symbol")}
-                className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
-              >
-                Ticker <SortIndicator columnKey="symbol" />
+                Name <SortIndicator columnKey="name" />
               </th>
               <th
                 onClick={() => handleSort("marketCap")}
-                className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
-                Market Cap <SortIndicator columnKey="marketCap" />
+                Market cap <SortIndicator columnKey="marketCap" />
               </th>
               <th
                 onClick={() => handleSort("price")}
-                className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
                 Price <SortIndicator columnKey="price" />
               </th>
               <th
+                onClick={() => handleSort("dailyChangePercent")}
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                Today <SortIndicator columnKey="dailyChangePercent" />
+              </th>
+              <th
                 onClick={() => handleSort("earnings")}
-                className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
                 Earnings <SortIndicator columnKey="earnings" />
               </th>
               <th
                 onClick={() => handleSort("revenue")}
-                className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
                 Revenue <SortIndicator columnKey="revenue" />
               </th>
               <th
                 onClick={() => handleSort("peRatio")}
-                className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
-                P/E Ratio <SortIndicator columnKey="peRatio" />
+                P/E ratio <SortIndicator columnKey="peRatio" />
               </th>
               <th
                 onClick={() => handleSort("dividendPercent")}
-                className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
                 Dividend % <SortIndicator columnKey="dividendPercent" />
               </th>
               <th
                 onClick={() => handleSort("operatingMargin")}
-                className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors"
+                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
               >
-                Operating Margin <SortIndicator columnKey="operatingMargin" />
+                Op. margin <SortIndicator columnKey="operatingMargin" />
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-slate-100">
+          <tbody className="bg-white">
             {filteredCompanies.map((company, index) => (
               <tr
                 key={company.symbol}
                 className={cn(
-                  "hover:bg-blue-50 transition-colors",
-                  index % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                  "hover:bg-slate-50 transition-colors border-b border-slate-100",
+                  index % 2 === 0 ? "bg-white" : "bg-slate-50/30"
                 )}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{company.rank}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                  {company.name}
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-slate-500 w-16">{company.rank}</td>
+                <td className="px-4 py-2.5 whitespace-nowrap">
+                  <div className="flex items-center gap-3">
+                    <CompanyLogo symbol={company.symbol} name={company.name} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-slate-900 truncate">{company.name}</div>
+                      <div className="text-xs text-slate-500">{company.symbol}</div>
+                    </div>
+                  </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-mono">
-                  {company.symbol}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900 font-medium">
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900 font-medium">
                   {formatMarketCap(company.marketCap)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
                   {formatPrice(company.price)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right">
+                  <DailyChange value={company.dailyChangePercent} />
+                </td>
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
                   {formatMarketCap(company.earnings)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
                   {formatMarketCap(company.revenue)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
                   {formatPERatio(company.peRatio)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
                   {formatPercent(company.dividendPercent)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
                   {formatPercent(company.operatingMargin)}
                 </td>
               </tr>
