@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "scrape": "tsx scripts/scraper.ts",
+    "download-icons": "tsx scripts/icon-downloader.ts",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed"

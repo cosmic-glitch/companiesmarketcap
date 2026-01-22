@@ -41,3 +41,6 @@ next-env.d.ts
 # database
 /data/*.db
 /data/*.db-journal
+
+# company logos (downloaded via npm run download-icons)
+/public/logos/
