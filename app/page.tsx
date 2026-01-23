@@ -9,6 +9,29 @@ export const dynamic = "force-dynamic";
 
 const PER_PAGE = 100;
 
+function getSubtitleText(sortBy: keyof Company, total: number, hasFilters: boolean): string {
+  const sortLabels: Record<string, string> = {
+    rank: "market capitalization",
+    marketCap: "market capitalization",
+    name: "name",
+    price: "price",
+    dailyChangePercent: "daily change",
+    earnings: "earnings",
+    revenue: "revenue",
+    peRatio: "P/E ratio",
+    dividendPercent: "dividend yield",
+    operatingMargin: "operating margin",
+  };
+
+  const sortLabel = sortLabels[sortBy] || "market capitalization";
+  const countText = total.toLocaleString();
+
+  if (hasFilters) {
+    return `${countText} companies matching filters, ranked by ${sortLabel}`;
+  }
+  return `${countText} companies ranked by ${sortLabel}`;
+}
+
 interface SearchParams {
   page?: string;
   sortBy?: string;
@@ -68,6 +91,15 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const { companies, total } = getCompanies(queryParams);
 
+  const hasFilters = !!(
+    queryParams.minMarketCap || queryParams.maxMarketCap ||
+    queryParams.minEarnings || queryParams.maxEarnings ||
+    queryParams.minPERatio || queryParams.maxPERatio ||
+    queryParams.minDividend || queryParams.maxDividend ||
+    queryParams.minOperatingMargin || queryParams.maxOperatingMargin ||
+    queryParams.search
+  );
+
   return (
     <main className="min-h-screen bg-bg-primary">
       {/* Header */}
@@ -94,7 +126,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 Largest US Companies
               </h1>
               <p className="text-base text-text-secondary mt-1">
-                <span className="text-accent font-semibold">{total.toLocaleString()}</span> companies ranked by market capitalization
+                {getSubtitleText(sortBy, total, hasFilters)}
               </p>
             </div>
           </div>
