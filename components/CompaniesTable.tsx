@@ -54,7 +54,6 @@ function DailyChange({ value }: { value: number | null }) {
 
 interface CompaniesTableProps {
   companies: Company[];
-  lastUpdated?: string;
   sortBy: keyof Company;
   sortOrder: "asc" | "desc";
 }
@@ -127,7 +126,7 @@ const FilterInput = ({
   );
 };
 
-export default function CompaniesTable({ companies, lastUpdated, sortBy, sortOrder }: CompaniesTableProps) {
+export default function CompaniesTable({ companies, sortBy, sortOrder }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -244,33 +243,16 @@ export default function CompaniesTable({ companies, lastUpdated, sortBy, sortOrd
       <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-slate-700">Filters</h3>
-          <div className="flex items-center gap-2">
+          {hasActiveFilters && (
             <button
-              onClick={applyFilters}
-              disabled={!hasUnappliedChanges}
-              className={cn(
-                "px-3 py-1 text-xs font-medium rounded transition-colors",
-                hasUnappliedChanges
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
-              )}
+              onClick={clearFilters}
+              className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors"
             >
-              Apply Filters
+              Clear All
             </button>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors"
-              >
-                Clear All
-              </button>
-            )}
-            {lastUpdated && (
-              <p className="text-xs text-slate-500">Updated: {new Date(lastUpdated).toLocaleString()}</p>
-            )}
-          </div>
+          )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <FilterInput
             label="Market Cap"
             minKey="minMarketCap"
@@ -316,6 +298,20 @@ export default function CompaniesTable({ companies, lastUpdated, sortBy, sortOrd
             updateFilter={updateFilter}
             applyFilters={applyFilters}
           />
+          <div className="flex items-end">
+            <button
+              onClick={applyFilters}
+              disabled={!hasUnappliedChanges}
+              className={cn(
+                "w-full px-4 py-1.5 text-xs font-medium rounded transition-colors",
+                hasUnappliedChanges
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              )}
+            >
+              Apply Filters
+            </button>
+          </div>
         </div>
       </div>
 

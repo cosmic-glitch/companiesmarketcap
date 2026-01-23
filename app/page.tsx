@@ -1,6 +1,6 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getCompanies, getLastUpdated } from "@/lib/db";
+import { getCompanies } from "@/lib/db";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +65,6 @@ export default async function Home({ searchParams }: HomeProps) {
   };
 
   const { companies, total } = getCompanies(queryParams);
-  const lastUpdated = getLastUpdated();
 
   return (
     <main className="min-h-screen bg-white">
@@ -85,7 +84,6 @@ export default async function Home({ searchParams }: HomeProps) {
       <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-6">
         <CompaniesTable
           companies={companies}
-          lastUpdated={lastUpdated || undefined}
           sortBy={sortBy}
           sortOrder={sortOrder}
         />

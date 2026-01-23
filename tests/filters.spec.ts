@@ -218,9 +218,9 @@ test.describe('Company Table with Pagination', () => {
     await expect(page.locator('text=Try adjusting your filters')).toBeVisible();
   });
 
-  test('should display last updated timestamp', async ({ page }) => {
-    // Check that "Updated:" text is visible
-    await expect(page.locator('text=/Updated:/')).toBeVisible();
+  test('should display data source in footer', async ({ page }) => {
+    // Check that footer with data source is visible
+    await expect(page.locator('text=Data sourced from companiesmarketcap.com')).toBeVisible();
   });
 
   test('should maintain responsive grid layout for filters', async ({ page }) => {
@@ -228,10 +228,10 @@ test.describe('Company Table with Pagination', () => {
     const filterGrid = page.locator('.grid.grid-cols-2').first();
     await expect(filterGrid).toBeVisible();
 
-    // Verify grid has correct responsive classes
+    // Verify grid has correct responsive classes (6 columns: 5 filters + Apply button)
     const gridClasses = await filterGrid.getAttribute('class');
     expect(gridClasses).toContain('md:grid-cols-3');
-    expect(gridClasses).toContain('lg:grid-cols-5');
+    expect(gridClasses).toContain('lg:grid-cols-6');
   });
 
   test('should have proper hover states on table rows', async ({ page }) => {
