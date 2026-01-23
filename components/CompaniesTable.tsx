@@ -239,19 +239,8 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
 
   return (
     <div className="w-full">
-      {/* Compact Filter Panel */}
+      {/* Filter Panel */}
       <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-slate-700">Filters</h3>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors"
-            >
-              Clear All
-            </button>
-          )}
-        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <FilterInput
             label="Market Cap"
@@ -298,19 +287,27 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             updateFilter={updateFilter}
             applyFilters={applyFilters}
           />
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
             <button
               onClick={applyFilters}
               disabled={!hasUnappliedChanges}
               className={cn(
-                "w-full px-4 py-1.5 text-xs font-medium rounded transition-colors",
+                "flex-1 px-4 py-1.5 text-xs font-medium rounded transition-colors",
                 hasUnappliedChanges
                   ? "bg-blue-600 text-white hover:bg-blue-700"
                   : "bg-slate-200 text-slate-400 cursor-not-allowed"
               )}
             >
-              Apply Filters
+              Apply
             </button>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
       </div>

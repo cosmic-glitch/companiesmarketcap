@@ -128,8 +128,8 @@ test.describe('Company Table with Pagination', () => {
     // Fill in minimum market cap filter (100 billion)
     await page.locator('input[placeholder="Min billions"]').first().fill('100');
 
-    // Click Apply Filters
-    await page.locator('button:has-text("Apply Filters")').click();
+    // Click Apply
+    await page.locator('button:has-text("Apply")').click();
 
     // Wait for navigation with filter params
     await page.waitForURL(/minMarketCap=100/);
@@ -146,34 +146,34 @@ test.describe('Company Table with Pagination', () => {
     expect(total).toBeLessThan(3000); // Should be less than full dataset
   });
 
-  test('should show Clear All button when filters are active', async ({ page }) => {
-    // Initially, Clear All button should not be visible
-    await expect(page.locator('button:has-text("Clear All")')).not.toBeVisible();
+  test('should show Clear button when filters are active', async ({ page }) => {
+    // Initially, Clear button should not be visible
+    await expect(page.locator('button:has-text("Clear")')).not.toBeVisible();
 
     // Apply a filter via URL
     await page.goto('/?minMarketCap=100');
     await page.waitForSelector('table');
 
-    // Now Clear All button should be visible
-    await expect(page.locator('button:has-text("Clear All")')).toBeVisible();
+    // Now Clear button should be visible
+    await expect(page.locator('button:has-text("Clear")')).toBeVisible();
   });
 
-  test('should clear filters when Clear All is clicked', async ({ page }) => {
+  test('should clear filters when Clear is clicked', async ({ page }) => {
     // Apply a filter
     await page.goto('/?minMarketCap=100&maxMarketCap=500');
     await page.waitForSelector('table');
 
     // Verify filter is active
-    await expect(page.locator('button:has-text("Clear All")')).toBeVisible();
+    await expect(page.locator('button:has-text("Clear")')).toBeVisible();
 
-    // Click Clear All
-    await page.locator('button:has-text("Clear All")').click();
+    // Click Clear
+    await page.locator('button:has-text("Clear")').click();
 
     // Wait for navigation (filters removed)
     await page.waitForURL('/');
 
-    // Clear All button should disappear
-    await expect(page.locator('button:has-text("Clear All")')).not.toBeVisible();
+    // Clear button should disappear
+    await expect(page.locator('button:has-text("Clear")')).not.toBeVisible();
   });
 
   test('should reset to page 1 when filters change', async ({ page }) => {
@@ -184,8 +184,8 @@ test.describe('Company Table with Pagination', () => {
     // Fill in a filter
     await page.locator('input[placeholder="Min billions"]').first().fill('50');
 
-    // Click Apply Filters
-    await page.locator('button:has-text("Apply Filters")').click();
+    // Click Apply
+    await page.locator('button:has-text("Apply")').click();
 
     // Should reset to page 1 (page param removed)
     await page.waitForURL(/minMarketCap=50/);
