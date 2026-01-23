@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Company } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, cn } from "@/lib/utils";
 
@@ -18,11 +19,13 @@ function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={`/logos/${symbol}.webp`}
       alt={name}
-      className="w-8 h-8 rounded flex-shrink-0 object-cover bg-white p-0.5"
+      width={32}
+      height={32}
+      className="rounded flex-shrink-0 object-cover bg-white p-0.5"
+      loading="lazy"
       onError={() => setError(true)}
     />
   );

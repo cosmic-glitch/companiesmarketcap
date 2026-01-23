@@ -1,7 +1,6 @@
 import { downloadAllCSVs } from "./csv-downloader";
 import { mergeCSVData } from "./data-merger";
 import { writeCompanies } from "../lib/db";
-import { format } from "date-fns";
 
 async function runScraper() {
   console.log("\n╔════════════════════════════════════════╗");
@@ -32,7 +31,7 @@ async function runScraper() {
     // Step 3: Write to JSON file
     console.log("Step 3: Writing companies to JSON file...");
 
-    const today = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    const today = new Date().toISOString();
     writeCompanies(companies, today);
     console.log(`✓ Wrote ${companies.length} companies to data/companies.json\n`);
 
@@ -43,7 +42,7 @@ async function runScraper() {
     console.log("╚════════════════════════════════════════╝\n");
     console.log(`Duration: ${duration}s`);
     console.log(`Companies processed: ${companies.length}`);
-    console.log(`Date: ${format(new Date(), "yyyy-MM-dd")}\n`);
+    console.log(`Date: ${new Date().toISOString().split('T')[0]}\n`);
   } catch (error: any) {
     console.error("\n✗ Scraper failed:");
     console.error(error.message);
