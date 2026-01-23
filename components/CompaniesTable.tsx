@@ -11,7 +11,7 @@ function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
 
   if (error) {
     return (
-      <div className="w-8 h-8 bg-slate-200 rounded flex items-center justify-center text-xs font-medium text-slate-600 flex-shrink-0">
+      <div className="w-8 h-8 bg-bg-tertiary rounded flex items-center justify-center text-xs font-medium text-text-secondary flex-shrink-0">
         {name.charAt(0)}
       </div>
     );
@@ -22,16 +22,16 @@ function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
     <img
       src={`/logos/${symbol}.webp`}
       alt={name}
-      className="w-8 h-8 rounded flex-shrink-0 object-cover"
+      className="w-8 h-8 rounded flex-shrink-0 object-cover bg-white p-0.5"
       onError={() => setError(true)}
     />
   );
 }
 
-// Daily change component with color coding
+// Daily change component with color-coded badges
 function DailyChange({ value }: { value: number | null }) {
   if (value === null || value === undefined) {
-    return <span className="text-slate-400">-</span>;
+    return <span className="text-text-muted">-</span>;
   }
 
   const isPositive = value > 0;
@@ -41,13 +41,34 @@ function DailyChange({ value }: { value: number | null }) {
   return (
     <span
       className={cn(
-        "font-medium",
-        isPositive && "text-green-600",
-        isNegative && "text-red-600",
-        !isPositive && !isNegative && "text-slate-500"
+        "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium",
+        isPositive && "bg-positive/10 text-positive",
+        isNegative && "bg-negative/10 text-negative",
+        !isPositive && !isNegative && "bg-bg-tertiary text-text-muted"
       )}
     >
+      {isPositive && "▲ "}
+      {isNegative && "▼ "}
       {formattedValue}
+    </span>
+  );
+}
+
+// Rank badge with special styling for top companies
+function RankBadge({ rank }: { rank: number }) {
+  const isTop3 = rank <= 3;
+  const isTop10 = rank <= 10;
+
+  return (
+    <span
+      className={cn(
+        "font-medium tabular-nums",
+        isTop3 && "text-accent font-bold",
+        !isTop3 && isTop10 && "text-accent/70",
+        !isTop10 && "text-text-secondary"
+      )}
+    >
+      {rank}
     </span>
   );
 }
@@ -94,8 +115,8 @@ const FilterInput = ({
   applyFilters
 }: FilterInputProps) => {
   return (
-    <div className="space-y-1">
-      <label className="block text-xs font-medium text-slate-600">{label}</label>
+    <div className="space-y-1.5">
+      <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider">{label}</label>
       <div className="grid grid-cols-2 gap-1.5">
         <input
           type="number"
@@ -107,7 +128,7 @@ const FilterInput = ({
               applyFilters();
             }
           }}
-          className="px-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="px-3 py-2 text-xs bg-bg-tertiary border border-border-subtle rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
         <input
           type="number"
@@ -119,7 +140,7 @@ const FilterInput = ({
               applyFilters();
             }
           }}
-          className="px-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="px-3 py-2 text-xs bg-bg-tertiary border border-border-subtle rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
       </div>
     </div>
@@ -232,15 +253,15 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
   // Sort indicator component
   const SortIndicator = ({ columnKey }: { columnKey: SortKey }) => {
     if (sortBy !== columnKey) {
-      return <span className="text-slate-400 ml-1">↕</span>;
+      return <span className="text-text-muted ml-1 opacity-50">↕</span>;
     }
-    return <span className="text-blue-600 ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>;
+    return <span className="text-accent ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>;
   };
 
   return (
     <div className="w-full">
       {/* Filter Panel */}
-      <div className="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+      <div className="mb-4 bg-bg-secondary border border-border-subtle rounded-2xl p-5 shadow-lg">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <FilterInput
             label="Market Cap"
@@ -292,10 +313,10 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
               onClick={applyFilters}
               disabled={!hasUnappliedChanges}
               className={cn(
-                "flex-1 px-4 py-1.5 text-xs font-medium rounded transition-colors",
+                "flex-1 px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-300",
                 hasUnappliedChanges
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  ? "bg-gradient-accent text-white hover:shadow-glow hover:scale-[1.02]"
+                  : "bg-bg-tertiary text-text-muted cursor-not-allowed"
               )}
             >
               Apply
@@ -303,7 +324,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors"
+                className="px-3 py-2 text-xs font-medium text-text-secondary bg-bg-tertiary border border-border-subtle rounded-lg hover:bg-bg-hover hover:text-text-primary transition-all duration-300"
               >
                 Clear
               </button>
@@ -313,113 +334,115 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-lg">
+      <div className="overflow-x-auto bg-bg-secondary border border-border-subtle rounded-2xl shadow-lg">
         <table className="min-w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-bg-tertiary/50 border-b border-border-subtle">
             <tr>
               <th
                 onClick={() => handleSort("rank")}
-                className="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors w-16"
+                className="px-4 py-3.5 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors w-16"
               >
                 Rank <SortIndicator columnKey="rank" />
               </th>
               <th
                 onClick={() => handleSort("name")}
-                className="px-4 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
                 Name <SortIndicator columnKey="name" />
               </th>
               <th
                 onClick={() => handleSort("marketCap")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
-                Market cap <SortIndicator columnKey="marketCap" />
+                Market Cap <SortIndicator columnKey="marketCap" />
               </th>
               <th
                 onClick={() => handleSort("price")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
                 Price <SortIndicator columnKey="price" />
               </th>
               <th
                 onClick={() => handleSort("dailyChangePercent")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
                 Today <SortIndicator columnKey="dailyChangePercent" />
               </th>
               <th
                 onClick={() => handleSort("earnings")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
                 Earnings <SortIndicator columnKey="earnings" />
               </th>
               <th
                 onClick={() => handleSort("revenue")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
                 Revenue <SortIndicator columnKey="revenue" />
               </th>
               <th
                 onClick={() => handleSort("peRatio")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
-                P/E ratio <SortIndicator columnKey="peRatio" />
+                P/E <SortIndicator columnKey="peRatio" />
               </th>
               <th
                 onClick={() => handleSort("dividendPercent")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
-                Dividend % <SortIndicator columnKey="dividendPercent" />
+                Div % <SortIndicator columnKey="dividendPercent" />
               </th>
               <th
                 onClick={() => handleSort("operatingMargin")}
-                className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors"
+                className="px-4 py-3.5 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
-                Op. margin <SortIndicator columnKey="operatingMargin" />
+                Op. Margin <SortIndicator columnKey="operatingMargin" />
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white">
+          <tbody className="divide-y divide-border-subtle">
             {companies.map((company, index) => (
               <tr
                 key={company.symbol}
                 className={cn(
-                  "hover:bg-slate-50 transition-colors border-b border-slate-100",
-                  index % 2 === 0 ? "bg-white" : "bg-slate-50/30"
+                  "group hover:bg-bg-tertiary/30 transition-all duration-200",
+                  index % 2 === 0 ? "bg-transparent" : "bg-bg-tertiary/10"
                 )}
               >
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-slate-500 w-16">{company.rank}</td>
-                <td className="px-4 py-2.5 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap text-sm w-16">
+                  <RankBadge rank={company.rank} />
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-slate-900 truncate">{company.name}</div>
-                      <div className="text-xs text-slate-500">{company.symbol}</div>
+                      <div className="text-sm font-medium text-text-primary truncate group-hover:text-accent transition-colors">{company.name}</div>
+                      <div className="text-xs text-text-muted">{company.symbol}</div>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900 font-medium">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-text-primary font-semibold">
                   {formatMarketCap(company.marketCap)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-text-primary">
                   {formatPrice(company.price)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
                   <DailyChange value={company.dailyChangePercent} />
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-text-secondary">
                   {formatMarketCap(company.earnings)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-text-secondary">
                   {formatMarketCap(company.revenue)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-text-secondary">
                   {formatPERatio(company.peRatio)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-text-secondary">
                   {formatPercent(company.dividendPercent)}
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-sm text-right text-slate-900">
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-text-secondary">
                   {formatPercent(company.operatingMargin)}
                 </td>
               </tr>
@@ -429,8 +452,8 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
       </div>
 
       {companies.length === 0 && (
-        <div className="text-center py-16 text-slate-500">
-          <svg className="mx-auto h-12 w-12 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-16 text-text-secondary">
+          <svg className="mx-auto h-12 w-12 text-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -438,7 +461,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
               d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-lg font-medium">No companies found</p>
+          <p className="text-lg font-medium text-text-primary">No companies found</p>
           <p className="text-sm mt-1">Try adjusting your filters</p>
         </div>
       )}

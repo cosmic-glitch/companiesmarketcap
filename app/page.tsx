@@ -69,21 +69,40 @@ export default async function Home({ searchParams }: HomeProps) {
   const { companies, total } = getCompanies(queryParams);
 
   return (
-    <main className="min-h-screen bg-white">
-      {/* Clean Header */}
-      <div className="border-b border-slate-200 bg-white py-6 px-4 md:px-8">
-        <div className="max-w-[1600px] mx-auto">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex-shrink-0 hover:opacity-80 transition-opacity">
-              <Image src="/icon.svg" alt="Home" width={32} height={32} />
+    <main className="min-h-screen bg-bg-primary">
+      {/* Dark Gradient Header */}
+      <div className="relative border-b border-border-subtle bg-gradient-to-br from-bg-secondary via-bg-primary to-bg-secondary py-8 px-4 md:px-8 overflow-hidden">
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-50" />
+
+        <div className="relative max-w-[1600px] mx-auto">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="flex-shrink-0 p-2 rounded-xl bg-bg-tertiary/50 hover:bg-bg-tertiary transition-all duration-300 hover:shadow-glow-sm group"
+            >
+              <Image
+                src="/icon.svg"
+                alt="Home"
+                width={32}
+                height={32}
+                className="group-hover:scale-110 transition-transform duration-300"
+              />
             </Link>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Largest US Companies by Market Cap
-            </h1>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl md:text-3xl font-bold gradient-text">
+                  Largest US Companies
+                </h1>
+                <span className="px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-accent/20 text-accent rounded-full border border-accent/30">
+                  Live
+                </span>
+              </div>
+              <p className="text-sm text-text-secondary mt-1">
+                <span className="text-accent font-medium">{total.toLocaleString()}</span> companies ranked by market capitalization
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            {total.toLocaleString()} companies ranked by market capitalization
-          </p>
         </div>
       </div>
 
@@ -101,8 +120,11 @@ export default async function Home({ searchParams }: HomeProps) {
           perPage={PER_PAGE}
         />
 
-        <footer className="mt-8 mb-6 text-center text-xs text-slate-400">
-          <p>Data sourced from companiesmarketcap.com</p>
+        <footer className="mt-8 mb-6 text-center">
+          <div className="flex items-center justify-center gap-2 text-xs text-text-muted">
+            <span className="inline-block w-2 h-2 rounded-full bg-positive animate-pulse" />
+            <span>Data sourced from companiesmarketcap.com</span>
+          </div>
         </footer>
       </div>
     </main>

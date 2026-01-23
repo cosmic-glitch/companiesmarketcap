@@ -36,35 +36,73 @@ export default function Pagination({ currentPage, totalItems, perPage }: Paginat
   }
 
   return (
-    <div className="flex items-center justify-between py-4">
-      <div className="text-sm text-slate-600">
-        Showing <span className="font-semibold text-slate-900">{startItem.toLocaleString()}-{endItem.toLocaleString()}</span> of{" "}
-        <span className="font-semibold text-slate-900">{totalItems.toLocaleString()}</span>
+    <div className="flex items-center justify-between py-4 mt-4 border-t border-border-subtle">
+      <div className="text-sm text-text-secondary">
+        Showing{" "}
+        <span className="font-semibold text-accent">
+          {startItem.toLocaleString()}-{endItem.toLocaleString()}
+        </span>{" "}
+        of{" "}
+        <span className="font-semibold text-text-primary">{totalItems.toLocaleString()}</span>
       </div>
-      <div className="flex items-center gap-2">
+
+      <div className="flex items-center gap-3">
         <button
           onClick={() => navigateToPage(currentPage - 1)}
           disabled={!hasPrevious}
           className={cn(
-            "px-4 py-2 text-sm font-medium rounded-lg border transition-colors",
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-300",
             hasPrevious
-              ? "border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
-              : "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
+              ? "border-border-subtle text-text-secondary bg-bg-secondary hover:bg-bg-tertiary hover:text-text-primary hover:shadow-glow-sm"
+              : "border-border-subtle/50 text-text-muted bg-bg-tertiary/50 cursor-not-allowed"
           )}
         >
-          &lt; Previous {perPage}
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          Previous {perPage}
         </button>
+
+        <div className="px-3 py-1.5 text-xs font-medium bg-bg-tertiary border border-border-subtle rounded-lg text-text-secondary">
+          <span className="text-accent">{currentPage}</span>
+          <span className="mx-1 text-text-muted">/</span>
+          <span>{totalPages}</span>
+        </div>
+
         <button
           onClick={() => navigateToPage(currentPage + 1)}
           disabled={!hasNext}
           className={cn(
-            "px-4 py-2 text-sm font-medium rounded-lg border transition-colors",
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-300",
             hasNext
-              ? "border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
-              : "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
+              ? "border-border-subtle text-text-secondary bg-bg-secondary hover:bg-bg-tertiary hover:text-text-primary hover:shadow-glow-sm"
+              : "border-border-subtle/50 text-text-muted bg-bg-tertiary/50 cursor-not-allowed"
           )}
         >
-          Next {perPage} &gt;
+          Next {perPage}
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
         </button>
       </div>
     </div>
