@@ -1,7 +1,7 @@
 import axios from "axios";
 import fs from "fs";
 import path from "path";
-import { getDatabase } from "../lib/db";
+import { getCompanies } from "../lib/db";
 
 const LOGO_BASE_URL = "https://companiesmarketcap.com/img/company-logos/64";
 const LOGOS_DIR = path.join(process.cwd(), "public", "logos");
@@ -15,12 +15,10 @@ interface DownloadResult {
   skipped?: boolean;
 }
 
-// Get all company symbols from database
-function getSymbolsFromDatabase(): string[] {
-  const db = getDatabase();
-  const rows = db.prepare("SELECT symbol FROM companies ORDER BY rank").all() as { symbol: string }[];
-  db.close();
-  return rows.map((row) => row.symbol);
+// Get all company symbols from JSON data
+function getSymbols(): string[] {
+  const { companies } = getCompanies({ limit: 10000, sortBy: "rank", sortOrder: "asc" });
+  return companies.map((c) => c.symbol);
 }
 
 // Download single icon with retry logic
@@ -114,9 +112,9 @@ export async function downloadAllIcons(options: { skipExisting?: boolean } = {})
     console.log(`Created directory: ${LOGOS_DIR}`);
   }
 
-  // Get symbols from database
-  const symbols = getSymbolsFromDatabase();
-  console.log(`Found ${symbols.length} companies in database`);
+  // Get symbols from JSON data
+  const symbols = getSymbols();
+  console.log(`Found ${symbols.length} companies`);
   console.log(`Skip existing: ${skipExisting}`);
   console.log(`Concurrency: ${CONCURRENCY} parallel downloads\n`);
 

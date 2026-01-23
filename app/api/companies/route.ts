@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 100;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : 0;
 
-    // Get companies from database
+    // Get companies from JSON data
     const { companies, total } = getCompanies({
       search,
       sortBy,

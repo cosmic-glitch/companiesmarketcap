@@ -117,13 +117,6 @@ export interface DatabaseCompany {
   last_updated: string;
 }
 
-export interface PriceHistory {
-  id: number;
-  symbol: string;
-  price: number;
-  date: string;
-}
-
 // CSV source configuration
 export interface CSVSource {
   name: string;

@@ -20,14 +20,14 @@ A modern, unified web application that displays real-time rankings of US compani
   - Operating Margin
 - **Search Functionality**: Real-time search by company name or ticker symbol
 - **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
-- **3,500+ Companies**: Comprehensive database of US public companies
+- **3,500+ Companies**: Comprehensive dataset of US public companies
 
 ## Technology Stack
 
 - **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript
 - **UI**: React 19 with Tailwind CSS
-- **Database**: SQLite with better-sqlite3
+- **Data**: JSON file storage
 - **Data Scraping**: axios + csv-parse
 - **Deployment**: Vercel-ready
 
@@ -49,7 +49,7 @@ cd /Users/anuragved/code/companiesmarketcap
 npm install
 ```
 
-3. Run the scraper to populate the database:
+3. Run the scraper to populate the data:
 ```bash
 npm run scrape
 ```
@@ -66,7 +66,7 @@ npm run dev
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm start` - Start production server
-- `npm run scrape` - Run data scraper to update database
+- `npm run scrape` - Run data scraper to update data
 
 ## Project Structure
 
@@ -80,23 +80,23 @@ companiesmarketcap/
 │   └── globals.css           # Global styles
 ├── components/               # React components
 │   └── CompaniesTable.tsx    # Main table component
-├── lib/                      # Utilities and database
-│   ├── db.ts                 # Database functions
+├── lib/                      # Utilities and data access
+│   ├── db.ts                 # Data access functions
 │   ├── types.ts              # TypeScript types
 │   └── utils.ts              # Utility functions
 ├── scripts/                  # Data scraping scripts
 │   ├── scraper.ts            # Main scraper
 │   ├── csv-downloader.ts     # CSV download logic
 │   └── data-merger.ts        # Data merging logic
-├── data/                     # Database storage
-│   └── companies.db          # SQLite database
+├── data/                     # Data storage
+│   └── companies.json        # Company data file
 └── public/                   # Static assets
 ```
 
-## Database Schema
+## Data Schema
 
-### Companies Table
-- `symbol` - Stock ticker (Primary Key)
+The `data/companies.json` file contains an array of company records with the following fields:
+- `symbol` - Stock ticker (unique identifier)
 - `name` - Company name
 - `rank` - Market cap rank
 - `market_cap` - Market capitalization
@@ -109,12 +109,6 @@ companiesmarketcap/
 - `operating_margin` - Operating margin percentage
 - `country` - Country (always "United States")
 - `last_updated` - Last update timestamp
-
-### Price History Table
-- `id` - Auto-incrementing ID
-- `symbol` - Stock ticker (Foreign Key)
-- `price` - Historical price
-- `date` - Date of price record
 
 ## Data Sources
 
@@ -156,7 +150,7 @@ Data is scraped from the following CSV endpoints on companiesmarketcap.com:
 The application is built with:
 - Server-side rendering for fast initial page load
 - Client-side interactivity for sorting and searching
-- SQLite for efficient data storage and querying
+- JSON file for simple data storage
 - Type-safe TypeScript throughout
 
 ## Deployment

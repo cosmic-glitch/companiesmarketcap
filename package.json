@@ -8,16 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "scrape": "tsx scripts/scraper.ts",
-    "export-json": "tsx scripts/export-json.ts",
     "download-icons": "tsx scripts/icon-downloader.ts",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed"
   },
   "dependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "axios": "^1.13.2",
-    "better-sqlite3": "^12.5.0",
     "clsx": "^2.1.1",
     "csv-parse": "^6.1.0",
     "date-fns": "^4.1.0",
