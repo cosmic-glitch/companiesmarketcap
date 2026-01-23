@@ -2,6 +2,8 @@ import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
 import { getCompanies } from "@/lib/db";
 import { Company, CompaniesQueryParams } from "@/lib/types";
+import Link from "next/link";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -71,9 +73,14 @@ export default async function Home({ searchParams }: HomeProps) {
       {/* Clean Header */}
       <div className="border-b border-slate-200 bg-white py-6 px-4 md:px-8">
         <div className="max-w-[1600px] mx-auto">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Largest US Companies by Market Cap
-          </h1>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex-shrink-0 hover:opacity-80 transition-opacity">
+              <Image src="/icon.svg" alt="Home" width={32} height={32} />
+            </Link>
+            <h1 className="text-2xl font-semibold text-slate-900">
+              Largest US Companies by Market Cap
+            </h1>
+          </div>
           <p className="text-sm text-slate-500 mt-1">
             {total.toLocaleString()} companies ranked by market capitalization
           </p>
