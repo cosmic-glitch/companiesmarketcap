@@ -25,13 +25,13 @@ export default {
         "border-subtle": "var(--border-subtle)",
       },
       boxShadow: {
-        glow: "0 0 16px rgba(6, 182, 212, 0.4)",
-        "glow-sm": "0 0 8px rgba(6, 182, 212, 0.3)",
-        "glow-lg": "0 0 24px rgba(6, 182, 212, 0.5)",
+        glow: "0 0 16px rgba(8, 145, 178, 0.3)",
+        "glow-sm": "0 0 8px rgba(8, 145, 178, 0.2)",
+        "glow-lg": "0 0 24px rgba(8, 145, 178, 0.4)",
       },
       backgroundImage: {
-        "gradient-accent": "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)",
-        "gradient-accent-hover": "linear-gradient(135deg, #22d3ee 0%, #a78bfa 100%)",
+        "gradient-accent": "linear-gradient(135deg, #0891b2 0%, #7c3aed 100%)",
+        "gradient-accent-hover": "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)",
       },
     },
   },

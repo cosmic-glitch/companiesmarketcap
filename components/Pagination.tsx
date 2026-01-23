@@ -36,8 +36,8 @@ export default function Pagination({ currentPage, totalItems, perPage }: Paginat
   }
 
   return (
-    <div className="flex items-center justify-between py-4 mt-4 border-t border-border-subtle">
-      <div className="text-sm text-text-secondary">
+    <div className="flex items-center justify-between py-5 mt-4 border-t border-border-subtle">
+      <div className="text-base text-text-secondary">
         Showing{" "}
         <span className="font-semibold text-accent">
           {startItem.toLocaleString()}-{endItem.toLocaleString()}
@@ -51,14 +51,14 @@ export default function Pagination({ currentPage, totalItems, perPage }: Paginat
           onClick={() => navigateToPage(currentPage - 1)}
           disabled={!hasPrevious}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-300",
+            "flex items-center gap-2 px-5 py-2.5 text-base font-medium rounded-lg border transition-all duration-300",
             hasPrevious
               ? "border-border-subtle text-text-secondary bg-bg-secondary hover:bg-bg-tertiary hover:text-text-primary hover:shadow-glow-sm"
               : "border-border-subtle/50 text-text-muted bg-bg-tertiary/50 cursor-not-allowed"
           )}
         >
           <svg
-            className="w-4 h-4"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -73,7 +73,7 @@ export default function Pagination({ currentPage, totalItems, perPage }: Paginat
           Previous {perPage}
         </button>
 
-        <div className="px-3 py-1.5 text-xs font-medium bg-bg-tertiary border border-border-subtle rounded-lg text-text-secondary">
+        <div className="px-4 py-2 text-sm font-medium bg-bg-tertiary border border-border-subtle rounded-lg text-text-secondary">
           <span className="text-accent">{currentPage}</span>
           <span className="mx-1 text-text-muted">/</span>
           <span>{totalPages}</span>
@@ -83,7 +83,7 @@ export default function Pagination({ currentPage, totalItems, perPage }: Paginat
           onClick={() => navigateToPage(currentPage + 1)}
           disabled={!hasNext}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-300",
+            "flex items-center gap-2 px-5 py-2.5 text-base font-medium rounded-lg border transition-all duration-300",
             hasNext
               ? "border-border-subtle text-text-secondary bg-bg-secondary hover:bg-bg-tertiary hover:text-text-primary hover:shadow-glow-sm"
               : "border-border-subtle/50 text-text-muted bg-bg-tertiary/50 cursor-not-allowed"
@@ -91,7 +91,7 @@ export default function Pagination({ currentPage, totalItems, perPage }: Paginat
         >
           Next {perPage}
           <svg
-            className="w-4 h-4"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
