@@ -319,7 +319,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   : "bg-bg-tertiary text-text-muted cursor-not-allowed"
               )}
             >
-              Apply
+              Apply Filters
             </button>
             {hasActiveFilters && (
               <button
