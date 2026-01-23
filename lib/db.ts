@@ -90,6 +90,14 @@ export function getCompanies(params: CompaniesQueryParams = {}): { companies: Co
     sortOrder = "asc",
     minMarketCap,
     maxMarketCap,
+    minEarnings,
+    maxEarnings,
+    minPERatio,
+    maxPERatio,
+    minDividend,
+    maxDividend,
+    minOperatingMargin,
+    maxOperatingMargin,
     limit = 100,
     offset = 0,
   } = params;
@@ -104,12 +112,48 @@ export function getCompanies(params: CompaniesQueryParams = {}): { companies: Co
     );
   }
 
-  // Apply market cap filters
+  // Apply market cap filters (values in billions, stored in raw)
   if (minMarketCap !== undefined) {
-    companies = companies.filter((c) => c.marketCap !== null && c.marketCap >= minMarketCap);
+    const minRaw = minMarketCap * 1_000_000_000;
+    companies = companies.filter((c) => c.marketCap !== null && c.marketCap >= minRaw);
   }
   if (maxMarketCap !== undefined) {
-    companies = companies.filter((c) => c.marketCap !== null && c.marketCap <= maxMarketCap);
+    const maxRaw = maxMarketCap * 1_000_000_000;
+    companies = companies.filter((c) => c.marketCap !== null && c.marketCap <= maxRaw);
+  }
+
+  // Apply earnings filters (values in billions, stored in raw)
+  if (minEarnings !== undefined) {
+    const minRaw = minEarnings * 1_000_000_000;
+    companies = companies.filter((c) => c.earnings !== null && c.earnings >= minRaw);
+  }
+  if (maxEarnings !== undefined) {
+    const maxRaw = maxEarnings * 1_000_000_000;
+    companies = companies.filter((c) => c.earnings !== null && c.earnings <= maxRaw);
+  }
+
+  // Apply P/E ratio filters
+  if (minPERatio !== undefined) {
+    companies = companies.filter((c) => c.peRatio !== null && c.peRatio >= minPERatio);
+  }
+  if (maxPERatio !== undefined) {
+    companies = companies.filter((c) => c.peRatio !== null && c.peRatio <= maxPERatio);
+  }
+
+  // Apply dividend filters
+  if (minDividend !== undefined) {
+    companies = companies.filter((c) => c.dividendPercent !== null && c.dividendPercent >= minDividend);
+  }
+  if (maxDividend !== undefined) {
+    companies = companies.filter((c) => c.dividendPercent !== null && c.dividendPercent <= maxDividend);
+  }
+
+  // Apply operating margin filters
+  if (minOperatingMargin !== undefined) {
+    companies = companies.filter((c) => c.operatingMargin !== null && c.operatingMargin >= minOperatingMargin);
+  }
+  if (maxOperatingMargin !== undefined) {
+    companies = companies.filter((c) => c.operatingMargin !== null && c.operatingMargin <= maxOperatingMargin);
   }
 
   const total = companies.length;

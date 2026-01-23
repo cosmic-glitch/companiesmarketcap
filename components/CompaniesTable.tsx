@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Company } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, cn } from "@/lib/utils";
 
@@ -54,6 +55,8 @@ function DailyChange({ value }: { value: number | null }) {
 interface CompaniesTableProps {
   companies: Company[];
   lastUpdated?: string;
+  sortBy: keyof Company;
+  sortOrder: "asc" | "desc";
 }
 
 interface FilterState {
@@ -70,23 +73,8 @@ interface FilterState {
 }
 
 type SortKey = keyof Company;
-type SortOrder = "asc" | "desc";
 
-// Default filter values
-const DEFAULT_FILTERS: FilterState = {
-  minMarketCap: "",
-  maxMarketCap: "",
-  minEarnings: "",
-  maxEarnings: "",
-  minPERatio: "",
-  maxPERatio: "",
-  minDividend: "",
-  maxDividend: "",
-  minOperatingMargin: "",
-  maxOperatingMargin: "",
-};
-
-// Filter input component (defined outside to prevent re-creation on render)
+// Filter input component
 interface FilterInputProps {
   label: string;
   minKey: keyof FilterState;
@@ -139,101 +127,89 @@ const FilterInput = ({
   );
 };
 
-export default function CompaniesTable({ companies: initialCompanies, lastUpdated }: CompaniesTableProps) {
-  const [filteredCompanies, setFilteredCompanies] = useState(initialCompanies);
-  const [sortKey, setSortKey] = useState<SortKey>("rank");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [pendingFilters, setPendingFilters] = useState<FilterState>(DEFAULT_FILTERS);
+export default function CompaniesTable({ companies, lastUpdated, sortBy, sortOrder }: CompaniesTableProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Apply filters
-  useEffect(() => {
-    let result = [...initialCompanies];
+  // Initialize pending filters from URL
+  const getInitialFilters = useCallback((): FilterState => ({
+    minMarketCap: searchParams.get("minMarketCap") || "",
+    maxMarketCap: searchParams.get("maxMarketCap") || "",
+    minEarnings: searchParams.get("minEarnings") || "",
+    maxEarnings: searchParams.get("maxEarnings") || "",
+    minPERatio: searchParams.get("minPERatio") || "",
+    maxPERatio: searchParams.get("maxPERatio") || "",
+    minDividend: searchParams.get("minDividend") || "",
+    maxDividend: searchParams.get("maxDividend") || "",
+    minOperatingMargin: searchParams.get("minOperatingMargin") || "",
+    maxOperatingMargin: searchParams.get("maxOperatingMargin") || "",
+  }), [searchParams]);
 
-    // Apply range filters
-    result = result.filter((company) => {
-      // Market Cap filter (in billions)
-      if (company.marketCap) {
-        const capInBillions = company.marketCap / 1_000_000_000;
-        const min = parseFloat(filters.minMarketCap);
-        const max = parseFloat(filters.maxMarketCap);
-        if (!isNaN(min) && capInBillions < min) return false;
-        if (!isNaN(max) && capInBillions > max) return false;
+  const [pendingFilters, setPendingFilters] = useState<FilterState>(getInitialFilters);
+
+  // Build URL with parameters
+  const buildUrl = useCallback((updates: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    // Apply updates
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
       }
-
-      // Earnings filter (in billions)
-      if (company.earnings !== null) {
-        const earningsInBillions = company.earnings / 1_000_000_000;
-        const min = parseFloat(filters.minEarnings);
-        const max = parseFloat(filters.maxEarnings);
-        if (!isNaN(min) && earningsInBillions < min) return false;
-        if (!isNaN(max) && earningsInBillions > max) return false;
-      }
-
-      // P/E Ratio filter
-      if (company.peRatio) {
-        const min = parseFloat(filters.minPERatio);
-        const max = parseFloat(filters.maxPERatio);
-        if (!isNaN(min) && company.peRatio < min) return false;
-        if (!isNaN(max) && company.peRatio > max) return false;
-      }
-
-      // Dividend % filter
-      if (company.dividendPercent !== null) {
-        const min = parseFloat(filters.minDividend);
-        const max = parseFloat(filters.maxDividend);
-        if (!isNaN(min) && company.dividendPercent < min) return false;
-        if (!isNaN(max) && company.dividendPercent > max) return false;
-      }
-
-      // Operating Margin % filter
-      if (company.operatingMargin !== null) {
-        const min = parseFloat(filters.minOperatingMargin);
-        const max = parseFloat(filters.maxOperatingMargin);
-        if (!isNaN(min) && company.operatingMargin < min) return false;
-        if (!isNaN(max) && company.operatingMargin > max) return false;
-      }
-
-      return true;
     });
 
-    // Apply sorting
-    result.sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
+    const queryString = params.toString();
+    return queryString ? `/?${queryString}` : "/";
+  }, [searchParams]);
 
-      if (aVal === null && bVal === null) return 0;
-      if (aVal === null) return 1;
-      if (bVal === null) return -1;
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      } else if (typeof aVal === "string" && typeof bVal === "string") {
-        return sortOrder === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-
-      return 0;
-    });
-
-    setFilteredCompanies(result);
-  }, [initialCompanies, filters, sortKey, sortOrder]);
-
-  // Handle sorting
+  // Handle sorting - clicking a column header
   const handleSort = (key: SortKey) => {
-    const newOrder = sortKey === key && sortOrder === "asc" ? "desc" : "asc";
-    setSortKey(key);
-    setSortOrder(newOrder);
+    const newOrder = sortBy === key && sortOrder === "asc" ? "desc" : "asc";
+    router.push(buildUrl({
+      sortBy: key,
+      sortOrder: newOrder,
+      page: undefined, // Reset to page 1 on sort change
+    }));
   };
 
   // Apply pending filters
   const applyFilters = () => {
-    setFilters(pendingFilters);
+    const updates: Record<string, string | undefined> = {
+      page: undefined, // Reset to page 1 on filter change
+    };
+
+    // Add all filter values
+    Object.entries(pendingFilters).forEach(([key, value]) => {
+      updates[key] = value || undefined;
+    });
+
+    router.push(buildUrl(updates));
   };
 
   // Clear all filters
   const clearFilters = () => {
-    setFilters(DEFAULT_FILTERS);
-    setPendingFilters(DEFAULT_FILTERS);
+    const emptyFilters: FilterState = {
+      minMarketCap: "",
+      maxMarketCap: "",
+      minEarnings: "",
+      maxEarnings: "",
+      minPERatio: "",
+      maxPERatio: "",
+      minDividend: "",
+      maxDividend: "",
+      minOperatingMargin: "",
+      maxOperatingMargin: "",
+    };
+    setPendingFilters(emptyFilters);
+
+    // Build URL without any filter params
+    const params = new URLSearchParams();
+    if (sortBy !== "rank") params.set("sortBy", sortBy);
+    if (sortOrder !== "asc") params.set("sortOrder", sortOrder);
+    const queryString = params.toString();
+    router.push(queryString ? `/?${queryString}` : "/");
   };
 
   // Update pending filter value (doesn't apply filter yet)
@@ -241,15 +217,22 @@ export default function CompaniesTable({ companies: initialCompanies, lastUpdate
     setPendingFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Check if any filters are active
-  const hasActiveFilters = Object.values(filters).some((value) => value !== "");
+  // Check if any filters are active (in URL)
+  const hasActiveFilters = [
+    "minMarketCap", "maxMarketCap",
+    "minEarnings", "maxEarnings",
+    "minPERatio", "maxPERatio",
+    "minDividend", "maxDividend",
+    "minOperatingMargin", "maxOperatingMargin"
+  ].some(key => searchParams.has(key));
 
-  // Check if pending filters are different from applied filters
-  const hasUnappliedChanges = JSON.stringify(pendingFilters) !== JSON.stringify(filters);
+  // Check if pending filters are different from URL filters
+  const currentFilters = getInitialFilters();
+  const hasUnappliedChanges = JSON.stringify(pendingFilters) !== JSON.stringify(currentFilters);
 
   // Sort indicator component
   const SortIndicator = ({ columnKey }: { columnKey: SortKey }) => {
-    if (sortKey !== columnKey) {
+    if (sortBy !== columnKey) {
       return <span className="text-slate-400 ml-1">↕</span>;
     }
     return <span className="text-blue-600 ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>;
@@ -336,14 +319,6 @@ export default function CompaniesTable({ companies: initialCompanies, lastUpdate
         </div>
       </div>
 
-      {/* Results count */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="text-sm text-slate-600">
-          Showing <span className="font-semibold text-slate-900">{filteredCompanies.length.toLocaleString()}</span> of{" "}
-          <span className="font-semibold text-slate-900">{initialCompanies.length.toLocaleString()}</span> companies
-        </div>
-      </div>
-
       {/* Table */}
       <div className="overflow-x-auto border border-slate-200 rounded-lg">
         <table className="min-w-full">
@@ -412,7 +387,7 @@ export default function CompaniesTable({ companies: initialCompanies, lastUpdate
             </tr>
           </thead>
           <tbody className="bg-white">
-            {filteredCompanies.map((company, index) => (
+            {companies.map((company, index) => (
               <tr
                 key={company.symbol}
                 className={cn(
@@ -460,7 +435,7 @@ export default function CompaniesTable({ companies: initialCompanies, lastUpdate
         </table>
       </div>
 
-      {filteredCompanies.length === 0 && (
+      {companies.length === 0 && (
         <div className="text-center py-16 text-slate-500">
           <svg className="mx-auto h-12 w-12 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

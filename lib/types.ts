@@ -87,6 +87,14 @@ export interface CompaniesQueryParams {
   sortOrder?: "asc" | "desc";
   minMarketCap?: number;
   maxMarketCap?: number;
+  minEarnings?: number;
+  maxEarnings?: number;
+  minPERatio?: number;
+  maxPERatio?: number;
+  minDividend?: number;
+  maxDividend?: number;
+  minOperatingMargin?: number;
+  maxOperatingMargin?: number;
   limit?: number;
   offset?: number;
 }
