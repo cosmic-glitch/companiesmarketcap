@@ -1,3 +1,9 @@
+// Price quote from Yahoo Finance
+export interface PriceQuote {
+  price: number | null;
+  changePercent: number | null;
+}
+
 // Company data types
 export interface Company {
   symbol: string;

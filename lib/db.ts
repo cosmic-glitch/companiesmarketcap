@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs";
-import { Company, DatabaseCompany, CompaniesQueryParams } from "./types";
+import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote } from "./types";
 
 const jsonPath = path.join(process.cwd(), "data", "companies.json");
 
@@ -80,9 +80,28 @@ export function writeCompanies(
 }
 
 // Get all companies with filtering and sorting
-export function getCompanies(params: CompaniesQueryParams = {}): { companies: Company[]; total: number } {
+// Optional quotes parameter allows live price data to be used for sorting
+export function getCompanies(
+  params: CompaniesQueryParams = {},
+  quotes?: Map<string, PriceQuote>
+): { companies: Company[]; total: number } {
   const jsonData = loadJsonData();
   let companies = jsonData.companies.map(dbRowToCompany);
+
+  // If quotes provided, merge live data into companies
+  if (quotes) {
+    companies = companies.map((company) => {
+      const quote = quotes.get(company.symbol);
+      if (quote) {
+        return {
+          ...company,
+          price: quote.price ?? company.price,
+          dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
+        };
+      }
+      return company;
+    });
+  }
 
   const {
     search,
@@ -192,4 +211,10 @@ export function getCompanyBySymbol(symbol: string): Company | null {
 export function getLastUpdated(): string | null {
   const jsonData = loadJsonData();
   return jsonData.lastUpdated;
+}
+
+// Get all company symbols (for fetching quotes)
+export function getAllSymbols(): string[] {
+  const jsonData = loadJsonData();
+  return jsonData.companies.map((c) => c.symbol);
 }

@@ -1,6 +1,7 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getCompanies } from "@/lib/db";
+import { getCompanies, getAllSymbols } from "@/lib/db";
+import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 import Link from "next/link";
 import Image from "next/image";
@@ -89,7 +90,12 @@ export default async function Home({ searchParams }: HomeProps) {
     offset: (page - 1) * PER_PAGE,
   };
 
-  const { companies, total } = getCompanies(queryParams);
+  // Fetch live quotes from Yahoo Finance
+  const allSymbols = getAllSymbols();
+  const { quotes, cacheAge, fromCache } = await getAllQuotes(allSymbols);
+
+  // Pass quotes to getCompanies so it can merge live data and sort correctly
+  const { companies, total } = getCompanies(queryParams, quotes);
 
   const hasFilters = !!(
     queryParams.minMarketCap || queryParams.maxMarketCap ||
@@ -147,7 +153,12 @@ export default async function Home({ searchParams }: HomeProps) {
           perPage={PER_PAGE}
         />
 
-        <footer className="mt-8 mb-6 text-center">
+        <footer className="mt-8 mb-6 text-center space-y-1">
+          <p className="text-sm text-text-muted">
+            {fromCache
+              ? `Prices updated ${Math.floor(cacheAge / 60000)}m ago`
+              : "Prices just updated"}
+          </p>
           <p className="text-sm text-text-muted">
             Data sourced from companiesmarketcap.com
           </p>
