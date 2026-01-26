@@ -1,8 +1,9 @@
 import path from "path";
 import fs from "fs";
-import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote } from "./types";
+import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote, FMPDataStore } from "./types";
 
 const jsonPath = path.join(process.cwd(), "data", "companies.json");
+const fmpDataPath = path.join(process.cwd(), "data", "fmp-data.json");
 
 // JSON data structure
 interface JsonData {
@@ -10,6 +11,11 @@ interface JsonData {
   lastUpdated: string | null;
   exportedAt: string;
 }
+
+// Cache for blob data to avoid repeated fetches within a request
+let blobDataCache: { data: JsonData; fetchedAt: number } | null = null;
+let fmpDataCache: { data: FMPDataStore; fetchedAt: number } | null = null;
+const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
 
 // Convert JSON record to Company type
 function dbRowToCompany(row: DatabaseCompany): Company {
@@ -23,8 +29,11 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     earnings: row.earnings,
     revenue: row.revenue,
     peRatio: row.pe_ratio,
+    forwardPE: null, // Will be filled from FMP data
     dividendPercent: row.dividend_percent,
     operatingMargin: row.operating_margin,
+    revenueGrowth5Y: null, // Will be filled from FMP data
+    epsGrowth5Y: null, // Will be filled from FMP data
     country: row.country,
     lastUpdated: row.last_updated,
   };
@@ -49,10 +58,78 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
   };
 }
 
-// Load JSON data from file
-function loadJsonData(): JsonData {
+// Load JSON data from Vercel Blob in production, local file in development
+async function loadJsonDataAsync(): Promise<JsonData> {
+  const blobUrl = process.env.BLOB_URL;
+
+  if (blobUrl) {
+    // Check cache first
+    if (blobDataCache && Date.now() - blobDataCache.fetchedAt < CACHE_TTL_MS) {
+      return blobDataCache.data;
+    }
+
+    // Fetch from Vercel Blob
+    const response = await fetch(blobUrl, {
+      next: { revalidate: 3600 }, // Cache for 1 hour in Next.js
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from Blob: ${response.status}`);
+    }
+
+    const data = await response.json();
+    blobDataCache = { data, fetchedAt: Date.now() };
+    return data;
+  }
+
+  // Fallback to local file for development
+  return loadJsonDataSync();
+}
+
+// Synchronous load for backward compatibility (local development)
+function loadJsonDataSync(): JsonData {
   const data = fs.readFileSync(jsonPath, "utf-8");
   return JSON.parse(data);
+}
+
+// Load FMP data from Vercel Blob or local file
+async function loadFMPDataAsync(): Promise<FMPDataStore | null> {
+  const fmpBlobUrl = process.env.FMP_BLOB_URL;
+
+  if (fmpBlobUrl) {
+    // Check cache first
+    if (fmpDataCache && Date.now() - fmpDataCache.fetchedAt < CACHE_TTL_MS) {
+      return fmpDataCache.data;
+    }
+
+    try {
+      const response = await fetch(fmpBlobUrl, {
+        next: { revalidate: 3600 }, // Cache for 1 hour in Next.js
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        fmpDataCache = { data, fetchedAt: Date.now() };
+        return data;
+      }
+    } catch {
+      // Fall through to local file
+    }
+  }
+
+  // Fallback to local file
+  if (fs.existsSync(fmpDataPath)) {
+    try {
+      const data = fs.readFileSync(fmpDataPath, "utf-8");
+      const parsed = JSON.parse(data);
+      fmpDataCache = { data: parsed, fetchedAt: Date.now() };
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 // Write companies to JSON file (used by scraper)
@@ -81,12 +158,32 @@ export function writeCompanies(
 
 // Get all companies with filtering and sorting
 // Optional quotes parameter allows live price data to be used for sorting
-export function getCompanies(
+export async function getCompanies(
   params: CompaniesQueryParams = {},
   quotes?: Map<string, PriceQuote>
-): { companies: Company[]; total: number } {
-  const jsonData = loadJsonData();
+): Promise<{ companies: Company[]; total: number }> {
+  const [jsonData, fmpData] = await Promise.all([
+    loadJsonDataAsync(),
+    loadFMPDataAsync(),
+  ]);
+
   let companies = jsonData.companies.map(dbRowToCompany);
+
+  // Merge FMP data (growth metrics and forward PE)
+  if (fmpData?.companies) {
+    companies = companies.map((company) => {
+      const fmp = fmpData.companies[company.symbol];
+      if (fmp) {
+        return {
+          ...company,
+          forwardPE: fmp.forwardPE,
+          revenueGrowth5Y: fmp.revenueGrowth5Y,
+          epsGrowth5Y: fmp.epsGrowth5Y,
+        };
+      }
+      return company;
+    });
+  }
 
   // If quotes provided, merge live data into companies
   if (quotes) {
@@ -113,10 +210,16 @@ export function getCompanies(
     maxEarnings,
     minPERatio,
     maxPERatio,
+    minForwardPE,
+    maxForwardPE,
     minDividend,
     maxDividend,
     minOperatingMargin,
     maxOperatingMargin,
+    minRevenueGrowth,
+    maxRevenueGrowth,
+    minEPSGrowth,
+    maxEPSGrowth,
     limit = 100,
     offset = 0,
   } = params;
@@ -175,6 +278,30 @@ export function getCompanies(
     companies = companies.filter((c) => c.operatingMargin !== null && c.operatingMargin <= maxOperatingMargin);
   }
 
+  // Apply forward PE filters
+  if (minForwardPE !== undefined) {
+    companies = companies.filter((c) => c.forwardPE !== null && c.forwardPE >= minForwardPE);
+  }
+  if (maxForwardPE !== undefined) {
+    companies = companies.filter((c) => c.forwardPE !== null && c.forwardPE <= maxForwardPE);
+  }
+
+  // Apply revenue growth filters (values as decimals, e.g., 0.10 = 10%)
+  if (minRevenueGrowth !== undefined) {
+    companies = companies.filter((c) => c.revenueGrowth5Y !== null && c.revenueGrowth5Y >= minRevenueGrowth);
+  }
+  if (maxRevenueGrowth !== undefined) {
+    companies = companies.filter((c) => c.revenueGrowth5Y !== null && c.revenueGrowth5Y <= maxRevenueGrowth);
+  }
+
+  // Apply EPS growth filters (values as decimals, e.g., 0.10 = 10%)
+  if (minEPSGrowth !== undefined) {
+    companies = companies.filter((c) => c.epsGrowth5Y !== null && c.epsGrowth5Y >= minEPSGrowth);
+  }
+  if (maxEPSGrowth !== undefined) {
+    companies = companies.filter((c) => c.epsGrowth5Y !== null && c.epsGrowth5Y <= maxEPSGrowth);
+  }
+
   const total = companies.length;
 
   // Apply sorting
@@ -201,20 +328,20 @@ export function getCompanies(
 }
 
 // Get a single company by symbol
-export function getCompanyBySymbol(symbol: string): Company | null {
-  const jsonData = loadJsonData();
+export async function getCompanyBySymbol(symbol: string): Promise<Company | null> {
+  const jsonData = await loadJsonDataAsync();
   const row = jsonData.companies.find((c) => c.symbol === symbol);
   return row ? dbRowToCompany(row) : null;
 }
 
 // Get last updated timestamp
-export function getLastUpdated(): string | null {
-  const jsonData = loadJsonData();
+export async function getLastUpdated(): Promise<string | null> {
+  const jsonData = await loadJsonDataAsync();
   return jsonData.lastUpdated;
 }
 
 // Get all company symbols (for fetching quotes)
-export function getAllSymbols(): string[] {
-  const jsonData = loadJsonData();
+export async function getAllSymbols(): Promise<string[]> {
+  const jsonData = await loadJsonDataAsync();
   return jsonData.companies.map((c) => c.symbol);
 }

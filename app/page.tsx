@@ -20,8 +20,11 @@ function getSubtitleText(sortBy: keyof Company, total: number, hasFilters: boole
     earnings: "earnings",
     revenue: "revenue",
     peRatio: "P/E ratio",
+    forwardPE: "forward P/E",
     dividendPercent: "dividend yield",
     operatingMargin: "operating margin",
+    revenueGrowth5Y: "5-year revenue growth",
+    epsGrowth5Y: "5-year EPS growth",
   };
 
   const sortLabel = sortLabels[sortBy] || "market capitalization";
@@ -43,10 +46,16 @@ interface SearchParams {
   maxEarnings?: string;
   minPERatio?: string;
   maxPERatio?: string;
+  minForwardPE?: string;
+  maxForwardPE?: string;
   minDividend?: string;
   maxDividend?: string;
   minOperatingMargin?: string;
   maxOperatingMargin?: string;
+  minRevenueGrowth?: string;
+  maxRevenueGrowth?: string;
+  minEPSGrowth?: string;
+  maxEPSGrowth?: string;
   search?: string;
 }
 
@@ -72,6 +81,13 @@ export default async function Home({ searchParams }: HomeProps) {
     return isNaN(num) ? undefined : num;
   };
 
+  // Parse growth filters: input is percentage (e.g., 10), convert to decimal (0.10)
+  const parseGrowthPercent = (value: string | undefined): number | undefined => {
+    if (!value) return undefined;
+    const num = parseFloat(value);
+    return isNaN(num) ? undefined : num / 100;
+  };
+
   const queryParams: CompaniesQueryParams = {
     sortBy,
     sortOrder,
@@ -81,28 +97,37 @@ export default async function Home({ searchParams }: HomeProps) {
     maxEarnings: parseNumber(params.maxEarnings),
     minPERatio: parseNumber(params.minPERatio),
     maxPERatio: parseNumber(params.maxPERatio),
+    minForwardPE: parseNumber(params.minForwardPE),
+    maxForwardPE: parseNumber(params.maxForwardPE),
     minDividend: parseNumber(params.minDividend),
     maxDividend: parseNumber(params.maxDividend),
     minOperatingMargin: parseNumber(params.minOperatingMargin),
     maxOperatingMargin: parseNumber(params.maxOperatingMargin),
+    minRevenueGrowth: parseGrowthPercent(params.minRevenueGrowth),
+    maxRevenueGrowth: parseGrowthPercent(params.maxRevenueGrowth),
+    minEPSGrowth: parseGrowthPercent(params.minEPSGrowth),
+    maxEPSGrowth: parseGrowthPercent(params.maxEPSGrowth),
     search: params.search,
     limit: PER_PAGE,
     offset: (page - 1) * PER_PAGE,
   };
 
   // Fetch live quotes from Yahoo Finance
-  const allSymbols = getAllSymbols();
+  const allSymbols = await getAllSymbols();
   const { quotes, cacheAge, fromCache } = await getAllQuotes(allSymbols);
 
   // Pass quotes to getCompanies so it can merge live data and sort correctly
-  const { companies, total } = getCompanies(queryParams, quotes);
+  const { companies, total } = await getCompanies(queryParams, quotes);
 
   const hasFilters = !!(
     queryParams.minMarketCap || queryParams.maxMarketCap ||
     queryParams.minEarnings || queryParams.maxEarnings ||
     queryParams.minPERatio || queryParams.maxPERatio ||
+    queryParams.minForwardPE || queryParams.maxForwardPE ||
     queryParams.minDividend || queryParams.maxDividend ||
     queryParams.minOperatingMargin || queryParams.maxOperatingMargin ||
+    queryParams.minRevenueGrowth || queryParams.maxRevenueGrowth ||
+    queryParams.minEPSGrowth || queryParams.maxEPSGrowth ||
     queryParams.search
   );
 

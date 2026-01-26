@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : 0;
 
     // Get companies from JSON data
-    const { companies, total } = getCompanies({
+    const { companies, total } = await getCompanies({
       search,
       sortBy,
       sortOrder,
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get last updated timestamp
-    const lastUpdated = getLastUpdated();
+    const lastUpdated = await getLastUpdated();
 
     // Calculate pagination
     const page = Math.floor(offset / limit) + 1;

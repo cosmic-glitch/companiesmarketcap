@@ -77,6 +77,21 @@ export function formatPERatio(value: number | null | undefined): string {
   return value.toFixed(2);
 }
 
+// Format CAGR (Compound Annual Growth Rate) as percentage
+// Input is decimal (0.10 = 10%), output is "10.0%"
+export function formatCAGR(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "N/A";
+  }
+
+  // Convert decimal to percentage
+  const percent = value * 100;
+
+  // Show sign for positive values
+  const sign = percent > 0 ? "+" : "";
+  return `${sign}${percent.toFixed(1)}%`;
+}
+
 // Get color class for change percentage
 export function getChangeColor(value: number | null | undefined): string {
   if (value === null || value === undefined) {

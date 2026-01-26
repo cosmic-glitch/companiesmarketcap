@@ -1,0 +1,75 @@
+{
+  "companies": {
+    "AAPL": {
+      "symbol": "AAPL",
+      "revenueGrowth5Y": 0.11966999469922768,
+      "epsGrowth5Y": 0.17761496894808348,
+      "forwardPE": 27.18985543468252,
+      "lastUpdated": "2026-01-25T22:56:01.300Z"
+    },
+    "MSFT": {
+      "symbol": "MSFT",
+      "revenueGrowth5Y": 0.1506216883937348,
+      "epsGrowth5Y": 0.18679983014076296,
+      "forwardPE": 24.811946796625637,
+      "lastUpdated": "2026-01-25T22:56:02.963Z"
+    },
+    "GOOGL": {
+      "symbol": "GOOGL",
+      "revenueGrowth5Y": 0.19447944967827802,
+      "epsGrowth5Y": 0.2680071165770539,
+      "forwardPE": 25.117551227365787,
+      "lastUpdated": "2026-01-25T22:56:03.466Z"
+    },
+    "AMZN": {
+      "symbol": "AMZN",
+      "revenueGrowth5Y": 0.16493672464501286,
+      "epsGrowth5Y": 0.3698411549783507,
+      "forwardPE": 24.71365802646209,
+      "lastUpdated": "2026-01-25T22:56:04.059Z"
+    },
+    "NVDA": {
+      "symbol": "NVDA",
+      "revenueGrowth5Y": 0.639830488128486,
+      "epsGrowth5Y": 0.9165568606150583,
+      "forwardPE": 24.26310890474713,
+      "lastUpdated": "2026-01-25T22:56:04.580Z"
+    },
+    "META": {
+      "symbol": "META",
+      "revenueGrowth5Y": 0.2125034503033909,
+      "epsGrowth5Y": 0.30601090114534335,
+      "forwardPE": 19.55204460083864,
+      "lastUpdated": "2026-01-25T22:56:05.049Z"
+    },
+    "BRK-B": {
+      "symbol": "BRK-B",
+      "revenueGrowth5Y": 0.05225260572339718,
+      "epsGrowth5Y": 0.04434208449801713,
+      "forwardPE": 21.55063614353533,
+      "lastUpdated": "2026-01-25T22:56:05.549Z"
+    },
+    "TSLA": {
+      "symbol": "TSLA",
+      "revenueGrowth5Y": 0.26977008682236336,
+      "epsGrowth5Y": 0.5473073146989851,
+      "forwardPE": 155.05305282493777,
+      "lastUpdated": "2026-01-25T22:56:06.064Z"
+    },
+    "V": {
+      "symbol": "V",
+      "revenueGrowth5Y": 0.15075464917653214,
+      "epsGrowth5Y": 0.15262679409222368,
+      "forwardPE": 22.534475647525927,
+      "lastUpdated": "2026-01-25T22:56:06.660Z"
+    },
+    "JPM": {
+      "symbol": "JPM",
+      "revenueGrowth5Y": 0.19001461342062087,
+      "epsGrowth5Y": 0.16700964642846472,
+      "forwardPE": 12.906341456224778,
+      "lastUpdated": "2026-01-25T22:56:07.880Z"
+    }
+  },
+  "lastUpdated": "2026-01-25T22:56:08.411Z"
+}

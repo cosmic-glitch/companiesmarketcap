@@ -15,8 +15,11 @@ export interface Company {
   earnings: number | null;
   revenue: number | null;
   peRatio: number | null;
+  forwardPE: number | null;
   dividendPercent: number | null;
   operatingMargin: number | null;
+  revenueGrowth5Y: number | null; // 5-year CAGR
+  epsGrowth5Y: number | null; // 5-year CAGR
   country: string;
   lastUpdated: string;
 }
@@ -97,10 +100,16 @@ export interface CompaniesQueryParams {
   maxEarnings?: number;
   minPERatio?: number;
   maxPERatio?: number;
+  minForwardPE?: number;
+  maxForwardPE?: number;
   minDividend?: number;
   maxDividend?: number;
   minOperatingMargin?: number;
   maxOperatingMargin?: number;
+  minRevenueGrowth?: number;
+  maxRevenueGrowth?: number;
+  minEPSGrowth?: number;
+  maxEPSGrowth?: number;
   limit?: number;
   offset?: number;
 }
@@ -136,4 +145,18 @@ export interface CSVSource {
   name: string;
   url: string;
   metricField?: string;
+}
+
+// FMP API data types
+export interface FMPCompanyData {
+  symbol: string;
+  revenueGrowth5Y: number | null; // 5-year CAGR
+  epsGrowth5Y: number | null; // 5-year CAGR
+  forwardPE: number | null;
+  lastUpdated: string;
+}
+
+export interface FMPDataStore {
+  companies: Record<string, FMPCompanyData>;
+  lastUpdated: string;
 }

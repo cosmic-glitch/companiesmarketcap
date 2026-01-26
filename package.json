@@ -8,12 +8,14 @@
     "start": "next start",
     "lint": "next lint",
     "scrape": "tsx scripts/scraper.ts",
+    "fetch-fmp": "tsx scripts/fmp-fetcher.ts",
     "download-icons": "tsx scripts/icon-downloader.ts",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed"
   },
   "dependencies": {
+    "@vercel/blob": "^2.0.1",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "csv-parse": "^6.1.0",

@@ -32,25 +32,31 @@ This is a Next.js 15 App Router application that displays US company market cap 
    - `data-merger.ts` combines data from multiple CSVs (market cap, earnings, revenue, P/E ratio, dividends, operating margin)
    - Data is written to `data/companies.json`
 
-2. **Data Storage** (`lib/db.ts`): JSON file-based storage
-   - `data/companies.json`: All company data with financial metrics
-   - Simple read/write operations for Vercel compatibility
+2. **Data Storage** (`lib/db.ts`): Hybrid storage with Vercel Blob
+   - **Production**: Fetches from Vercel Blob URL (set via `BLOB_URL` env var)
+   - **Development**: Falls back to local `data/companies.json` file
+   - Includes 1-minute in-memory cache for blob data
 
-3. **API** (`app/api/companies/route.ts`): Single endpoint supporting:
-   - Search by name/symbol
-   - Sort by any column
-   - Market cap range filtering
-   - Pagination
+3. **API Endpoints**:
+   - `app/api/companies/route.ts`: Query endpoint with search, sort, filter, pagination
+   - `app/api/scrape/route.ts`: Automated scraping endpoint (see below)
 
 4. **Frontend**: Server-rendered page with client-side interactivity
    - `app/page.tsx`: Server component that fetches all companies on initial render
    - `components/CompaniesTable.tsx`: Client component with sorting and filtering UI
 
-### Planned: Automated Scraping via API
+### Automated Scraping via API
 
-Create a Vercel API endpoint (`/api/scrape`) to be triggered by cron-job.org for free scheduled updates. Considerations:
-- Add secret token authentication to protect the endpoint
-- Handle Vercel timeout limits (10s hobby / 60s pro) - may need to optimize or chunk work
+The `/api/scrape` endpoint runs the full scraper and uploads to Vercel Blob:
+- **Authentication**: Requires `?token=SCRAPER_SECRET` query parameter
+- **Trigger**: Set up cron-job.org to call daily at 6:00 AM UTC
+- **Storage**: Uploads JSON to Vercel Blob (free tier: 250 MB)
+- **Timeout**: Configured for 60s max (scraper runs ~5s)
+
+**Environment Variables** (set in Vercel dashboard):
+- `SCRAPER_SECRET`: Random token for API auth (`openssl rand -hex 32`)
+- `BLOB_READ_WRITE_TOKEN`: Auto-created when adding Vercel Blob
+- `BLOB_URL`: Set to blob URL after first scrape run
 
 ### Planned: CDN for Data Storage
 

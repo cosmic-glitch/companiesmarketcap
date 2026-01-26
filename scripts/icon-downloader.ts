@@ -16,8 +16,8 @@ interface DownloadResult {
 }
 
 // Get all company symbols from JSON data
-function getSymbols(): string[] {
-  const { companies } = getCompanies({ limit: 10000, sortBy: "rank", sortOrder: "asc" });
+async function getSymbols(): Promise<string[]> {
+  const { companies } = await getCompanies({ limit: 10000, sortBy: "rank", sortOrder: "asc" });
   return companies.map((c) => c.symbol);
 }
 
@@ -113,7 +113,7 @@ export async function downloadAllIcons(options: { skipExisting?: boolean } = {})
   }
 
   // Get symbols from JSON data
-  const symbols = getSymbols();
+  const symbols = await getSymbols();
   console.log(`Found ${symbols.length} companies`);
   console.log(`Skip existing: ${skipExisting}`);
   console.log(`Concurrency: ${CONCURRENCY} parallel downloads\n`);

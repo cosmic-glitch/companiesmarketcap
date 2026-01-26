@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Company } from "@/lib/types";
-import { formatMarketCap, formatPrice, formatPercent, formatPERatio, cn } from "@/lib/utils";
+import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 
 // Company logo component with fallback
 function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
@@ -89,10 +89,16 @@ interface FilterState {
   maxEarnings: string;
   minPERatio: string;
   maxPERatio: string;
+  minForwardPE: string;
+  maxForwardPE: string;
   minDividend: string;
   maxDividend: string;
   minOperatingMargin: string;
   maxOperatingMargin: string;
+  minRevenueGrowth: string;
+  maxRevenueGrowth: string;
+  minEPSGrowth: string;
+  maxEPSGrowth: string;
 }
 
 type SortKey = keyof Company;
@@ -162,10 +168,16 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     maxEarnings: searchParams.get("maxEarnings") || "",
     minPERatio: searchParams.get("minPERatio") || "",
     maxPERatio: searchParams.get("maxPERatio") || "",
+    minForwardPE: searchParams.get("minForwardPE") || "",
+    maxForwardPE: searchParams.get("maxForwardPE") || "",
     minDividend: searchParams.get("minDividend") || "",
     maxDividend: searchParams.get("maxDividend") || "",
     minOperatingMargin: searchParams.get("minOperatingMargin") || "",
     maxOperatingMargin: searchParams.get("maxOperatingMargin") || "",
+    minRevenueGrowth: searchParams.get("minRevenueGrowth") || "",
+    maxRevenueGrowth: searchParams.get("maxRevenueGrowth") || "",
+    minEPSGrowth: searchParams.get("minEPSGrowth") || "",
+    maxEPSGrowth: searchParams.get("maxEPSGrowth") || "",
   }), [searchParams]);
 
   const [pendingFilters, setPendingFilters] = useState<FilterState>(getInitialFilters);
@@ -220,10 +232,16 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
       maxEarnings: "",
       minPERatio: "",
       maxPERatio: "",
+      minForwardPE: "",
+      maxForwardPE: "",
       minDividend: "",
       maxDividend: "",
       minOperatingMargin: "",
       maxOperatingMargin: "",
+      minRevenueGrowth: "",
+      maxRevenueGrowth: "",
+      minEPSGrowth: "",
+      maxEPSGrowth: "",
     };
     setPendingFilters(emptyFilters);
 
@@ -245,8 +263,11 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     "minMarketCap", "maxMarketCap",
     "minEarnings", "maxEarnings",
     "minPERatio", "maxPERatio",
+    "minForwardPE", "maxForwardPE",
     "minDividend", "maxDividend",
-    "minOperatingMargin", "maxOperatingMargin"
+    "minOperatingMargin", "maxOperatingMargin",
+    "minRevenueGrowth", "maxRevenueGrowth",
+    "minEPSGrowth", "maxEPSGrowth"
   ].some(key => searchParams.has(key));
 
   // Check if pending filters are different from URL filters
@@ -265,7 +286,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     <div className="w-full">
       {/* Filter Panel */}
       <div className="mb-4 bg-bg-secondary border border-border-subtle rounded-2xl p-5 shadow-lg">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-4">
           <FilterInput
             label="Market Cap"
             minKey="minMarketCap"
@@ -306,6 +327,33 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             label="Operating Margin %"
             minKey="minOperatingMargin"
             maxKey="maxOperatingMargin"
+            placeholder="%"
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
+            label="Forward P/E"
+            minKey="minForwardPE"
+            maxKey="maxForwardPE"
+            placeholder=""
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
+            label="5Y Rev Growth %"
+            minKey="minRevenueGrowth"
+            maxKey="maxRevenueGrowth"
+            placeholder="%"
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
+            label="5Y EPS Growth %"
+            minKey="minEPSGrowth"
+            maxKey="maxEPSGrowth"
             placeholder="%"
             pendingFilters={pendingFilters}
             updateFilter={updateFilter}
@@ -401,6 +449,24 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
               >
                 Op. Margin <SortIndicator columnKey="operatingMargin" />
               </th>
+              <th
+                onClick={() => handleSort("forwardPE")}
+                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+              >
+                Fwd P/E <SortIndicator columnKey="forwardPE" />
+              </th>
+              <th
+                onClick={() => handleSort("revenueGrowth5Y")}
+                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+              >
+                5Y Rev <SortIndicator columnKey="revenueGrowth5Y" />
+              </th>
+              <th
+                onClick={() => handleSort("epsGrowth5Y")}
+                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+              >
+                5Y EPS <SortIndicator columnKey="epsGrowth5Y" />
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
@@ -447,6 +513,15 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
                   {formatPercent(company.operatingMargin)}
+                </td>
+                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                  {formatPERatio(company.forwardPE)}
+                </td>
+                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                  {formatCAGR(company.revenueGrowth5Y)}
+                </td>
+                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                  {formatCAGR(company.epsGrowth5Y)}
                 </td>
               </tr>
             ))}
