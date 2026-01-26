@@ -24,71 +24,6 @@ export interface Company {
   lastUpdated: string;
 }
 
-// CSV row types for parsing
-export interface MarketCapCSVRow {
-  Rank: string;
-  Name: string;
-  Symbol: string;
-  marketcap: string;
-  "price (USD)": string;
-  country: string;
-}
-
-export interface EarningsCSVRow {
-  Rank: string;
-  Name: string;
-  Symbol: string;
-  Earnings: string;
-  Price: string;
-  Today: string;
-  "Price (30 days)": string;
-  Country: string;
-}
-
-export interface RevenueCSVRow {
-  Rank: string;
-  Name: string;
-  Symbol: string;
-  Revenue: string;
-  Price: string;
-  Today: string;
-  "Price (30 days)": string;
-  Country: string;
-}
-
-export interface PERatioCSVRow {
-  Rank: string;
-  Name: string;
-  Symbol: string;
-  "P/E ratio": string;
-  Price: string;
-  Today: string;
-  "Price (30 days)": string;
-  Country: string;
-}
-
-export interface DividendCSVRow {
-  Rank: string;
-  Name: string;
-  Symbol: string;
-  "Dividend %": string;
-  Price: string;
-  Today: string;
-  "Price (30 days)": string;
-  Country: string;
-}
-
-export interface OperatingMarginCSVRow {
-  Rank: string;
-  Name: string;
-  Symbol: string;
-  "Operating Margin": string;
-  Price: string;
-  Today: string;
-  "Price (30 days)": string;
-  Country: string;
-}
-
 // API query parameters
 export interface CompaniesQueryParams {
   search?: string;
@@ -123,7 +58,7 @@ export interface CompaniesResponse {
   lastUpdated?: string;
 }
 
-// Database types
+// Database types (JSON storage format)
 export interface DatabaseCompany {
   symbol: string;
   name: string;
@@ -134,29 +69,11 @@ export interface DatabaseCompany {
   earnings: number | null;
   revenue: number | null;
   pe_ratio: number | null;
+  forward_pe: number | null;
   dividend_percent: number | null;
   operating_margin: number | null;
+  revenue_growth_5y: number | null;
+  eps_growth_5y: number | null;
   country: string;
   last_updated: string;
-}
-
-// CSV source configuration
-export interface CSVSource {
-  name: string;
-  url: string;
-  metricField?: string;
-}
-
-// FMP API data types
-export interface FMPCompanyData {
-  symbol: string;
-  revenueGrowth5Y: number | null; // 5-year CAGR
-  epsGrowth5Y: number | null; // 5-year CAGR
-  forwardPE: number | null;
-  lastUpdated: string;
-}
-
-export interface FMPDataStore {
-  companies: Record<string, FMPCompanyData>;
-  lastUpdated: string;
 }

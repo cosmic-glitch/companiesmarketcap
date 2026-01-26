@@ -185,7 +185,7 @@ export default async function Home({ searchParams }: HomeProps) {
               : "Prices just updated"}
           </p>
           <p className="text-sm text-text-muted">
-            Data sourced from companiesmarketcap.com
+            Data sourced from Financial Modeling Prep API
           </p>
         </footer>
       </div>

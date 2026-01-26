@@ -1,9 +1,8 @@
 import path from "path";
 import fs from "fs";
-import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote, FMPDataStore } from "./types";
+import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote } from "./types";
 
 const jsonPath = path.join(process.cwd(), "data", "companies.json");
-const fmpDataPath = path.join(process.cwd(), "data", "fmp-data.json");
 
 // JSON data structure
 interface JsonData {
@@ -14,7 +13,6 @@ interface JsonData {
 
 // Cache for blob data to avoid repeated fetches within a request
 let blobDataCache: { data: JsonData; fetchedAt: number } | null = null;
-let fmpDataCache: { data: FMPDataStore; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
 
 // Convert JSON record to Company type
@@ -29,11 +27,11 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     earnings: row.earnings,
     revenue: row.revenue,
     peRatio: row.pe_ratio,
-    forwardPE: null, // Will be filled from FMP data
+    forwardPE: row.forward_pe ?? null,
     dividendPercent: row.dividend_percent,
     operatingMargin: row.operating_margin,
-    revenueGrowth5Y: null, // Will be filled from FMP data
-    epsGrowth5Y: null, // Will be filled from FMP data
+    revenueGrowth5Y: row.revenue_growth_5y ?? null,
+    epsGrowth5Y: row.eps_growth_5y ?? null,
     country: row.country,
     lastUpdated: row.last_updated,
   };
@@ -51,8 +49,11 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     earnings: company.earnings ?? null,
     revenue: company.revenue ?? null,
     pe_ratio: company.peRatio ?? null,
+    forward_pe: company.forwardPE ?? null,
     dividend_percent: company.dividendPercent ?? null,
     operating_margin: company.operatingMargin ?? null,
+    revenue_growth_5y: company.revenueGrowth5Y ?? null,
+    eps_growth_5y: company.epsGrowth5Y ?? null,
     country: company.country || "United States",
     last_updated: lastUpdated,
   };
@@ -92,46 +93,6 @@ function loadJsonDataSync(): JsonData {
   return JSON.parse(data);
 }
 
-// Load FMP data from Vercel Blob or local file
-async function loadFMPDataAsync(): Promise<FMPDataStore | null> {
-  const fmpBlobUrl = process.env.FMP_BLOB_URL;
-
-  if (fmpBlobUrl) {
-    // Check cache first
-    if (fmpDataCache && Date.now() - fmpDataCache.fetchedAt < CACHE_TTL_MS) {
-      return fmpDataCache.data;
-    }
-
-    try {
-      const response = await fetch(fmpBlobUrl, {
-        next: { revalidate: 3600 }, // Cache for 1 hour in Next.js
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        fmpDataCache = { data, fetchedAt: Date.now() };
-        return data;
-      }
-    } catch {
-      // Fall through to local file
-    }
-  }
-
-  // Fallback to local file
-  if (fs.existsSync(fmpDataPath)) {
-    try {
-      const data = fs.readFileSync(fmpDataPath, "utf-8");
-      const parsed = JSON.parse(data);
-      fmpDataCache = { data: parsed, fetchedAt: Date.now() };
-      return parsed;
-    } catch {
-      return null;
-    }
-  }
-
-  return null;
-}
-
 // Write companies to JSON file (used by scraper)
 export function writeCompanies(
   companies: Array<Partial<Company> & { symbol: string }>,
@@ -162,28 +123,9 @@ export async function getCompanies(
   params: CompaniesQueryParams = {},
   quotes?: Map<string, PriceQuote>
 ): Promise<{ companies: Company[]; total: number }> {
-  const [jsonData, fmpData] = await Promise.all([
-    loadJsonDataAsync(),
-    loadFMPDataAsync(),
-  ]);
+  const jsonData = await loadJsonDataAsync();
 
   let companies = jsonData.companies.map(dbRowToCompany);
-
-  // Merge FMP data (growth metrics and forward PE)
-  if (fmpData?.companies) {
-    companies = companies.map((company) => {
-      const fmp = fmpData.companies[company.symbol];
-      if (fmp) {
-        return {
-          ...company,
-          forwardPE: fmp.forwardPE,
-          revenueGrowth5Y: fmp.revenueGrowth5Y,
-          epsGrowth5Y: fmp.epsGrowth5Y,
-        };
-      }
-      return company;
-    });
-  }
 
   // If quotes provided, merge live data into companies
   if (quotes) {

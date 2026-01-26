@@ -7,17 +7,20 @@ test.describe('Company Table with Pagination', () => {
     await page.waitForSelector('table');
   });
 
-  test('should display all 5 filter input groups', async ({ page }) => {
+  test('should display all 8 filter input groups', async ({ page }) => {
     // Check that all filter labels are present
     await expect(page.locator('label:has-text("Market Cap")')).toBeVisible();
     await expect(page.locator('label:has-text("Earnings (TTM)")')).toBeVisible();
     await expect(page.locator('label:has-text("P/E Ratio")')).toBeVisible();
     await expect(page.locator('label:has-text("Dividend Yield %")')).toBeVisible();
     await expect(page.locator('label:has-text("Operating Margin %")')).toBeVisible();
+    await expect(page.locator('label:has-text("Forward P/E")')).toBeVisible();
+    await expect(page.locator('label:has-text("5Y Rev Growth %")')).toBeVisible();
+    await expect(page.locator('label:has-text("5Y EPS Growth %")')).toBeVisible();
 
-    // Check that input fields are present (2 per filter: min and max = 10 total)
+    // Check that input fields are present (2 per filter: min and max = 16 total)
     const inputs = page.locator('input[type="number"]');
-    await expect(inputs).toHaveCount(10);
+    await expect(inputs).toHaveCount(16);
   });
 
   test('should show pagination with correct format', async ({ page }) => {
@@ -220,7 +223,7 @@ test.describe('Company Table with Pagination', () => {
 
   test('should display data source in footer', async ({ page }) => {
     // Check that footer with data source is visible
-    await expect(page.locator('text=Data sourced from companiesmarketcap.com')).toBeVisible();
+    await expect(page.locator('text=Data sourced from Financial Modeling Prep API')).toBeVisible();
   });
 
   test('should maintain responsive grid layout for filters', async ({ page }) => {
@@ -228,10 +231,11 @@ test.describe('Company Table with Pagination', () => {
     const filterGrid = page.locator('.grid.grid-cols-2').first();
     await expect(filterGrid).toBeVisible();
 
-    // Verify grid has correct responsive classes (6 columns: 5 filters + Apply button)
+    // Verify grid has correct responsive classes (9 columns: 8 filters + Apply button)
     const gridClasses = await filterGrid.getAttribute('class');
     expect(gridClasses).toContain('md:grid-cols-3');
-    expect(gridClasses).toContain('lg:grid-cols-6');
+    expect(gridClasses).toContain('lg:grid-cols-4');
+    expect(gridClasses).toContain('xl:grid-cols-9');
   });
 
   test('should have proper hover states on table rows', async ({ page }) => {

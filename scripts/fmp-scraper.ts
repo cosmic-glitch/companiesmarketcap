@@ -1,0 +1,571 @@
+/**
+ * FMP Unified Scraper
+ *
+ * Fetches all company data from Financial Modeling Prep API:
+ * - Stock list (US actively trading stocks)
+ * - Batch quotes (price, market cap, PE ratio, daily change)
+ * - Batch profiles (name, country)
+ * - Quarterly income statements (TTM revenue, earnings, operating margin)
+ * - Ratios TTM (dividend yield)
+ * - Financial growth (5Y revenue/EPS growth)
+ * - Analyst estimates (forward PE)
+ *
+ * Run with: npm run scrape
+ */
+
+import axios from "axios";
+import fs from "fs";
+import path from "path";
+import { put } from "@vercel/blob";
+import { DatabaseCompany } from "../lib/types";
+
+// Load from .env.local if present
+const envPath = path.join(process.cwd(), ".env.local");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf-8");
+  envContent.split("\n").forEach((line) => {
+    const [key, ...valueParts] = line.split("=");
+    if (key && valueParts.length > 0) {
+      const value = valueParts.join("=").replace(/^["']|["']$/g, "");
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  });
+}
+
+const FMP_API_KEY = process.env.FMP_API_KEY;
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+const BASE_URL = "https://financialmodelingprep.com/stable";
+
+// Batch size for API requests
+const QUOTE_BATCH_SIZE = 500;
+const PROFILE_BATCH_SIZE = 500;
+const CONCURRENT_REQUESTS = 1; // Sequential requests to respect rate limits
+const RATE_LIMIT_DELAY_MS = 250; // ~240 requests/minute, under the 300/min limit
+const RATE_LIMIT_PAUSE_MS = 60000; // Pause 60s when rate limited
+
+// FMP API response types
+interface FMPScreenerResult {
+  symbol: string;
+  companyName: string;
+  marketCap: number;
+  price: number;
+  volume: number;
+  exchange: string;
+  country: string;
+}
+
+interface FMPQuote {
+  symbol: string;
+  name: string;
+  price: number;
+  changePercentage: number;
+  marketCap: number;
+}
+
+interface FMPProfile {
+  symbol: string;
+  companyName: string;
+  country: string;
+  price: number;
+}
+
+interface FMPIncomeStatement {
+  symbol: string;
+  date: string;
+  period: string;
+  revenue: number;
+  netIncome: number;
+  operatingIncome: number;
+}
+
+interface FMPRatiosTTM {
+  symbol: string;
+  priceToEarningsRatioTTM: number | null;
+  dividendYieldTTM: number | null;
+}
+
+interface FMPFinancialGrowth {
+  symbol: string;
+  fiveYRevenueGrowthPerShare: number | null;
+  fiveYNetIncomeGrowthPerShare: number | null;
+}
+
+interface FMPAnalystEstimate {
+  symbol: string;
+  date: string;
+  epsAvg: number;
+}
+
+// Accumulated company data
+interface CompanyData {
+  symbol: string;
+  name: string;
+  country: string;
+  marketCap: number | null;
+  price: number | null;
+  dailyChangePercent: number | null;
+  peRatio: number | null;
+  earnings: number | null;
+  revenue: number | null;
+  operatingMargin: number | null;
+  dividendPercent: number | null;
+  forwardPE: number | null;
+  revenueGrowth5Y: number | null;
+  epsGrowth5Y: number | null;
+}
+
+// Convert total 5-year growth to CAGR
+function totalGrowthToCAGR(totalGrowth: number): number {
+  if (totalGrowth <= -1) {
+    return -1;
+  }
+  return Math.pow(1 + totalGrowth, 1 / 5) - 1;
+}
+
+// Sleep utility
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Fetch US stock symbols from existing companies.json or use stock/list endpoint
+async function fetchUSStocks(): Promise<string[]> {
+  console.log("Fetching US stock list...");
+
+  // Load existing symbols from companies.json
+  const jsonPath = path.join(process.cwd(), "data", "companies.json");
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      if (data.companies && Array.isArray(data.companies)) {
+        const symbols = data.companies.map((c: any) => c.symbol);
+        console.log(`Loaded ${symbols.length} symbols from existing companies.json`);
+        return symbols;
+      }
+    } catch (error) {
+      console.log("Could not load existing companies.json, fetching from API...");
+    }
+  }
+
+  // Fallback: fetch from stock/list endpoint and filter for major US exchanges
+  const url = `${BASE_URL}/stock/list?apikey=${FMP_API_KEY}`;
+  const response = await axios.get<any[]>(url, { timeout: 60000 });
+
+  if (!response.data || !Array.isArray(response.data)) {
+    throw new Error("Failed to fetch stock list");
+  }
+
+  // Filter to US exchanges (NASDAQ, NYSE, AMEX) and exclude non-standard symbols
+  const usExchanges = ["NASDAQ", "NYSE", "AMEX", "New York Stock Exchange", "Nasdaq Global Select"];
+  const symbols = response.data
+    .filter((stock) => {
+      const exchange = stock.exchangeShortName || stock.exchange || "";
+      return usExchanges.some(e => exchange.toUpperCase().includes(e.toUpperCase()));
+    })
+    .map((stock) => stock.symbol)
+    .filter((s: string) => !s.includes(".") && !s.includes("-") && s.length <= 5); // Standard ticker format
+
+  console.log(`Found ${symbols.length} US stocks from stock/list endpoint`);
+  return symbols;
+}
+
+// Fetch single quote
+async function fetchQuote(symbol: string): Promise<FMPQuote | null> {
+  const url = `${BASE_URL}/quote?symbol=${symbol}&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPQuote[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    return response.data[0];
+  }
+  return null;
+}
+
+// Fetch quotes for all symbols (one at a time with concurrency)
+async function fetchBatchQuotes(symbols: string[]): Promise<Map<string, FMPQuote>> {
+  console.log(`Fetching quotes for ${symbols.length} symbols...`);
+  return processSymbolsBatch(symbols, fetchQuote, "Quotes") as Promise<Map<string, FMPQuote>>;
+}
+
+// Fetch single profile
+async function fetchProfile(symbol: string): Promise<FMPProfile | null> {
+  const url = `${BASE_URL}/profile?symbol=${symbol}&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPProfile[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    return response.data[0];
+  }
+  return null;
+}
+
+// Fetch profiles for all symbols (one at a time with concurrency)
+async function fetchBatchProfiles(symbols: string[]): Promise<Map<string, FMPProfile>> {
+  console.log(`Fetching profiles for ${symbols.length} symbols...`);
+  return processSymbolsBatch(symbols, fetchProfile, "Profiles") as Promise<Map<string, FMPProfile>>;
+}
+
+// Fetch quarterly income statements for a symbol (returns last 4 quarters)
+async function fetchQuarterlyIncome(symbol: string): Promise<FMPIncomeStatement[] | null> {
+  const url = `${BASE_URL}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPIncomeStatement[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    return response.data;
+  }
+  return null;
+}
+
+// Fetch ratios TTM for a symbol
+async function fetchRatiosTTM(symbol: string): Promise<FMPRatiosTTM | null> {
+  const url = `${BASE_URL}/ratios-ttm?symbol=${symbol}&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPRatiosTTM[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    return response.data[0];
+  }
+  return null;
+}
+
+// Fetch financial growth for a symbol
+async function fetchFinancialGrowth(symbol: string): Promise<FMPFinancialGrowth | null> {
+  const url = `${BASE_URL}/financial-growth?symbol=${symbol}&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPFinancialGrowth[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    return response.data[0];
+  }
+  return null;
+}
+
+// Fetch analyst estimates for a symbol
+async function fetchAnalystEstimates(symbol: string): Promise<FMPAnalystEstimate | null> {
+  const url = `${BASE_URL}/analyst-estimates?symbol=${symbol}&period=annual&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPAnalystEstimate[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    const currentYear = new Date().getFullYear();
+    // Get estimate for current or next year
+    const estimate = response.data.find((est) => {
+      const estYear = new Date(est.date).getFullYear();
+      return estYear === currentYear || estYear === currentYear + 1;
+    });
+    return estimate || response.data[0];
+  }
+  return null;
+}
+
+// Process a batch of symbols concurrently for individual endpoints
+async function fetchWithRetry(
+  symbol: string,
+  fetchFn: (symbol: string) => Promise<any>,
+  maxRetries: number = 3
+): Promise<{ symbol: string; data: any; rateLimited: boolean }> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const data = await fetchFn(symbol);
+      return { symbol, data, rateLimited: false };
+    } catch (error: any) {
+      if (error.response?.status === 429) {
+        // Rate limited - signal to pause
+        return { symbol, data: null, rateLimited: true };
+      }
+      // Other error - retry after short delay
+      if (attempt < maxRetries - 1) {
+        await sleep(1000);
+      }
+    }
+  }
+  return { symbol, data: null, rateLimited: false };
+}
+
+async function processSymbolsBatch(
+  symbols: string[],
+  fetchFn: (symbol: string) => Promise<any>,
+  description: string
+): Promise<Map<string, any>> {
+  const results = new Map<string, any>();
+  let processed = 0;
+  let successCount = 0;
+  let rateLimitPauses = 0;
+
+  // Process sequentially to respect rate limits
+  for (let i = 0; i < symbols.length; i++) {
+    const symbol = symbols[i];
+    const result = await fetchWithRetry(symbol, fetchFn);
+
+    if (result.rateLimited) {
+      // Rate limited - pause and retry
+      rateLimitPauses++;
+      console.log(`  Rate limited. Pausing for 60s... (pause #${rateLimitPauses})`);
+      await sleep(RATE_LIMIT_PAUSE_MS);
+      // Retry this symbol
+      i--;
+      continue;
+    }
+
+    if (result.data) {
+      results.set(symbol, result.data);
+      successCount++;
+    }
+
+    processed++;
+
+    // Progress update every 100 symbols
+    if (processed % 100 === 0 || processed === symbols.length) {
+      const elapsed = Math.round((Date.now() - globalStartTime) / 1000 / 60);
+      console.log(
+        `  ${description}: ${processed}/${symbols.length} (${Math.round((processed / symbols.length) * 100)}%) - success: ${successCount} - ${elapsed}m elapsed`
+      );
+    }
+
+    // Delay between requests to stay under rate limit
+    await sleep(RATE_LIMIT_DELAY_MS);
+  }
+
+  return results;
+}
+
+// Global start time for elapsed time tracking
+let globalStartTime = Date.now();
+
+// Main scraper function
+async function runFMPScraper(): Promise<{
+  companies: DatabaseCompany[];
+  lastUpdated: string;
+}> {
+  console.log("\n========================================");
+  console.log("  FMP Unified Scraper");
+  console.log("========================================\n");
+
+  globalStartTime = Date.now();
+  const startTime = Date.now();
+
+  // Step 1: Get US stock list
+  const allSymbols = await fetchUSStocks();
+
+  // Estimate time: ~250ms per request, 6 endpoints per symbol
+  const estimatedMinutes = Math.round((allSymbols.length * 6 * RATE_LIMIT_DELAY_MS) / 1000 / 60);
+  console.log(`Estimated time: ~${estimatedMinutes} minutes for ${allSymbols.length} symbols\n`);
+
+  // Step 2: Fetch batch quotes
+  const quotes = await fetchBatchQuotes(allSymbols);
+  console.log(`  Got quotes for ${quotes.size} symbols\n`);
+
+  // Filter to symbols that have valid quotes and market cap
+  const validSymbols = allSymbols.filter((s) => {
+    const quote = quotes.get(s);
+    return quote && quote.marketCap && quote.marketCap > 0;
+  });
+  console.log(`Valid symbols after quote filter: ${validSymbols.length}\n`);
+
+  // Step 3: Fetch batch profiles
+  const profiles = await fetchBatchProfiles(validSymbols);
+  console.log(`  Got profiles for ${profiles.size} symbols\n`);
+
+  // Step 4: Fetch individual data (income statements, ratios, growth, estimates)
+  console.log("Fetching quarterly income statements...");
+  const incomeStatements = await processSymbolsBatch(validSymbols, fetchQuarterlyIncome, "Income statements");
+  console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
+
+  console.log("Fetching ratios TTM...");
+  const ratios = await processSymbolsBatch(validSymbols, fetchRatiosTTM, "Ratios TTM");
+  console.log(`  Got ratios for ${ratios.size} symbols\n`);
+
+  console.log("Fetching financial growth...");
+  const growth = await processSymbolsBatch(validSymbols, fetchFinancialGrowth, "Financial growth");
+  console.log(`  Got growth data for ${growth.size} symbols\n`);
+
+  console.log("Fetching analyst estimates...");
+  const estimates = await processSymbolsBatch(validSymbols, fetchAnalystEstimates, "Analyst estimates");
+  console.log(`  Got estimates for ${estimates.size} symbols\n`);
+
+  // Step 5: Build company data
+  console.log("Building company data...");
+  const companies: CompanyData[] = [];
+
+  for (const symbol of validSymbols) {
+    const quote = quotes.get(symbol);
+    const profile = profiles.get(symbol);
+    const quarterlyIncome = incomeStatements.get(symbol) as FMPIncomeStatement[] | undefined;
+    const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
+    const growthData = growth.get(symbol) as FMPFinancialGrowth | undefined;
+    const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
+
+    if (!quote) continue;
+
+    // Calculate TTM values from quarterly income statements
+    let ttmRevenue: number | null = null;
+    let ttmEarnings: number | null = null;
+    let ttmOperatingMargin: number | null = null;
+
+    if (quarterlyIncome && quarterlyIncome.length > 0) {
+      const revenue = quarterlyIncome.reduce((sum, q) => sum + (q.revenue || 0), 0);
+      const netIncome = quarterlyIncome.reduce((sum, q) => sum + (q.netIncome || 0), 0);
+      const operatingIncome = quarterlyIncome.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
+
+      if (revenue > 0) {
+        ttmRevenue = revenue;
+        ttmOperatingMargin = operatingIncome / revenue;
+      }
+      if (netIncome !== 0) {
+        ttmEarnings = netIncome;
+      }
+    }
+
+    // Calculate forward PE from current price / next year EPS estimate
+    let forwardPE: number | null = null;
+    if (quote.price && estimate?.epsAvg && estimate.epsAvg > 0) {
+      forwardPE = quote.price / estimate.epsAvg;
+    }
+
+    // Calculate growth metrics (convert total growth to CAGR)
+    let revenueGrowth5Y: number | null = null;
+    let epsGrowth5Y: number | null = null;
+
+    if (growthData) {
+      if (growthData.fiveYRevenueGrowthPerShare !== null && growthData.fiveYRevenueGrowthPerShare !== undefined) {
+        revenueGrowth5Y = totalGrowthToCAGR(growthData.fiveYRevenueGrowthPerShare);
+      }
+      if (growthData.fiveYNetIncomeGrowthPerShare !== null && growthData.fiveYNetIncomeGrowthPerShare !== undefined) {
+        epsGrowth5Y = totalGrowthToCAGR(growthData.fiveYNetIncomeGrowthPerShare);
+      }
+    }
+
+    companies.push({
+      symbol,
+      name: profile?.companyName || quote.name || symbol,
+      country: profile?.country || "United States",
+      marketCap: quote.marketCap,
+      price: quote.price,
+      dailyChangePercent: quote.changePercentage,
+      peRatio: ratio?.priceToEarningsRatioTTM ?? null,
+      earnings: ttmEarnings,
+      revenue: ttmRevenue,
+      operatingMargin: ttmOperatingMargin,
+      dividendPercent: ratio?.dividendYieldTTM ?? null,
+      forwardPE,
+      revenueGrowth5Y,
+      epsGrowth5Y,
+    });
+  }
+
+  // Step 6: Sort by market cap and assign ranks
+  companies.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+  companies.forEach((c, i) => {
+    (c as any).rank = i + 1;
+  });
+
+  // Step 7: Convert to DatabaseCompany format
+  const timestamp = new Date().toISOString();
+  const dbCompanies: DatabaseCompany[] = companies.map((c) => ({
+    symbol: c.symbol,
+    name: c.name,
+    rank: (c as any).rank,
+    market_cap: c.marketCap,
+    price: c.price,
+    daily_change_percent: c.dailyChangePercent,
+    earnings: c.earnings,
+    revenue: c.revenue,
+    pe_ratio: c.peRatio,
+    forward_pe: c.forwardPE,
+    dividend_percent: c.dividendPercent,
+    operating_margin: c.operatingMargin,
+    revenue_growth_5y: c.revenueGrowth5Y,
+    eps_growth_5y: c.epsGrowth5Y,
+    country: c.country,
+    last_updated: timestamp,
+  }));
+
+  // Summary stats
+  const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
+  const stats = {
+    total: dbCompanies.length,
+    withEarnings: dbCompanies.filter((c) => c.earnings !== null).length,
+    withRevenue: dbCompanies.filter((c) => c.revenue !== null).length,
+    withPERatio: dbCompanies.filter((c) => c.pe_ratio !== null).length,
+    withDividend: dbCompanies.filter((c) => c.dividend_percent !== null).length,
+    withMargin: dbCompanies.filter((c) => c.operating_margin !== null).length,
+    withForwardPE: dbCompanies.filter((c) => c.forward_pe !== null).length,
+    withRevenueGrowth: dbCompanies.filter((c) => c.revenue_growth_5y !== null).length,
+    withEPSGrowth: dbCompanies.filter((c) => c.eps_growth_5y !== null).length,
+  };
+
+  console.log("\n========================================");
+  console.log("  Summary");
+  console.log("========================================\n");
+  console.log(`Total companies:        ${stats.total}`);
+  console.log(`With earnings:          ${stats.withEarnings} (${Math.round((stats.withEarnings / stats.total) * 100)}%)`);
+  console.log(`With revenue:           ${stats.withRevenue} (${Math.round((stats.withRevenue / stats.total) * 100)}%)`);
+  console.log(`With P/E ratio:         ${stats.withPERatio} (${Math.round((stats.withPERatio / stats.total) * 100)}%)`);
+  console.log(`With dividend:          ${stats.withDividend} (${Math.round((stats.withDividend / stats.total) * 100)}%)`);
+  console.log(`With operating margin:  ${stats.withMargin} (${Math.round((stats.withMargin / stats.total) * 100)}%)`);
+  console.log(`With forward PE:        ${stats.withForwardPE} (${Math.round((stats.withForwardPE / stats.total) * 100)}%)`);
+  console.log(`With revenue growth 5Y: ${stats.withRevenueGrowth} (${Math.round((stats.withRevenueGrowth / stats.total) * 100)}%)`);
+  console.log(`With EPS growth 5Y:     ${stats.withEPSGrowth} (${Math.round((stats.withEPSGrowth / stats.total) * 100)}%)`);
+  console.log(`\nDuration: ${duration} minutes`);
+
+  return {
+    companies: dbCompanies,
+    lastUpdated: timestamp,
+  };
+}
+
+// Export for use in API route
+export { runFMPScraper };
+
+// Main function for CLI
+async function main() {
+  if (!FMP_API_KEY) {
+    console.error("Error: FMP_API_KEY not found in environment");
+    console.error("Please set it in .env.local or environment variables");
+    process.exit(1);
+  }
+
+  const { companies, lastUpdated } = await runFMPScraper();
+
+  // Write to local JSON file
+  const jsonPath = path.join(process.cwd(), "data", "companies.json");
+  const jsonData = {
+    companies,
+    lastUpdated,
+    exportedAt: lastUpdated,
+  };
+
+  // Ensure data directory exists
+  const dataDir = path.dirname(jsonPath);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2));
+  console.log(`\nWrote ${companies.length} companies to data/companies.json`);
+
+  // Upload to Vercel Blob if token is available
+  if (BLOB_TOKEN) {
+    console.log("\nUploading to Vercel Blob...");
+    try {
+      const blob = await put("companies.json", JSON.stringify(jsonData), {
+        access: "public",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        token: BLOB_TOKEN,
+      });
+      console.log(`Uploaded to: ${blob.url}`);
+    } catch (error: any) {
+      console.error("Failed to upload to Vercel Blob:", error.message);
+    }
+  }
+
+  console.log("\nFMP scraper complete!");
+}
+
+// Run if called directly (not imported)
+const isMainModule = typeof require !== 'undefined' && require.main === module;
+const isDirectRun = process.argv[1]?.includes('fmp-scraper');
+
+if (isMainModule || isDirectRun) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
