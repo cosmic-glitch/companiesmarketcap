@@ -376,7 +376,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             applyFilters={applyFilters}
           />
         </div>
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex justify-start gap-2 mt-4">
           <button
             onClick={applyFilters}
             disabled={!hasUnappliedChanges}
