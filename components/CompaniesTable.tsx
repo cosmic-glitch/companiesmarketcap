@@ -383,8 +383,8 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             className={cn(
               "px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300",
               hasUnappliedChanges
-                ? "bg-gradient-accent text-white hover:shadow-glow hover:scale-[1.02]"
-                : "bg-bg-tertiary text-text-muted cursor-not-allowed"
+                ? "bg-accent text-white hover:bg-accent-hover hover:shadow-glow hover:scale-[1.02]"
+                : "bg-[#e0f7fa] text-[#0891b2]/50 cursor-not-allowed"
             )}
           >
             Apply Filters
