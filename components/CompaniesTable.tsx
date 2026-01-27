@@ -519,10 +519,10 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   {formatPERatio(company.forwardPE)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
-                  {formatPercent(company.dividendPercent)}
+                  {formatPercent(company.dividendPercent !== null ? company.dividendPercent * 100 : null)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
-                  {formatPercent(company.operatingMargin)}
+                  {formatPercent(company.operatingMargin !== null ? company.operatingMargin * 100 : null)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
                   {formatCAGR(company.revenueGrowth5Y)}
