@@ -33,6 +33,8 @@ export interface CompaniesQueryParams {
   maxMarketCap?: number;
   minEarnings?: number;
   maxEarnings?: number;
+  minRevenue?: number;
+  maxRevenue?: number;
   minPERatio?: number;
   maxPERatio?: number;
   minForwardPE?: number;

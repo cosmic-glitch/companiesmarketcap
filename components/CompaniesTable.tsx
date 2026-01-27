@@ -87,6 +87,8 @@ interface FilterState {
   maxMarketCap: string;
   minEarnings: string;
   maxEarnings: string;
+  minRevenue: string;
+  maxRevenue: string;
   minPERatio: string;
   maxPERatio: string;
   minForwardPE: string;
@@ -166,6 +168,8 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     maxMarketCap: searchParams.get("maxMarketCap") || "",
     minEarnings: searchParams.get("minEarnings") || "",
     maxEarnings: searchParams.get("maxEarnings") || "",
+    minRevenue: searchParams.get("minRevenue") || "",
+    maxRevenue: searchParams.get("maxRevenue") || "",
     minPERatio: searchParams.get("minPERatio") || "",
     maxPERatio: searchParams.get("maxPERatio") || "",
     minForwardPE: searchParams.get("minForwardPE") || "",
@@ -230,6 +234,8 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
       maxMarketCap: "",
       minEarnings: "",
       maxEarnings: "",
+      minRevenue: "",
+      maxRevenue: "",
       minPERatio: "",
       maxPERatio: "",
       minForwardPE: "",
@@ -262,6 +268,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
   const hasActiveFilters = [
     "minMarketCap", "maxMarketCap",
     "minEarnings", "maxEarnings",
+    "minRevenue", "maxRevenue",
     "minPERatio", "maxPERatio",
     "minForwardPE", "maxForwardPE",
     "minDividend", "maxDividend",
@@ -286,7 +293,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     <div className="w-full">
       {/* Filter Panel */}
       <div className="mb-4 bg-bg-secondary border border-border-subtle rounded-2xl p-5 shadow-lg">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-9 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
           <FilterInput
             label="Market Cap"
             minKey="minMarketCap"
@@ -306,6 +313,15 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             applyFilters={applyFilters}
           />
           <FilterInput
+            label="Revenue (TTM)"
+            minKey="minRevenue"
+            maxKey="maxRevenue"
+            placeholder="billions"
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
             label="P/E Ratio"
             minKey="minPERatio"
             maxKey="maxPERatio"
@@ -315,25 +331,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             applyFilters={applyFilters}
           />
           <FilterInput
-            label="Dividend Yield %"
-            minKey="minDividend"
-            maxKey="maxDividend"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Operating Margin %"
-            minKey="minOperatingMargin"
-            maxKey="maxOperatingMargin"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Forward P/E"
+            label="Fwd P/E"
             minKey="minForwardPE"
             maxKey="maxForwardPE"
             placeholder=""
@@ -342,7 +340,25 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             applyFilters={applyFilters}
           />
           <FilterInput
-            label="5Y Rev Growth %"
+            label="Div. Yield %"
+            minKey="minDividend"
+            maxKey="maxDividend"
+            placeholder="%"
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
+            label="Op. Margin %"
+            minKey="minOperatingMargin"
+            maxKey="maxOperatingMargin"
+            placeholder="%"
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
+            label="Rev CAGR 5Y"
             minKey="minRevenueGrowth"
             maxKey="maxRevenueGrowth"
             placeholder="%"
@@ -351,7 +367,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             applyFilters={applyFilters}
           />
           <FilterInput
-            label="5Y EPS Growth %"
+            label="EPS CAGR 5Y"
             minKey="minEPSGrowth"
             maxKey="maxEPSGrowth"
             placeholder="%"
@@ -359,28 +375,28 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             updateFilter={updateFilter}
             applyFilters={applyFilters}
           />
-          <div className="flex items-end gap-2">
-            <button
-              onClick={applyFilters}
-              disabled={!hasUnappliedChanges}
-              className={cn(
-                "flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300",
-                hasUnappliedChanges
-                  ? "bg-gradient-accent text-white hover:shadow-glow hover:scale-[1.02]"
-                  : "bg-bg-tertiary text-text-muted cursor-not-allowed"
-              )}
-            >
-              Apply Filters
-            </button>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2.5 text-sm font-medium text-text-secondary bg-bg-tertiary border border-border-subtle rounded-lg hover:bg-bg-hover hover:text-text-primary transition-all duration-300"
-              >
-                Clear
-              </button>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            onClick={applyFilters}
+            disabled={!hasUnappliedChanges}
+            className={cn(
+              "px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300",
+              hasUnappliedChanges
+                ? "bg-gradient-accent text-white hover:shadow-glow hover:scale-[1.02]"
+                : "bg-bg-tertiary text-text-muted cursor-not-allowed"
             )}
-          </div>
+          >
+            Apply Filters
+          </button>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2.5 text-sm font-medium text-text-secondary bg-bg-tertiary border border-border-subtle rounded-lg hover:bg-bg-hover hover:text-text-primary transition-all duration-300"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -389,12 +405,6 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
         <table className="min-w-full">
           <thead className="bg-bg-tertiary/50 border-b border-border-subtle">
             <tr>
-              <th
-                onClick={() => handleSort("rank")}
-                className="px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors w-20"
-              >
-                Rank <SortIndicator columnKey="rank" />
-              </th>
               <th
                 onClick={() => handleSort("name")}
                 className="px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
@@ -438,6 +448,12 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 P/E <SortIndicator columnKey="peRatio" />
               </th>
               <th
+                onClick={() => handleSort("forwardPE")}
+                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+              >
+                Fwd P/E <SortIndicator columnKey="forwardPE" />
+              </th>
+              <th
                 onClick={() => handleSort("dividendPercent")}
                 className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
@@ -447,25 +463,19 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("operatingMargin")}
                 className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
-                Op. Margin <SortIndicator columnKey="operatingMargin" />
-              </th>
-              <th
-                onClick={() => handleSort("forwardPE")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
-              >
-                Fwd P/E <SortIndicator columnKey="forwardPE" />
+                Op. Margin % <SortIndicator columnKey="operatingMargin" />
               </th>
               <th
                 onClick={() => handleSort("revenueGrowth5Y")}
                 className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
-                5Y Rev <SortIndicator columnKey="revenueGrowth5Y" />
+                Rev CAGR 5Y <SortIndicator columnKey="revenueGrowth5Y" />
               </th>
               <th
                 onClick={() => handleSort("epsGrowth5Y")}
                 className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
-                5Y EPS <SortIndicator columnKey="epsGrowth5Y" />
+                EPS CAGR 5Y <SortIndicator columnKey="epsGrowth5Y" />
               </th>
             </tr>
           </thead>
@@ -478,9 +488,6 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   index % 2 === 0 ? "bg-transparent" : "bg-bg-tertiary/10"
                 )}
               >
-                <td className="px-4 py-3.5 whitespace-nowrap text-base w-20">
-                  <RankBadge rank={company.rank} />
-                </td>
                 <td className="px-4 py-3.5 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
@@ -509,13 +516,13 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   {formatPERatio(company.peRatio)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                  {formatPERatio(company.forwardPE)}
+                </td>
+                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
                   {formatPercent(company.dividendPercent)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
                   {formatPercent(company.operatingMargin)}
-                </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
-                  {formatPERatio(company.forwardPE)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
                   {formatCAGR(company.revenueGrowth5Y)}

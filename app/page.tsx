@@ -44,6 +44,8 @@ interface SearchParams {
   maxMarketCap?: string;
   minEarnings?: string;
   maxEarnings?: string;
+  minRevenue?: string;
+  maxRevenue?: string;
   minPERatio?: string;
   maxPERatio?: string;
   minForwardPE?: string;
@@ -95,6 +97,8 @@ export default async function Home({ searchParams }: HomeProps) {
     maxMarketCap: parseNumber(params.maxMarketCap),
     minEarnings: parseNumber(params.minEarnings),
     maxEarnings: parseNumber(params.maxEarnings),
+    minRevenue: parseNumber(params.minRevenue),
+    maxRevenue: parseNumber(params.maxRevenue),
     minPERatio: parseNumber(params.minPERatio),
     maxPERatio: parseNumber(params.maxPERatio),
     minForwardPE: parseNumber(params.minForwardPE),
@@ -122,6 +126,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const hasFilters = !!(
     queryParams.minMarketCap || queryParams.maxMarketCap ||
     queryParams.minEarnings || queryParams.maxEarnings ||
+    queryParams.minRevenue || queryParams.maxRevenue ||
     queryParams.minPERatio || queryParams.maxPERatio ||
     queryParams.minForwardPE || queryParams.maxForwardPE ||
     queryParams.minDividend || queryParams.maxDividend ||

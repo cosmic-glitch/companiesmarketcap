@@ -7,20 +7,21 @@ test.describe('Company Table with Pagination', () => {
     await page.waitForSelector('table');
   });
 
-  test('should display all 8 filter input groups', async ({ page }) => {
+  test('should display all 9 filter input groups', async ({ page }) => {
     // Check that all filter labels are present
     await expect(page.locator('label:has-text("Market Cap")')).toBeVisible();
     await expect(page.locator('label:has-text("Earnings (TTM)")')).toBeVisible();
+    await expect(page.locator('label:has-text("Revenue (TTM)")')).toBeVisible();
     await expect(page.locator('label:has-text("P/E Ratio")')).toBeVisible();
-    await expect(page.locator('label:has-text("Dividend Yield %")')).toBeVisible();
-    await expect(page.locator('label:has-text("Operating Margin %")')).toBeVisible();
-    await expect(page.locator('label:has-text("Forward P/E")')).toBeVisible();
-    await expect(page.locator('label:has-text("5Y Rev Growth %")')).toBeVisible();
-    await expect(page.locator('label:has-text("5Y EPS Growth %")')).toBeVisible();
+    await expect(page.locator('label:has-text("Div. Yield %")')).toBeVisible();
+    await expect(page.locator('label:has-text("Fwd P/E")')).toBeVisible();
+    await expect(page.locator('label:has-text("Op. Margin %")')).toBeVisible();
+    await expect(page.locator('label:has-text("Rev CAGR 5Y")')).toBeVisible();
+    await expect(page.locator('label:has-text("EPS CAGR 5Y")')).toBeVisible();
 
-    // Check that input fields are present (2 per filter: min and max = 16 total)
+    // Check that input fields are present (2 per filter: min and max = 18 total)
     const inputs = page.locator('input[type="number"]');
-    await expect(inputs).toHaveCount(16);
+    await expect(inputs).toHaveCount(18);
   });
 
   test('should show pagination with correct format', async ({ page }) => {
@@ -100,7 +101,6 @@ test.describe('Company Table with Pagination', () => {
 
   test('should display table with company data', async ({ page }) => {
     // Check table headers
-    await expect(page.locator('th:has-text("Rank")')).toBeVisible();
     await expect(page.locator('th:has-text("Name")')).toBeVisible();
     await expect(page.locator('th:has-text("Market cap")')).toBeVisible();
     await expect(page.locator('th:has-text("Price")')).toBeVisible();
@@ -231,10 +231,10 @@ test.describe('Company Table with Pagination', () => {
     const filterGrid = page.locator('.grid.grid-cols-2').first();
     await expect(filterGrid).toBeVisible();
 
-    // Verify grid has correct responsive classes (9 columns: 8 filters + Apply button)
+    // Verify grid has correct responsive classes (9 filters)
     const gridClasses = await filterGrid.getAttribute('class');
     expect(gridClasses).toContain('md:grid-cols-3');
-    expect(gridClasses).toContain('lg:grid-cols-4');
+    expect(gridClasses).toContain('lg:grid-cols-5');
     expect(gridClasses).toContain('xl:grid-cols-9');
   });
 

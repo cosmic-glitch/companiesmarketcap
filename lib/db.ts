@@ -150,6 +150,8 @@ export async function getCompanies(
     maxMarketCap,
     minEarnings,
     maxEarnings,
+    minRevenue,
+    maxRevenue,
     minPERatio,
     maxPERatio,
     minForwardPE,
@@ -194,6 +196,16 @@ export async function getCompanies(
   if (maxEarnings !== undefined) {
     const maxRaw = maxEarnings * 1_000_000_000;
     companies = companies.filter((c) => c.earnings !== null && c.earnings <= maxRaw);
+  }
+
+  // Apply revenue filters (values in billions, stored in raw)
+  if (minRevenue !== undefined) {
+    const minRaw = minRevenue * 1_000_000_000;
+    companies = companies.filter((c) => c.revenue !== null && c.revenue >= minRaw);
+  }
+  if (maxRevenue !== undefined) {
+    const maxRaw = maxRevenue * 1_000_000_000;
+    companies = companies.filter((c) => c.revenue !== null && c.revenue <= maxRaw);
   }
 
   // Apply P/E ratio filters
