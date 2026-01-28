@@ -31,7 +31,9 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     dividendPercent: row.dividend_percent,
     operatingMargin: row.operating_margin,
     revenueGrowth5Y: row.revenue_growth_5y ?? null,
+    revenueGrowth3Y: row.revenue_growth_3y ?? null,
     epsGrowth5Y: row.eps_growth_5y ?? null,
+    epsGrowth3Y: row.eps_growth_3y ?? null,
     country: row.country,
     lastUpdated: row.last_updated,
   };
@@ -53,7 +55,9 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     dividend_percent: company.dividendPercent ?? null,
     operating_margin: company.operatingMargin ?? null,
     revenue_growth_5y: company.revenueGrowth5Y ?? null,
+    revenue_growth_3y: company.revenueGrowth3Y ?? null,
     eps_growth_5y: company.epsGrowth5Y ?? null,
+    eps_growth_3y: company.epsGrowth3Y ?? null,
     country: company.country || "United States",
     last_updated: lastUpdated,
   };
@@ -162,8 +166,12 @@ export async function getCompanies(
     maxOperatingMargin,
     minRevenueGrowth,
     maxRevenueGrowth,
+    minRevenueGrowth3Y,
+    maxRevenueGrowth3Y,
     minEPSGrowth,
     maxEPSGrowth,
+    minEPSGrowth3Y,
+    maxEPSGrowth3Y,
     limit = 100,
     offset = 0,
   } = params;
@@ -254,6 +262,22 @@ export async function getCompanies(
   }
   if (maxEPSGrowth !== undefined) {
     companies = companies.filter((c) => c.epsGrowth5Y !== null && c.epsGrowth5Y <= maxEPSGrowth);
+  }
+
+  // Apply 3Y revenue growth filters (values as decimals, e.g., 0.10 = 10%)
+  if (minRevenueGrowth3Y !== undefined) {
+    companies = companies.filter((c) => c.revenueGrowth3Y !== null && c.revenueGrowth3Y >= minRevenueGrowth3Y);
+  }
+  if (maxRevenueGrowth3Y !== undefined) {
+    companies = companies.filter((c) => c.revenueGrowth3Y !== null && c.revenueGrowth3Y <= maxRevenueGrowth3Y);
+  }
+
+  // Apply 3Y EPS growth filters (values as decimals, e.g., 0.10 = 10%)
+  if (minEPSGrowth3Y !== undefined) {
+    companies = companies.filter((c) => c.epsGrowth3Y !== null && c.epsGrowth3Y >= minEPSGrowth3Y);
+  }
+  if (maxEPSGrowth3Y !== undefined) {
+    companies = companies.filter((c) => c.epsGrowth3Y !== null && c.epsGrowth3Y <= maxEPSGrowth3Y);
   }
 
   const total = companies.length;

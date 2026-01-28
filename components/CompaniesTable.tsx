@@ -136,8 +136,12 @@ interface FilterState {
   maxOperatingMargin: string;
   minRevenueGrowth: string;
   maxRevenueGrowth: string;
+  minRevenueGrowth3Y: string;
+  maxRevenueGrowth3Y: string;
   minEPSGrowth: string;
   maxEPSGrowth: string;
+  minEPSGrowth3Y: string;
+  maxEPSGrowth3Y: string;
 }
 
 type SortKey = keyof Company;
@@ -282,7 +286,8 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
         'minRevenue', 'maxRevenue', 'minPERatio', 'maxPERatio',
         'minForwardPE', 'maxForwardPE', 'minDividend', 'maxDividend',
         'minOperatingMargin', 'maxOperatingMargin', 'minRevenueGrowth',
-        'maxRevenueGrowth', 'minEPSGrowth', 'maxEPSGrowth'
+        'maxRevenueGrowth', 'minRevenueGrowth3Y', 'maxRevenueGrowth3Y',
+        'minEPSGrowth', 'maxEPSGrowth', 'minEPSGrowth3Y', 'maxEPSGrowth3Y'
       ];
       const activeFilterKeys = filterKeys.filter(key => searchParams.has(key));
       const presetFilterKeys = Object.keys(preset.filters);
@@ -336,8 +341,12 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     maxOperatingMargin: searchParams.get("maxOperatingMargin") || "",
     minRevenueGrowth: searchParams.get("minRevenueGrowth") || "",
     maxRevenueGrowth: searchParams.get("maxRevenueGrowth") || "",
+    minRevenueGrowth3Y: searchParams.get("minRevenueGrowth3Y") || "",
+    maxRevenueGrowth3Y: searchParams.get("maxRevenueGrowth3Y") || "",
     minEPSGrowth: searchParams.get("minEPSGrowth") || "",
     maxEPSGrowth: searchParams.get("maxEPSGrowth") || "",
+    minEPSGrowth3Y: searchParams.get("minEPSGrowth3Y") || "",
+    maxEPSGrowth3Y: searchParams.get("maxEPSGrowth3Y") || "",
   }), [searchParams]);
 
   const [pendingFilters, setPendingFilters] = useState<FilterState>(getInitialFilters);
@@ -407,8 +416,12 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
       maxOperatingMargin: "",
       minRevenueGrowth: "",
       maxRevenueGrowth: "",
+      minRevenueGrowth3Y: "",
+      maxRevenueGrowth3Y: "",
       minEPSGrowth: "",
       maxEPSGrowth: "",
+      minEPSGrowth3Y: "",
+      maxEPSGrowth3Y: "",
     };
     setPendingFilters(emptyFilters);
 
@@ -435,7 +448,9 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     "minDividend", "maxDividend",
     "minOperatingMargin", "maxOperatingMargin",
     "minRevenueGrowth", "maxRevenueGrowth",
-    "minEPSGrowth", "maxEPSGrowth"
+    "minRevenueGrowth3Y", "maxRevenueGrowth3Y",
+    "minEPSGrowth", "maxEPSGrowth",
+    "minEPSGrowth3Y", "maxEPSGrowth3Y"
   ].some(key => searchParams.has(key));
 
   // Check if pending filters are different from URL filters
@@ -487,7 +502,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
       {/* Filter Panel - shown when Custom is expanded */}
       {showCustomFilters && (
       <div className="mb-4 bg-bg-secondary border border-border-subtle rounded-2xl p-5 shadow-lg">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-11 gap-4">
           <FilterInput
             label="Market Cap"
             minKey="minMarketCap"
@@ -561,9 +576,27 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             applyFilters={applyFilters}
           />
           <FilterInput
+            label="Rev CAGR 3Y"
+            minKey="minRevenueGrowth3Y"
+            maxKey="maxRevenueGrowth3Y"
+            placeholder="%"
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
             label="EPS CAGR 5Y"
             minKey="minEPSGrowth"
             maxKey="maxEPSGrowth"
+            placeholder="%"
+            pendingFilters={pendingFilters}
+            updateFilter={updateFilter}
+            applyFilters={applyFilters}
+          />
+          <FilterInput
+            label="EPS CAGR 3Y"
+            minKey="minEPSGrowth3Y"
+            maxKey="maxEPSGrowth3Y"
             placeholder="%"
             pendingFilters={pendingFilters}
             updateFilter={updateFilter}
@@ -602,7 +635,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             <tr>
               <th
                 onClick={() => handleSort("name")}
-                className="px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className="px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[180px]"
               >
                 Name <SortIndicator columnKey="name" />
               </th>
@@ -667,10 +700,22 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 Rev CAGR 5Y <SortIndicator columnKey="revenueGrowth5Y" />
               </th>
               <th
+                onClick={() => handleSort("revenueGrowth3Y")}
+                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+              >
+                Rev CAGR 3Y <SortIndicator columnKey="revenueGrowth3Y" />
+              </th>
+              <th
                 onClick={() => handleSort("epsGrowth5Y")}
                 className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
               >
                 EPS CAGR 5Y <SortIndicator columnKey="epsGrowth5Y" />
+              </th>
+              <th
+                onClick={() => handleSort("epsGrowth3Y")}
+                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+              >
+                EPS CAGR 3Y <SortIndicator columnKey="epsGrowth3Y" />
               </th>
             </tr>
           </thead>
@@ -683,15 +728,15 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   index % 2 === 0 ? "bg-transparent" : "bg-bg-tertiary/10"
                 )}
               >
-                <td className="px-4 py-3.5 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
+                <td className="px-4 py-3.5 whitespace-nowrap max-w-[180px]">
+                  <div className="flex items-center gap-2">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 overflow-hidden">
                       <a
                           href={`https://finance.yahoo.com/quote/${company.symbol}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-base font-medium text-text-primary truncate group-hover:text-accent transition-colors hover:underline"
+                          className="text-base font-medium text-text-primary truncate block group-hover:text-accent transition-colors hover:underline"
                         >
                           {company.name}
                         </a>
@@ -730,7 +775,13 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   {formatCAGR(company.revenueGrowth5Y)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                  {formatCAGR(company.revenueGrowth3Y)}
+                </td>
+                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
                   {formatCAGR(company.epsGrowth5Y)}
+                </td>
+                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                  {formatCAGR(company.epsGrowth3Y)}
                 </td>
               </tr>
             ))}

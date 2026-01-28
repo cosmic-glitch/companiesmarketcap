@@ -23,8 +23,10 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
     forwardPE: "Fwd PE",
     dividendPercent: "Div Yield",
     operatingMargin: "Op Margin",
-    revenueGrowth5Y: "Rev Growth",
-    epsGrowth5Y: "EPS Growth",
+    revenueGrowth5Y: "Rev Growth 5Y",
+    revenueGrowth3Y: "Rev Growth 3Y",
+    epsGrowth5Y: "EPS Growth 5Y",
+    epsGrowth3Y: "EPS Growth 3Y",
   };
 
   const filterDescriptions: string[] = [];
@@ -65,11 +67,17 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
   // Operating Margin
   addFilter('Op Margin', params.minOperatingMargin, params.maxOperatingMargin, '%');
 
-  // Revenue Growth
-  addFilter('Rev Growth', params.minRevenueGrowth, params.maxRevenueGrowth, '%');
+  // Revenue Growth 5Y
+  addFilter('Rev Growth 5Y', params.minRevenueGrowth, params.maxRevenueGrowth, '%');
 
-  // EPS Growth
-  addFilter('EPS Growth', params.minEPSGrowth, params.maxEPSGrowth, '%');
+  // Revenue Growth 3Y
+  addFilter('Rev Growth 3Y', params.minRevenueGrowth3Y, params.maxRevenueGrowth3Y, '%');
+
+  // EPS Growth 5Y
+  addFilter('EPS Growth 5Y', params.minEPSGrowth, params.maxEPSGrowth, '%');
+
+  // EPS Growth 3Y
+  addFilter('EPS Growth 3Y', params.minEPSGrowth3Y, params.maxEPSGrowth3Y, '%');
 
   // Earnings
   addFilter('Earnings', params.minEarnings, params.maxEarnings, 'B');
@@ -107,8 +115,12 @@ interface SearchParams {
   maxOperatingMargin?: string;
   minRevenueGrowth?: string;
   maxRevenueGrowth?: string;
+  minRevenueGrowth3Y?: string;
+  maxRevenueGrowth3Y?: string;
   minEPSGrowth?: string;
   maxEPSGrowth?: string;
+  minEPSGrowth3Y?: string;
+  maxEPSGrowth3Y?: string;
   search?: string;
 }
 
@@ -160,8 +172,12 @@ export default async function Home({ searchParams }: HomeProps) {
     maxOperatingMargin: parseGrowthPercent(params.maxOperatingMargin),
     minRevenueGrowth: parseGrowthPercent(params.minRevenueGrowth),
     maxRevenueGrowth: parseGrowthPercent(params.maxRevenueGrowth),
+    minRevenueGrowth3Y: parseGrowthPercent(params.minRevenueGrowth3Y),
+    maxRevenueGrowth3Y: parseGrowthPercent(params.maxRevenueGrowth3Y),
     minEPSGrowth: parseGrowthPercent(params.minEPSGrowth),
     maxEPSGrowth: parseGrowthPercent(params.maxEPSGrowth),
+    minEPSGrowth3Y: parseGrowthPercent(params.minEPSGrowth3Y),
+    maxEPSGrowth3Y: parseGrowthPercent(params.maxEPSGrowth3Y),
     search: params.search,
     limit: PER_PAGE,
     offset: (page - 1) * PER_PAGE,
@@ -177,7 +193,7 @@ export default async function Home({ searchParams }: HomeProps) {
   return (
     <main className="min-h-screen bg-bg-primary">
       {/* Header */}
-      <div className="relative border-b border-border-subtle bg-bg-secondary py-4 px-4 md:px-8 overflow-hidden">
+      <div className="relative border-b border-border-subtle bg-bg-secondary py-4 px-0 overflow-hidden">
         {/* Grid pattern overlay */}
         <div className="absolute inset-0 bg-grid-pattern opacity-50" />
 
@@ -208,7 +224,7 @@ export default async function Home({ searchParams }: HomeProps) {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 md:px-8 pt-3 pb-6">
+      <div className="max-w-[1600px] mx-auto px-0 pt-3 pb-6">
         <CompaniesTable
           companies={companies}
           sortBy={sortBy}

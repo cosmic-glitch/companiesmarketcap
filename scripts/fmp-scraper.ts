@@ -38,12 +38,8 @@ const FMP_API_KEY = process.env.FMP_API_KEY;
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 const BASE_URL = "https://financialmodelingprep.com/stable";
 
-// Batch size for API requests
-const QUOTE_BATCH_SIZE = 500;
-const PROFILE_BATCH_SIZE = 500;
-const CONCURRENT_REQUESTS = 1; // Sequential requests to respect rate limits
-const RATE_LIMIT_DELAY_MS = 250; // ~240 requests/minute, under the 300/min limit
-const RATE_LIMIT_PAUSE_MS = 60000; // Pause 60s when rate limited
+// Process one request at a time (no concurrency)
+const CONCURRENT_REQUESTS = 1;
 
 // FMP API response types
 interface FMPScreenerResult {
@@ -90,6 +86,8 @@ interface FMPFinancialGrowth {
   symbol: string;
   fiveYRevenueGrowthPerShare: number | null;
   fiveYNetIncomeGrowthPerShare: number | null;
+  threeYRevenueGrowthPerShare: number | null;
+  threeYNetIncomeGrowthPerShare: number | null;
 }
 
 interface FMPAnalystEstimate {
@@ -113,7 +111,9 @@ interface CompanyData {
   dividendPercent: number | null;
   forwardPE: number | null;
   revenueGrowth5Y: number | null;
+  revenueGrowth3Y: number | null;
   epsGrowth5Y: number | null;
+  epsGrowth3Y: number | null;
 }
 
 // Convert total 5-year growth to CAGR
@@ -122,6 +122,14 @@ function totalGrowthToCAGR(totalGrowth: number): number {
     return -1;
   }
   return Math.pow(1 + totalGrowth, 1 / 5) - 1;
+}
+
+// Convert total 3-year growth to CAGR
+function totalGrowthToCAGR3Y(totalGrowth: number): number {
+  if (totalGrowth <= -1) {
+    return -1;
+  }
+  return Math.pow(1 + totalGrowth, 1 / 3) - 1;
 }
 
 // Sleep utility
@@ -254,30 +262,42 @@ async function fetchAnalystEstimates(symbol: string): Promise<FMPAnalystEstimate
   return null;
 }
 
-// Process a batch of symbols concurrently for individual endpoints
+// Fetch single symbol with retry only on 429 rate limit
 async function fetchWithRetry(
   symbol: string,
   fetchFn: (symbol: string) => Promise<any>,
-  maxRetries: number = 3
-): Promise<{ symbol: string; data: any; rateLimited: boolean }> {
+  maxRetries: number = 10
+): Promise<{ symbol: string; data: any }> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const data = await fetchFn(symbol);
-      return { symbol, data, rateLimited: false };
+      return { symbol, data };
     } catch (error: any) {
-      if (error.response?.status === 429) {
-        // Rate limited - signal to pause
-        return { symbol, data: null, rateLimited: true };
+      const status = error.response?.status;
+
+      // Only retry on 429 rate limit
+      if (status === 429) {
+        if (attempt < maxRetries - 1) {
+          // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s, 60s...
+          const backoffMs = Math.min(1000 * Math.pow(2, attempt), 60000);
+          console.log(`  Rate limited on ${symbol}, waiting ${backoffMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+          await sleep(backoffMs);
+          continue;
+        }
+        // Exhausted retries on rate limit
+        throw new Error(`Rate limit exceeded for ${symbol} after ${maxRetries} retries`);
       }
-      // Other error - retry after short delay
-      if (attempt < maxRetries - 1) {
-        await sleep(1000);
-      }
+
+      // Hard fail on any other error
+      const errorMsg = status ? `HTTP ${status}` : (error.code || error.message || 'unknown');
+      throw new Error(`Failed to fetch ${symbol}: ${errorMsg}`);
     }
   }
-  return { symbol, data: null, rateLimited: false };
+  // Should never reach here
+  throw new Error(`Unexpected state in fetchWithRetry for ${symbol}`);
 }
 
+// Process symbols with concurrent requests and automatic retries
 async function processSymbolsBatch(
   symbols: string[],
   fetchFn: (symbol: string) => Promise<any>,
@@ -286,40 +306,32 @@ async function processSymbolsBatch(
   const results = new Map<string, any>();
   let processed = 0;
   let successCount = 0;
-  let rateLimitPauses = 0;
 
-  // Process sequentially to respect rate limits
-  for (let i = 0; i < symbols.length; i++) {
-    const symbol = symbols[i];
-    const result = await fetchWithRetry(symbol, fetchFn);
+  // Process in batches of CONCURRENT_REQUESTS
+  for (let i = 0; i < symbols.length; i += CONCURRENT_REQUESTS) {
+    const batch = symbols.slice(i, i + CONCURRENT_REQUESTS);
 
-    if (result.rateLimited) {
-      // Rate limited - pause and retry
-      rateLimitPauses++;
-      console.log(`  Rate limited. Pausing for 60s... (pause #${rateLimitPauses})`);
-      await sleep(RATE_LIMIT_PAUSE_MS);
-      // Retry this symbol
-      i--;
-      continue;
+    // Fetch all symbols in batch concurrently (each with its own retry logic)
+    const batchResults = await Promise.all(
+      batch.map(symbol => fetchWithRetry(symbol, fetchFn))
+    );
+
+    // Collect results
+    for (const result of batchResults) {
+      if (result.data) {
+        results.set(result.symbol, result.data);
+        successCount++;
+      }
+      processed++;
     }
-
-    if (result.data) {
-      results.set(symbol, result.data);
-      successCount++;
-    }
-
-    processed++;
 
     // Progress update every 100 symbols
-    if (processed % 100 === 0 || processed === symbols.length) {
+    if (processed % 100 < CONCURRENT_REQUESTS || i + CONCURRENT_REQUESTS >= symbols.length) {
       const elapsed = Math.round((Date.now() - globalStartTime) / 1000 / 60);
       console.log(
         `  ${description}: ${processed}/${symbols.length} (${Math.round((processed / symbols.length) * 100)}%) - success: ${successCount} - ${elapsed}m elapsed`
       );
     }
-
-    // Delay between requests to stay under rate limit
-    await sleep(RATE_LIMIT_DELAY_MS);
   }
 
   return results;
@@ -343,9 +355,7 @@ async function runFMPScraper(): Promise<{
   // Step 1: Get US stock list
   const allSymbols = await fetchUSStocks();
 
-  // Estimate time: ~250ms per request, 6 endpoints per symbol
-  const estimatedMinutes = Math.round((allSymbols.length * 6 * RATE_LIMIT_DELAY_MS) / 1000 / 60);
-  console.log(`Estimated time: ~${estimatedMinutes} minutes for ${allSymbols.length} symbols\n`);
+  console.log(`Processing ${allSymbols.length} symbols with ${CONCURRENT_REQUESTS} concurrent requests\n`);
 
   // Step 2: Fetch batch quotes
   const quotes = await fetchBatchQuotes(allSymbols);
@@ -420,14 +430,22 @@ async function runFMPScraper(): Promise<{
 
     // Calculate growth metrics (convert total growth to CAGR)
     let revenueGrowth5Y: number | null = null;
+    let revenueGrowth3Y: number | null = null;
     let epsGrowth5Y: number | null = null;
+    let epsGrowth3Y: number | null = null;
 
     if (growthData) {
       if (growthData.fiveYRevenueGrowthPerShare !== null && growthData.fiveYRevenueGrowthPerShare !== undefined) {
         revenueGrowth5Y = totalGrowthToCAGR(growthData.fiveYRevenueGrowthPerShare);
       }
+      if (growthData.threeYRevenueGrowthPerShare !== null && growthData.threeYRevenueGrowthPerShare !== undefined) {
+        revenueGrowth3Y = totalGrowthToCAGR3Y(growthData.threeYRevenueGrowthPerShare);
+      }
       if (growthData.fiveYNetIncomeGrowthPerShare !== null && growthData.fiveYNetIncomeGrowthPerShare !== undefined) {
         epsGrowth5Y = totalGrowthToCAGR(growthData.fiveYNetIncomeGrowthPerShare);
+      }
+      if (growthData.threeYNetIncomeGrowthPerShare !== null && growthData.threeYNetIncomeGrowthPerShare !== undefined) {
+        epsGrowth3Y = totalGrowthToCAGR3Y(growthData.threeYNetIncomeGrowthPerShare);
       }
     }
 
@@ -445,7 +463,9 @@ async function runFMPScraper(): Promise<{
       dividendPercent: ratio?.dividendYieldTTM ?? null,
       forwardPE,
       revenueGrowth5Y,
+      revenueGrowth3Y,
       epsGrowth5Y,
+      epsGrowth3Y,
     });
   }
 
@@ -471,7 +491,9 @@ async function runFMPScraper(): Promise<{
     dividend_percent: c.dividendPercent,
     operating_margin: c.operatingMargin,
     revenue_growth_5y: c.revenueGrowth5Y,
+    revenue_growth_3y: c.revenueGrowth3Y,
     eps_growth_5y: c.epsGrowth5Y,
+    eps_growth_3y: c.epsGrowth3Y,
     country: c.country,
     last_updated: timestamp,
   }));
@@ -486,8 +508,10 @@ async function runFMPScraper(): Promise<{
     withDividend: dbCompanies.filter((c) => c.dividend_percent !== null).length,
     withMargin: dbCompanies.filter((c) => c.operating_margin !== null).length,
     withForwardPE: dbCompanies.filter((c) => c.forward_pe !== null).length,
-    withRevenueGrowth: dbCompanies.filter((c) => c.revenue_growth_5y !== null).length,
-    withEPSGrowth: dbCompanies.filter((c) => c.eps_growth_5y !== null).length,
+    withRevenueGrowth5Y: dbCompanies.filter((c) => c.revenue_growth_5y !== null).length,
+    withRevenueGrowth3Y: dbCompanies.filter((c) => c.revenue_growth_3y !== null).length,
+    withEPSGrowth5Y: dbCompanies.filter((c) => c.eps_growth_5y !== null).length,
+    withEPSGrowth3Y: dbCompanies.filter((c) => c.eps_growth_3y !== null).length,
   };
 
   console.log("\n========================================");
@@ -500,8 +524,10 @@ async function runFMPScraper(): Promise<{
   console.log(`With dividend:          ${stats.withDividend} (${Math.round((stats.withDividend / stats.total) * 100)}%)`);
   console.log(`With operating margin:  ${stats.withMargin} (${Math.round((stats.withMargin / stats.total) * 100)}%)`);
   console.log(`With forward PE:        ${stats.withForwardPE} (${Math.round((stats.withForwardPE / stats.total) * 100)}%)`);
-  console.log(`With revenue growth 5Y: ${stats.withRevenueGrowth} (${Math.round((stats.withRevenueGrowth / stats.total) * 100)}%)`);
-  console.log(`With EPS growth 5Y:     ${stats.withEPSGrowth} (${Math.round((stats.withEPSGrowth / stats.total) * 100)}%)`);
+  console.log(`With revenue growth 5Y: ${stats.withRevenueGrowth5Y} (${Math.round((stats.withRevenueGrowth5Y / stats.total) * 100)}%)`);
+  console.log(`With revenue growth 3Y: ${stats.withRevenueGrowth3Y} (${Math.round((stats.withRevenueGrowth3Y / stats.total) * 100)}%)`);
+  console.log(`With EPS growth 5Y:     ${stats.withEPSGrowth5Y} (${Math.round((stats.withEPSGrowth5Y / stats.total) * 100)}%)`);
+  console.log(`With EPS growth 3Y:     ${stats.withEPSGrowth3Y} (${Math.round((stats.withEPSGrowth3Y / stats.total) * 100)}%)`);
   console.log(`\nDuration: ${duration} minutes`);
 
   return {

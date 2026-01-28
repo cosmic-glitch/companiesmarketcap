@@ -19,7 +19,9 @@ export interface Company {
   dividendPercent: number | null;
   operatingMargin: number | null;
   revenueGrowth5Y: number | null; // 5-year CAGR
+  revenueGrowth3Y: number | null; // 3-year CAGR
   epsGrowth5Y: number | null; // 5-year CAGR
+  epsGrowth3Y: number | null; // 3-year CAGR
   country: string;
   lastUpdated: string;
 }
@@ -45,8 +47,12 @@ export interface CompaniesQueryParams {
   maxOperatingMargin?: number;
   minRevenueGrowth?: number;
   maxRevenueGrowth?: number;
+  minRevenueGrowth3Y?: number;
+  maxRevenueGrowth3Y?: number;
   minEPSGrowth?: number;
   maxEPSGrowth?: number;
+  minEPSGrowth3Y?: number;
+  maxEPSGrowth3Y?: number;
   limit?: number;
   offset?: number;
 }
@@ -75,7 +81,9 @@ export interface DatabaseCompany {
   dividend_percent: number | null;
   operating_margin: number | null;
   revenue_growth_5y: number | null;
+  revenue_growth_3y: number | null;
   eps_growth_5y: number | null;
+  eps_growth_3y: number | null;
   country: string;
   last_updated: string;
 }
