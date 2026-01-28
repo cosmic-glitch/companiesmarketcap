@@ -118,7 +118,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   // Fetch live quotes from Yahoo Finance
   const allSymbols = await getAllSymbols();
-  const { quotes, cacheAge, fromCache } = await getAllQuotes(allSymbols);
+  const { quotes } = await getAllQuotes(allSymbols);
 
   // Pass quotes to getCompanies so it can merge live data and sort correctly
   const { companies, total } = await getCompanies(queryParams, quotes);
@@ -183,16 +183,6 @@ export default async function Home({ searchParams }: HomeProps) {
           perPage={PER_PAGE}
         />
 
-        <footer className="mt-8 mb-6 text-center space-y-1">
-          <p className="text-sm text-text-muted">
-            {fromCache
-              ? `Prices updated ${Math.floor(cacheAge / 60000)}m ago`
-              : "Prices just updated"}
-          </p>
-          <p className="text-sm text-text-muted">
-            Data sourced from Financial Modeling Prep API
-          </p>
-        </footer>
       </div>
     </main>
   );
