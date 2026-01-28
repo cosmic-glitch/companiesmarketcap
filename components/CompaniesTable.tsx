@@ -687,7 +687,14 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   <div className="flex items-center gap-3">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
                     <div className="min-w-0">
-                      <div className="text-base font-medium text-text-primary truncate group-hover:text-accent transition-colors">{company.name}</div>
+                      <a
+                          href={`https://finance.yahoo.com/quote/${company.symbol}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-base font-medium text-text-primary truncate group-hover:text-accent transition-colors hover:underline"
+                        >
+                          {company.name}
+                        </a>
                       <div className="text-sm text-text-muted">{company.symbol}</div>
                     </div>
                   </div>
