@@ -207,7 +207,7 @@ const PresetCard = ({ preset, isActive, onClick }: PresetCardProps) => {
     <button
       onClick={onClick}
       className={cn(
-        "px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
+        "px-4 py-2 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
         isActive
           ? "bg-accent/10 border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
           : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
@@ -238,7 +238,7 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
     <button
       onClick={onClick}
       className={cn(
-        "px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
+        "px-4 py-2 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
         isExpanded
           ? "bg-accent/10 border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
           : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
@@ -453,7 +453,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
   return (
     <div className="w-full">
       {/* Preset Cards Row */}
-      <div className="mb-4 flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
+      <div className="mb-2 flex gap-3 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
         {PRESETS.map((preset) => (
           <PresetCard
             key={preset.id}

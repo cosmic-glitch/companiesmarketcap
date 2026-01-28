@@ -177,7 +177,7 @@ export default async function Home({ searchParams }: HomeProps) {
   return (
     <main className="min-h-screen bg-bg-primary">
       {/* Header */}
-      <div className="relative border-b border-border-subtle bg-bg-secondary py-8 px-4 md:px-8 overflow-hidden">
+      <div className="relative border-b border-border-subtle bg-bg-secondary py-4 px-4 md:px-8 overflow-hidden">
         {/* Grid pattern overlay */}
         <div className="absolute inset-0 bg-grid-pattern opacity-50" />
 
@@ -208,7 +208,7 @@ export default async function Home({ searchParams }: HomeProps) {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-6">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 pt-3 pb-6">
         <CompaniesTable
           companies={companies}
           sortBy={sortBy}
