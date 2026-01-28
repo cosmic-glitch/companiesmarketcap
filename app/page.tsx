@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 const PER_PAGE = 100;
 
-function getSubtitleText(sortBy: keyof Company, total: number, hasFilters: boolean): string {
+function getSubtitleText(sortBy: keyof Company, total: number, params: SearchParams): string {
   const sortLabels: Record<string, string> = {
     rank: "market capitalization",
     marketCap: "market capitalization",
@@ -20,18 +20,69 @@ function getSubtitleText(sortBy: keyof Company, total: number, hasFilters: boole
     earnings: "earnings",
     revenue: "revenue",
     peRatio: "P/E ratio",
-    forwardPE: "forward P/E",
-    dividendPercent: "dividend yield",
-    operatingMargin: "operating margin",
-    revenueGrowth5Y: "5-year revenue growth",
-    epsGrowth5Y: "5-year EPS growth",
+    forwardPE: "Fwd PE",
+    dividendPercent: "Div Yield",
+    operatingMargin: "Op Margin",
+    revenueGrowth5Y: "Rev Growth",
+    epsGrowth5Y: "EPS Growth",
   };
 
-  const sortLabel = sortLabels[sortBy] || "market capitalization";
-  const countText = total.toLocaleString();
+  const filterDescriptions: string[] = [];
 
-  if (hasFilters) {
-    return `${countText} companies matching filters, ranked by ${sortLabel}`;
+  // Helper for range formatting
+  const addFilter = (label: string, min: string | undefined, max: string | undefined, suffix = '') => {
+    if (min && max) {
+      filterDescriptions.push(`${min}${suffix} < ${label} < ${max}${suffix}`);
+    } else if (min) {
+      filterDescriptions.push(`${label} > ${min}${suffix}`);
+    } else if (max) {
+      filterDescriptions.push(`${label} < ${max}${suffix}`);
+    }
+  };
+
+  // Market Cap (special formatting for $B/$T)
+  const formatMktCap = (val: string) => {
+    const num = parseFloat(val);
+    return num >= 1000 ? `$${num / 1000}T` : `$${num}B`;
+  };
+  if (params.minMarketCap && params.maxMarketCap) {
+    filterDescriptions.push(`${formatMktCap(params.minMarketCap)} < Mkt Cap < ${formatMktCap(params.maxMarketCap)}`);
+  } else if (params.minMarketCap) {
+    filterDescriptions.push(`Mkt Cap > ${formatMktCap(params.minMarketCap)}`);
+  } else if (params.maxMarketCap) {
+    filterDescriptions.push(`Mkt Cap < ${formatMktCap(params.maxMarketCap)}`);
+  }
+
+  // Forward PE
+  addFilter('Fwd PE', params.minForwardPE, params.maxForwardPE);
+
+  // P/E Ratio
+  addFilter('P/E', params.minPERatio, params.maxPERatio);
+
+  // Dividend Yield
+  addFilter('Div Yield', params.minDividend, params.maxDividend, '%');
+
+  // Operating Margin
+  addFilter('Op Margin', params.minOperatingMargin, params.maxOperatingMargin, '%');
+
+  // Revenue Growth
+  addFilter('Rev Growth', params.minRevenueGrowth, params.maxRevenueGrowth, '%');
+
+  // EPS Growth
+  addFilter('EPS Growth', params.minEPSGrowth, params.maxEPSGrowth, '%');
+
+  // Earnings
+  addFilter('Earnings', params.minEarnings, params.maxEarnings, 'B');
+
+  // Revenue
+  addFilter('Revenue', params.minRevenue, params.maxRevenue, 'B');
+
+  const countText = total.toLocaleString();
+  const sortLabel = sortLabels[sortBy] || "market capitalization";
+
+  if (filterDescriptions.length > 0) {
+    const criteria = filterDescriptions.join(', ');
+    return `${countText} companies with ${criteria}; ordered by ${sortLabel}`;
   }
   return `${countText} companies ranked by ${sortLabel}`;
 }
@@ -123,19 +174,6 @@ export default async function Home({ searchParams }: HomeProps) {
   // Pass quotes to getCompanies so it can merge live data and sort correctly
   const { companies, total } = await getCompanies(queryParams, quotes);
 
-  const hasFilters = !!(
-    queryParams.minMarketCap || queryParams.maxMarketCap ||
-    queryParams.minEarnings || queryParams.maxEarnings ||
-    queryParams.minRevenue || queryParams.maxRevenue ||
-    queryParams.minPERatio || queryParams.maxPERatio ||
-    queryParams.minForwardPE || queryParams.maxForwardPE ||
-    queryParams.minDividend || queryParams.maxDividend ||
-    queryParams.minOperatingMargin || queryParams.maxOperatingMargin ||
-    queryParams.minRevenueGrowth || queryParams.maxRevenueGrowth ||
-    queryParams.minEPSGrowth || queryParams.maxEPSGrowth ||
-    queryParams.search
-  );
-
   return (
     <main className="min-h-screen bg-bg-primary">
       {/* Header */}
@@ -162,7 +200,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 Largest US Companies
               </h1>
               <p className="text-base text-text-secondary mt-1">
-                {getSubtitleText(sortBy, total, hasFilters)}
+                {getSubtitleText(sortBy, total, params)}
               </p>
             </div>
           </div>
