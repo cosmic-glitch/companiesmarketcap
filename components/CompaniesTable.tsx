@@ -1,10 +1,47 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Company } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
+
+// Preset filter configurations
+interface PresetConfig {
+  id: string;
+  label: string;
+  subtitle: string;
+  icon: string;
+  filters: Record<string, string>;
+  sort: { sortBy?: string; sortOrder?: 'asc' | 'desc' };
+}
+
+const PRESETS: PresetConfig[] = [
+  {
+    id: 'mega-cap-value',
+    label: 'Mega Cap Value',
+    subtitle: '$1T+, Fwd PE < 22',
+    icon: '🏦',
+    filters: { minMarketCap: '1000', maxForwardPE: '22' },
+    sort: { sortBy: 'forwardPE', sortOrder: 'asc' },
+  },
+  {
+    id: 'garp',
+    label: 'Growth At Reasonable Price (GARP)',
+    subtitle: '$10B+, 20%+ Op Margin, Rev Growth, EPS Growth, and Fwd PE < 25',
+    icon: '📈',
+    filters: { minMarketCap: '10', minOperatingMargin: '20', minRevenueGrowth: '20', minEPSGrowth: '20', maxForwardPE: '25' },
+    sort: { sortBy: 'forwardPE', sortOrder: 'asc' },
+  },
+  {
+    id: 'reliable-dividends',
+    label: 'Reliable Dividend Generators',
+    subtitle: '$10B+, 6%+ Yield, 5%+ Rev Growth, 5%+ EPS Growth',
+    icon: '💰',
+    filters: { minMarketCap: '10', minDividend: '6', minRevenueGrowth: '5', minEPSGrowth: '5' },
+    sort: { sortBy: 'dividendPercent', sortOrder: 'desc' },
+  },
+];
 
 // Company logo component with fallback
 function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
@@ -158,9 +195,128 @@ const FilterInput = ({
   );
 };
 
+// Preset card component
+interface PresetCardProps {
+  preset: PresetConfig;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+const PresetCard = ({ preset, isActive, onClick }: PresetCardProps) => {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
+        isActive
+          ? "bg-accent/10 border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
+          : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{preset.icon}</span>
+        <span className={cn(
+          "font-semibold text-sm",
+          isActive ? "text-accent" : "text-text-primary"
+        )}>
+          {preset.label}
+        </span>
+      </div>
+      <div className="text-xs text-text-muted mt-1">{preset.subtitle}</div>
+    </button>
+  );
+};
+
+// Custom filters toggle card
+interface CustomCardProps {
+  isExpanded: boolean;
+  onClick: () => void;
+}
+
+const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "px-4 py-3 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
+        isExpanded
+          ? "bg-accent/10 border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
+          : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-lg">🎛️</span>
+        <span className={cn(
+          "font-semibold text-sm",
+          isExpanded ? "text-accent" : "text-text-primary"
+        )}>
+          Custom
+        </span>
+      </div>
+      <div className="text-xs text-text-muted mt-1">Filters</div>
+    </button>
+  );
+};
+
 export default function CompaniesTable({ companies, sortBy, sortOrder }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [showCustomFilters, setShowCustomFilters] = useState(false);
+
+  // Detect which preset is currently active based on URL params
+  const activePreset = useMemo(() => {
+    for (const preset of PRESETS) {
+      // Check if all preset filters match
+      const allFiltersMatch = Object.entries(preset.filters).every(
+        ([key, value]) => searchParams.get(key) === value
+      );
+
+      // Check if sort matches (if preset has sort specified)
+      const sortMatches = !preset.sort.sortBy ||
+        (searchParams.get('sortBy') === preset.sort.sortBy &&
+         searchParams.get('sortOrder') === preset.sort.sortOrder);
+
+      // Also check that there are no extra filters in URL that aren't in preset
+      const filterKeys = [
+        'minMarketCap', 'maxMarketCap', 'minEarnings', 'maxEarnings',
+        'minRevenue', 'maxRevenue', 'minPERatio', 'maxPERatio',
+        'minForwardPE', 'maxForwardPE', 'minDividend', 'maxDividend',
+        'minOperatingMargin', 'maxOperatingMargin', 'minRevenueGrowth',
+        'maxRevenueGrowth', 'minEPSGrowth', 'maxEPSGrowth'
+      ];
+      const activeFilterKeys = filterKeys.filter(key => searchParams.has(key));
+      const presetFilterKeys = Object.keys(preset.filters);
+      const noExtraFilters = activeFilterKeys.length === presetFilterKeys.length;
+
+      if (allFiltersMatch && sortMatches && noExtraFilters) {
+        return preset.id;
+      }
+    }
+    return null;
+  }, [searchParams]);
+
+  // Apply a preset's filters and sort
+  const applyPreset = useCallback((preset: PresetConfig) => {
+    const params = new URLSearchParams();
+
+    // Apply preset filters
+    Object.entries(preset.filters).forEach(([key, value]) => {
+      params.set(key, value);
+    });
+
+    // Apply preset sort if specified
+    if (preset.sort.sortBy) {
+      params.set('sortBy', preset.sort.sortBy);
+      params.set('sortOrder', preset.sort.sortOrder!);
+    }
+
+    router.push(`/?${params.toString()}`);
+  }, [router]);
+
+  // Clear all filters (when clicking active preset)
+  const clearAllFilters = useCallback(() => {
+    router.push('/');
+  }, [router]);
 
   // Initialize pending filters from URL
   const getInitialFilters = useCallback((): FilterState => ({
@@ -185,6 +341,11 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
   }), [searchParams]);
 
   const [pendingFilters, setPendingFilters] = useState<FilterState>(getInitialFilters);
+
+  // Sync pending filters when URL changes (e.g., when a preset is applied)
+  useEffect(() => {
+    setPendingFilters(getInitialFilters());
+  }, [searchParams, getInitialFilters]);
 
   // Build URL with parameters
   const buildUrl = useCallback((updates: Record<string, string | undefined>) => {
@@ -291,7 +452,40 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
 
   return (
     <div className="w-full">
-      {/* Filter Panel */}
+      {/* Preset Cards Row */}
+      <div className="mb-4 flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
+        {PRESETS.map((preset) => (
+          <PresetCard
+            key={preset.id}
+            preset={preset}
+            isActive={activePreset === preset.id}
+            onClick={() => {
+              setShowCustomFilters(false);
+              if (activePreset === preset.id) {
+                clearAllFilters();
+              } else {
+                applyPreset(preset);
+              }
+            }}
+          />
+        ))}
+        <CustomCard
+          isExpanded={showCustomFilters}
+          onClick={() => {
+            if (!showCustomFilters) {
+              // Opening custom: clear any preset filters and show panel
+              clearAllFilters();
+              setShowCustomFilters(true);
+            } else {
+              // Closing custom: just hide the panel
+              setShowCustomFilters(false);
+            }
+          }}
+        />
+      </div>
+
+      {/* Filter Panel - shown when Custom is expanded */}
+      {showCustomFilters && (
       <div className="mb-4 bg-bg-secondary border border-border-subtle rounded-2xl p-5 shadow-lg">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
           <FilterInput
@@ -399,11 +593,12 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
           )}
         </div>
       </div>
+      )}
 
       {/* Table */}
-      <div className="overflow-x-auto bg-bg-secondary border border-border-subtle rounded-2xl shadow-lg">
+      <div className="overflow-auto max-h-[75vh] bg-bg-secondary border border-border-subtle rounded-2xl shadow-lg">
         <table className="min-w-full">
-          <thead className="bg-bg-tertiary/50 border-b border-border-subtle">
+          <thead className="bg-bg-tertiary sticky top-0 z-10 border-b border-border-subtle">
             <tr>
               <th
                 onClick={() => handleSort("name")}
