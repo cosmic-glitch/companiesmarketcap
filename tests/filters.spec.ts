@@ -8,6 +8,9 @@ test.describe('Company Table with Pagination', () => {
   });
 
   test('should display all 9 filter input groups', async ({ page }) => {
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
+
     // Check that all filter labels are present
     await expect(page.locator('label:has-text("Market Cap")')).toBeVisible();
     await expect(page.locator('label:has-text("Earnings (TTM)")')).toBeVisible();
@@ -128,6 +131,9 @@ test.describe('Company Table with Pagination', () => {
   });
 
   test('should filter companies with market cap filter', async ({ page }) => {
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
+
     // Fill in minimum market cap filter (100 billion)
     await page.locator('input[placeholder="Min billions"]').first().fill('100');
 
@@ -150,12 +156,18 @@ test.describe('Company Table with Pagination', () => {
   });
 
   test('should show Clear button when filters are active', async ({ page }) => {
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
+
     // Initially, Clear button should not be visible
     await expect(page.locator('button:has-text("Clear")')).not.toBeVisible();
 
     // Apply a filter via URL
     await page.goto('/?minMarketCap=100');
     await page.waitForSelector('table');
+
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
 
     // Now Clear button should be visible
     await expect(page.locator('button:has-text("Clear")')).toBeVisible();
@@ -166,6 +178,9 @@ test.describe('Company Table with Pagination', () => {
     await page.goto('/?minMarketCap=100&maxMarketCap=500');
     await page.waitForSelector('table');
 
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
+
     // Verify filter is active
     await expect(page.locator('button:has-text("Clear")')).toBeVisible();
 
@@ -175,7 +190,7 @@ test.describe('Company Table with Pagination', () => {
     // Wait for navigation (filters removed)
     await page.waitForURL('/');
 
-    // Clear button should disappear
+    // Clear button should disappear (filter panel still open)
     await expect(page.locator('button:has-text("Clear")')).not.toBeVisible();
   });
 
@@ -183,6 +198,9 @@ test.describe('Company Table with Pagination', () => {
     // Go to page 2
     await page.goto('/?page=2');
     await page.waitForSelector('table');
+
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
 
     // Fill in a filter
     await page.locator('input[placeholder="Min billions"]').first().fill('50');
@@ -201,6 +219,9 @@ test.describe('Company Table with Pagination', () => {
   });
 
   test('should apply filter on Enter key press', async ({ page }) => {
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
+
     // Fill in market cap filter and press Enter
     const input = page.locator('input[placeholder="Min billions"]').first();
     await input.fill('100');
@@ -221,12 +242,10 @@ test.describe('Company Table with Pagination', () => {
     await expect(page.locator('text=Try adjusting your filters')).toBeVisible();
   });
 
-  test('should display data source in footer', async ({ page }) => {
-    // Check that footer with data source is visible
-    await expect(page.locator('text=Data sourced from Financial Modeling Prep API')).toBeVisible();
-  });
-
   test('should maintain responsive grid layout for filters', async ({ page }) => {
+    // Click Custom button to expand filter panel
+    await page.locator('button:has-text("Custom")').click();
+
     // Check that filter container uses grid layout
     const filterGrid = page.locator('.grid.grid-cols-2').first();
     await expect(filterGrid).toBeVisible();

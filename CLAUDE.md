@@ -88,3 +88,4 @@ Each company includes:
 ## Workflow
 
 - After making any UI fix, verify the change in the browser before reporting completion
+- Do not run automated tests (Playwright) unless explicitly asked
