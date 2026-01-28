@@ -635,7 +635,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             <tr>
               <th
                 onClick={() => handleSort("name")}
-                className="px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[180px]"
+                className="px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[242px]"
               >
                 Name <SortIndicator columnKey="name" />
               </th>
@@ -728,7 +728,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   index % 2 === 0 ? "bg-transparent" : "bg-bg-tertiary/10"
                 )}
               >
-                <td className="px-4 py-3.5 whitespace-nowrap max-w-[180px]">
+                <td className="px-4 py-3.5 whitespace-nowrap max-w-[242px]">
                   <div className="flex items-center gap-2">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
                     <div className="min-w-0 overflow-hidden">
