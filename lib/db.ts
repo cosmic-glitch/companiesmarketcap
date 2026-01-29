@@ -74,8 +74,9 @@ async function loadJsonDataAsync(): Promise<JsonData> {
     }
 
     // Fetch from Vercel Blob
+    // Use no-store to avoid stale Data Cache; in-memory blobDataCache handles request caching
     const response = await fetch(blobUrl, {
-      next: { revalidate: 3600 }, // Cache for 1 hour in Next.js
+      cache: "no-store",
     });
 
     if (!response.ok) {
