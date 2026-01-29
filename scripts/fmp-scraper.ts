@@ -10,7 +10,12 @@
  * - Financial growth (5Y revenue/EPS growth)
  * - Analyst estimates (forward PE)
  *
- * Run with: npm run scrape
+ * Usage:
+ *   npm run scrape                      # Full scrape (all data)
+ *   npm run scrape -- --only forward_pe # Only update forward P/E
+ *   npm run scrape -- --only quotes     # Only update price/market cap/daily change
+ *   npm run scrape -- --only financials # Only update revenue/earnings/margins/ratios
+ *   npm run scrape -- --only growth     # Only update growth metrics
  */
 
 import axios from "axios";
@@ -251,13 +256,23 @@ async function fetchAnalystEstimates(symbol: string): Promise<FMPAnalystEstimate
   const response = await axios.get<FMPAnalystEstimate[]>(url, { timeout: 10000 });
 
   if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-    const currentYear = new Date().getFullYear();
-    // Get estimate for current or next year
-    const estimate = response.data.find((est) => {
-      const estYear = new Date(est.date).getFullYear();
-      return estYear === currentYear || estYear === currentYear + 1;
+    const now = new Date();
+    const threeMonthsFromNow = new Date(now);
+    threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+
+    // Sort by date ascending to get earliest first
+    const sorted = [...response.data].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Pick the first estimate whose fiscal year end is at least 3 months away
+    // This gives us the "forward" estimate - if FY ends soon, use next FY
+    const estimate = sorted.find((est) => {
+      const fyEndDate = new Date(est.date);
+      return fyEndDate >= threeMonthsFromNow;
     });
-    return estimate || response.data[0];
+
+    return estimate || sorted[sorted.length - 1]; // Fall back to furthest out
   }
   return null;
 }
@@ -539,6 +554,184 @@ async function runFMPScraper(): Promise<{
 // Export for use in API route
 export { runFMPScraper };
 
+// Partial update types
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth";
+
+// Run a partial update (only fetch and update specific fields)
+async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
+  companies: DatabaseCompany[];
+  lastUpdated: string;
+}> {
+  console.log("\n========================================");
+  console.log(`  FMP Partial Update: ${updateType}`);
+  console.log("========================================\n");
+
+  globalStartTime = Date.now();
+  const startTime = Date.now();
+
+  // Load existing data
+  const jsonPath = path.join(process.cwd(), "data", "companies.json");
+  if (!fs.existsSync(jsonPath)) {
+    throw new Error("No existing companies.json found. Run a full scrape first.");
+  }
+
+  const existingData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+  const existingCompanies: DatabaseCompany[] = existingData.companies;
+  const symbols = existingCompanies.map((c) => c.symbol);
+
+  console.log(`Loaded ${symbols.length} symbols from existing data\n`);
+
+  // Create a map for quick lookup
+  const companyMap = new Map<string, DatabaseCompany>();
+  for (const company of existingCompanies) {
+    companyMap.set(company.symbol, { ...company });
+  }
+
+  // Fetch only the required data based on update type
+  if (updateType === "forward_pe") {
+    console.log("Fetching analyst estimates...");
+    const estimates = await processSymbolsBatch(symbols, fetchAnalystEstimates, "Analyst estimates");
+    console.log(`  Got estimates for ${estimates.size} symbols\n`);
+
+    // Update forward_pe for each company
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
+      if (company.price && estimate?.epsAvg && estimate.epsAvg > 0) {
+        company.forward_pe = company.price / estimate.epsAvg;
+        updated++;
+      }
+    }
+    console.log(`Updated forward_pe for ${updated} companies`);
+
+  } else if (updateType === "quotes") {
+    console.log("Fetching quotes...");
+    const quotes = await fetchBatchQuotes(symbols);
+    console.log(`  Got quotes for ${quotes.size} symbols\n`);
+
+    // Update quote-related fields
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const quote = quotes.get(symbol);
+      if (quote) {
+        company.price = quote.price;
+        company.market_cap = quote.marketCap;
+        company.daily_change_percent = quote.changePercentage;
+        updated++;
+      }
+    }
+    console.log(`Updated quotes for ${updated} companies`);
+
+    // Re-sort by market cap and update ranks
+    const sortedCompanies = Array.from(companyMap.values())
+      .sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
+    sortedCompanies.forEach((c, i) => {
+      c.rank = i + 1;
+    });
+
+  } else if (updateType === "financials") {
+    console.log("Fetching quarterly income statements...");
+    const incomeStatements = await processSymbolsBatch(symbols, fetchQuarterlyIncome, "Income statements");
+    console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
+
+    console.log("Fetching ratios TTM...");
+    const ratios = await processSymbolsBatch(symbols, fetchRatiosTTM, "Ratios TTM");
+    console.log(`  Got ratios for ${ratios.size} symbols\n`);
+
+    // Update financial fields
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const quarterlyIncome = incomeStatements.get(symbol) as FMPIncomeStatement[] | undefined;
+      const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
+
+      if (quarterlyIncome && quarterlyIncome.length > 0) {
+        const revenue = quarterlyIncome.reduce((sum, q) => sum + (q.revenue || 0), 0);
+        const netIncome = quarterlyIncome.reduce((sum, q) => sum + (q.netIncome || 0), 0);
+        const operatingIncome = quarterlyIncome.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
+
+        if (revenue > 0) {
+          company.revenue = revenue;
+          company.operating_margin = operatingIncome / revenue;
+        }
+        if (netIncome !== 0) {
+          company.earnings = netIncome;
+        }
+        updated++;
+      }
+
+      if (ratio) {
+        company.pe_ratio = ratio.priceToEarningsRatioTTM ?? company.pe_ratio;
+        company.dividend_percent = ratio.dividendYieldTTM ?? company.dividend_percent;
+      }
+    }
+    console.log(`Updated financials for ${updated} companies`);
+
+  } else if (updateType === "growth") {
+    console.log("Fetching financial growth...");
+    const growth = await processSymbolsBatch(symbols, fetchFinancialGrowth, "Financial growth");
+    console.log(`  Got growth data for ${growth.size} symbols\n`);
+
+    // Update growth fields
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const growthData = growth.get(symbol) as FMPFinancialGrowth | undefined;
+
+      if (growthData) {
+        if (growthData.fiveYRevenueGrowthPerShare !== null && growthData.fiveYRevenueGrowthPerShare !== undefined) {
+          company.revenue_growth_5y = totalGrowthToCAGR(growthData.fiveYRevenueGrowthPerShare);
+        }
+        if (growthData.threeYRevenueGrowthPerShare !== null && growthData.threeYRevenueGrowthPerShare !== undefined) {
+          company.revenue_growth_3y = totalGrowthToCAGR3Y(growthData.threeYRevenueGrowthPerShare);
+        }
+        if (growthData.fiveYNetIncomeGrowthPerShare !== null && growthData.fiveYNetIncomeGrowthPerShare !== undefined) {
+          company.eps_growth_5y = totalGrowthToCAGR(growthData.fiveYNetIncomeGrowthPerShare);
+        }
+        if (growthData.threeYNetIncomeGrowthPerShare !== null && growthData.threeYNetIncomeGrowthPerShare !== undefined) {
+          company.eps_growth_3y = totalGrowthToCAGR3Y(growthData.threeYNetIncomeGrowthPerShare);
+        }
+        updated++;
+      }
+    }
+    console.log(`Updated growth data for ${updated} companies`);
+  }
+
+  // Update timestamp for all companies
+  const timestamp = new Date().toISOString();
+  for (const company of companyMap.values()) {
+    company.last_updated = timestamp;
+  }
+
+  const dbCompanies = Array.from(companyMap.values());
+
+  // Summary
+  const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
+  console.log(`\nDuration: ${duration} minutes`);
+
+  return {
+    companies: dbCompanies,
+    lastUpdated: timestamp,
+  };
+}
+
+// Parse CLI arguments
+function parseArgs(): { only?: PartialUpdateType } {
+  const args = process.argv.slice(2);
+  const onlyIndex = args.indexOf("--only");
+
+  if (onlyIndex !== -1 && args[onlyIndex + 1]) {
+    const updateType = args[onlyIndex + 1] as PartialUpdateType;
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth"];
+    if (!validTypes.includes(updateType)) {
+      console.error(`Error: Invalid update type '${updateType}'`);
+      console.error(`Valid types: ${validTypes.join(", ")}`);
+      process.exit(1);
+    }
+    return { only: updateType };
+  }
+
+  return {};
+}
+
 // Main function for CLI
 async function main() {
   if (!FMP_API_KEY) {
@@ -547,7 +740,12 @@ async function main() {
     process.exit(1);
   }
 
-  const { companies, lastUpdated } = await runFMPScraper();
+  const args = parseArgs();
+
+  // Run either partial update or full scrape
+  const { companies, lastUpdated } = args.only
+    ? await runPartialUpdate(args.only)
+    : await runFMPScraper();
 
   // Write to local JSON file
   const jsonPath = path.join(process.cwd(), "data", "companies.json");
