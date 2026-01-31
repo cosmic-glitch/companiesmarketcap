@@ -115,6 +115,8 @@ interface CompanyData {
   operatingMargin: number | null;
   dividendPercent: number | null;
   forwardPE: number | null;
+  forwardEPS: number | null;
+  forwardEPSDate: string | null;
   revenueGrowth5Y: number | null;
   revenueGrowth3Y: number | null;
   epsGrowth5Y: number | null;
@@ -437,10 +439,17 @@ async function runFMPScraper(): Promise<{
       }
     }
 
-    // Calculate forward PE from current price / next year EPS estimate
+    // Store raw forward EPS data and calculate forward PE
     let forwardPE: number | null = null;
-    if (quote.price && estimate?.epsAvg && estimate.epsAvg > 0) {
-      forwardPE = quote.price / estimate.epsAvg;
+    let forwardEPS: number | null = null;
+    let forwardEPSDate: string | null = null;
+
+    if (estimate?.epsAvg && estimate.epsAvg > 0) {
+      forwardEPS = estimate.epsAvg;
+      forwardEPSDate = estimate.date;
+      if (quote.price) {
+        forwardPE = quote.price / estimate.epsAvg;
+      }
     }
 
     // Calculate growth metrics (convert total growth to CAGR)
@@ -477,6 +486,8 @@ async function runFMPScraper(): Promise<{
       operatingMargin: ttmOperatingMargin,
       dividendPercent: ratio?.dividendYieldTTM ?? null,
       forwardPE,
+      forwardEPS,
+      forwardEPSDate,
       revenueGrowth5Y,
       revenueGrowth3Y,
       epsGrowth5Y,
@@ -503,6 +514,8 @@ async function runFMPScraper(): Promise<{
     revenue: c.revenue,
     pe_ratio: c.peRatio,
     forward_pe: c.forwardPE,
+    forward_eps: c.forwardEPS,
+    forward_eps_date: c.forwardEPSDate,
     dividend_percent: c.dividendPercent,
     operating_margin: c.operatingMargin,
     revenue_growth_5y: c.revenueGrowth5Y,
@@ -593,12 +606,16 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     const estimates = await processSymbolsBatch(symbols, fetchAnalystEstimates, "Analyst estimates");
     console.log(`  Got estimates for ${estimates.size} symbols\n`);
 
-    // Update forward_pe for each company
+    // Update forward_pe and store raw EPS for each company
     let updated = 0;
     for (const [symbol, company] of companyMap) {
       const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
-      if (company.price && estimate?.epsAvg && estimate.epsAvg > 0) {
-        company.forward_pe = company.price / estimate.epsAvg;
+      if (estimate?.epsAvg && estimate.epsAvg > 0) {
+        company.forward_eps = estimate.epsAvg;
+        company.forward_eps_date = estimate.date;
+        if (company.price) {
+          company.forward_pe = company.price / estimate.epsAvg;
+        }
         updated++;
       }
     }

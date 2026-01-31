@@ -762,7 +762,10 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
                   {formatPERatio(company.peRatio)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td
+                  className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary"
+                  title={company.forwardEPSDate ? `FY ending ${company.forwardEPSDate}` : undefined}
+                >
                   {formatPERatio(company.forwardPE)}
                 </td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">

@@ -28,6 +28,8 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     revenue: row.revenue,
     peRatio: row.pe_ratio,
     forwardPE: row.forward_pe ?? null,
+    forwardEPS: row.forward_eps ?? null,
+    forwardEPSDate: row.forward_eps_date ?? null,
     dividendPercent: row.dividend_percent,
     operatingMargin: row.operating_margin,
     revenueGrowth5Y: row.revenue_growth_5y ?? null,
@@ -52,6 +54,8 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     revenue: company.revenue ?? null,
     pe_ratio: company.peRatio ?? null,
     forward_pe: company.forwardPE ?? null,
+    forward_eps: company.forwardEPS ?? null,
+    forward_eps_date: company.forwardEPSDate ?? null,
     dividend_percent: company.dividendPercent ?? null,
     operating_margin: company.operatingMargin ?? null,
     revenue_growth_5y: company.revenueGrowth5Y ?? null,
@@ -137,10 +141,19 @@ export async function getCompanies(
     companies = companies.map((company) => {
       const quote = quotes.get(company.symbol);
       if (quote) {
+        const livePrice = quote.price ?? company.price;
+
+        // Dynamically calculate forwardPE using live price
+        let dynamicForwardPE = company.forwardPE;
+        if (livePrice && company.forwardEPS && company.forwardEPS > 0) {
+          dynamicForwardPE = livePrice / company.forwardEPS;
+        }
+
         return {
           ...company,
-          price: quote.price ?? company.price,
+          price: livePrice,
           dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
+          forwardPE: dynamicForwardPE,
         };
       }
       return company;

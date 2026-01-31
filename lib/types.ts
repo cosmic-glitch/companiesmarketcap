@@ -16,6 +16,8 @@ export interface Company {
   revenue: number | null;
   peRatio: number | null;
   forwardPE: number | null;
+  forwardEPS: number | null;      // Raw EPS estimate
+  forwardEPSDate: string | null;  // Fiscal year end date (e.g., "2026-12-31")
   dividendPercent: number | null;
   operatingMargin: number | null;
   revenueGrowth5Y: number | null; // 5-year CAGR
@@ -78,6 +80,8 @@ export interface DatabaseCompany {
   revenue: number | null;
   pe_ratio: number | null;
   forward_pe: number | null;
+  forward_eps: number | null;
+  forward_eps_date: string | null;
   dividend_percent: number | null;
   operating_margin: number | null;
   revenue_growth_5y: number | null;
