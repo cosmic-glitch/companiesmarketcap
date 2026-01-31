@@ -20,9 +20,9 @@ const PRESETS: PresetConfig[] = [
   {
     id: 'mega-cap-value',
     label: 'Mega Cap Value',
-    subtitle: '$1T+, Fwd PE < 22',
+    subtitle: '$1T+, Fwd PE < 25',
     icon: '🏦',
-    filters: { minMarketCap: '1000', maxForwardPE: '22' },
+    filters: { minMarketCap: '1000', maxForwardPE: '25' },
     sort: { sortBy: 'forwardPE', sortOrder: 'asc' },
   },
   {
