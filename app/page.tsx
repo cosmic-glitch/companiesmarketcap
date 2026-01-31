@@ -1,6 +1,6 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getCompanies, getAllSymbols } from "@/lib/db";
+import { getCompanies, getAllSymbols, getLastUpdated } from "@/lib/db";
 import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 import Link from "next/link";
@@ -190,6 +190,9 @@ export default async function Home({ searchParams }: HomeProps) {
   // Pass quotes to getCompanies so it can merge live data and sort correctly
   const { companies, total } = await getCompanies(queryParams, quotes);
 
+  // Fetch last updated timestamp
+  const lastUpdated = await getLastUpdated();
+
   return (
     <main className="min-h-screen bg-bg-primary">
       {/* Header */}
@@ -237,6 +240,11 @@ export default async function Home({ searchParams }: HomeProps) {
           perPage={PER_PAGE}
         />
 
+        {lastUpdated && (
+          <p className="text-center text-text-secondary text-sm mt-6">
+            Data last refreshed: {new Date(lastUpdated).toLocaleString()}
+          </p>
+        )}
       </div>
     </main>
   );
