@@ -262,10 +262,14 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
   );
 };
 
-export default function CompaniesTable({ companies, sortBy, sortOrder }: CompaniesTableProps) {
+export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showCustomFilters, setShowCustomFilters] = useState(false);
+
+  // Use searchParams for client-side state to ensure highlight updates immediately on navigation
+  const sortBy = (searchParams.get('sortBy') as keyof Company) || sortByProp;
+  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || sortOrderProp;
 
   // Detect which preset is currently active based on URL params
   const activePreset = useMemo(() => {
