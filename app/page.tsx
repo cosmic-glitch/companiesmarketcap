@@ -137,7 +137,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   // Parse sort parameters
   const sortBy = (params.sortBy as keyof Company) || "marketCap";
-  const sortOrder = (params.sortOrder === "desc" ? "desc" : "asc") as "asc" | "desc";
+  const sortOrder = (params.sortOrder === "asc" ? "asc" : "desc") as "asc" | "desc";
 
   // Parse filter parameters (values in billions for market cap and earnings)
   const parseNumber = (value: string | undefined): number | undefined => {
