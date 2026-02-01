@@ -159,9 +159,9 @@ body {
 
 /* Sorted column highlight */
 .sorted-column-header {
-  background-color: rgba(8, 145, 178, 0.15);
+  background-color: rgba(5, 150, 105, 0.15);
 }
 
 .sorted-column-cell {
-  background-color: rgba(8, 145, 178, 0.08);
+  background-color: rgba(5, 150, 105, 0.08);
 }
