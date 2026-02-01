@@ -16,6 +16,7 @@
  *   npm run scrape -- --only quotes     # Only update price/market cap/daily change
  *   npm run scrape -- --only financials # Only update revenue/earnings/margins/ratios
  *   npm run scrape -- --only growth     # Only update growth metrics
+ *   npm run scrape -- --only pe_ratio   # Only update P/E ratio and TTM EPS
  */
 
 import axios from "axios";
@@ -110,6 +111,7 @@ interface CompanyData {
   price: number | null;
   dailyChangePercent: number | null;
   peRatio: number | null;
+  ttmEPS: number | null;
   earnings: number | null;
   revenue: number | null;
   operatingMargin: number | null;
@@ -439,6 +441,13 @@ async function runFMPScraper(): Promise<{
       }
     }
 
+    // Derive TTM EPS from FMP's P/E ratio for dynamic calculation later
+    let ttmEPS: number | null = null;
+    const peRatio = ratio?.priceToEarningsRatioTTM ?? null;
+    if (peRatio && peRatio > 0 && quote.price) {
+      ttmEPS = quote.price / peRatio;
+    }
+
     // Store raw forward EPS data and calculate forward PE
     let forwardPE: number | null = null;
     let forwardEPS: number | null = null;
@@ -480,7 +489,8 @@ async function runFMPScraper(): Promise<{
       marketCap: quote.marketCap,
       price: quote.price,
       dailyChangePercent: quote.changePercentage,
-      peRatio: ratio?.priceToEarningsRatioTTM ?? null,
+      peRatio,
+      ttmEPS,
       earnings: ttmEarnings,
       revenue: ttmRevenue,
       operatingMargin: ttmOperatingMargin,
@@ -513,6 +523,7 @@ async function runFMPScraper(): Promise<{
     earnings: c.earnings,
     revenue: c.revenue,
     pe_ratio: c.peRatio,
+    ttm_eps: c.ttmEPS,
     forward_pe: c.forwardPE,
     forward_eps: c.forwardEPS,
     forward_eps_date: c.forwardEPSDate,
@@ -568,7 +579,7 @@ async function runFMPScraper(): Promise<{
 export { runFMPScraper };
 
 // Partial update types
-type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth";
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio";
 
 // Run a partial update (only fetch and update specific fields)
 async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
@@ -679,6 +690,10 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       if (ratio) {
         company.pe_ratio = ratio.priceToEarningsRatioTTM ?? company.pe_ratio;
         company.dividend_percent = ratio.dividendYieldTTM ?? company.dividend_percent;
+        // Derive TTM EPS from P/E ratio for dynamic calculation later
+        if (ratio.priceToEarningsRatioTTM && ratio.priceToEarningsRatioTTM > 0 && company.price) {
+          company.ttm_eps = company.price / ratio.priceToEarningsRatioTTM;
+        }
       }
     }
     console.log(`Updated financials for ${updated} companies`);
@@ -710,6 +725,25 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       }
     }
     console.log(`Updated growth data for ${updated} companies`);
+
+  } else if (updateType === "pe_ratio") {
+    console.log("Fetching ratios TTM...");
+    const ratios = await processSymbolsBatch(symbols, fetchRatiosTTM, "Ratios TTM");
+    console.log(`  Got ratios for ${ratios.size} symbols\n`);
+
+    // Update only pe_ratio and ttm_eps
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
+      if (ratio?.priceToEarningsRatioTTM && ratio.priceToEarningsRatioTTM > 0) {
+        company.pe_ratio = ratio.priceToEarningsRatioTTM;
+        if (company.price) {
+          company.ttm_eps = company.price / ratio.priceToEarningsRatioTTM;
+        }
+        updated++;
+      }
+    }
+    console.log(`Updated pe_ratio for ${updated} companies`);
   }
 
   // Update timestamp for all companies
@@ -737,7 +771,7 @@ function parseArgs(): { only?: PartialUpdateType } {
 
   if (onlyIndex !== -1 && args[onlyIndex + 1]) {
     const updateType = args[onlyIndex + 1] as PartialUpdateType;
-    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth"];
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio"];
     if (!validTypes.includes(updateType)) {
       console.error(`Error: Invalid update type '${updateType}'`);
       console.error(`Valid types: ${validTypes.join(", ")}`);

@@ -27,6 +27,7 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     earnings: row.earnings,
     revenue: row.revenue,
     peRatio: row.pe_ratio,
+    ttmEPS: row.ttm_eps ?? null,
     forwardPE: row.forward_pe ?? null,
     forwardEPS: row.forward_eps ?? null,
     forwardEPSDate: row.forward_eps_date ?? null,
@@ -53,6 +54,7 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     earnings: company.earnings ?? null,
     revenue: company.revenue ?? null,
     pe_ratio: company.peRatio ?? null,
+    ttm_eps: company.ttmEPS ?? null,
     forward_pe: company.forwardPE ?? null,
     forward_eps: company.forwardEPS ?? null,
     forward_eps_date: company.forwardEPSDate ?? null,
@@ -149,10 +151,17 @@ export async function getCompanies(
           dynamicForwardPE = livePrice / company.forwardEPS;
         }
 
+        // Dynamically calculate peRatio using live price
+        let dynamicPERatio = company.peRatio;
+        if (livePrice && company.ttmEPS && company.ttmEPS > 0) {
+          dynamicPERatio = livePrice / company.ttmEPS;
+        }
+
         return {
           ...company,
           price: livePrice,
           dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
+          peRatio: dynamicPERatio,
           forwardPE: dynamicForwardPE,
         };
       }

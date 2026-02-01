@@ -15,6 +15,7 @@ export interface Company {
   earnings: number | null;
   revenue: number | null;
   peRatio: number | null;
+  ttmEPS: number | null;  // TTM earnings per share (derived from FMP P/E ratio)
   forwardPE: number | null;
   forwardEPS: number | null;      // Raw EPS estimate
   forwardEPSDate: string | null;  // Fiscal year end date (e.g., "2026-12-31")
@@ -79,6 +80,7 @@ export interface DatabaseCompany {
   earnings: number | null;
   revenue: number | null;
   pe_ratio: number | null;
+  ttm_eps: number | null;
   forward_pe: number | null;
   forward_eps: number | null;
   forward_eps_date: string | null;
