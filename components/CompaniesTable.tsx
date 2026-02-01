@@ -465,6 +465,9 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
     return <span className="text-accent ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>;
   };
 
+  // Helper to check if a column is the sorted column
+  const isSortedColumn = (columnKey: SortKey) => sortBy === columnKey;
+
   return (
     <div className="w-full">
       {/* Preset Cards Row */}
@@ -635,85 +638,127 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
             <tr>
               <th
                 onClick={() => handleSort("name")}
-                className="px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[242px]"
+                className={cn(
+                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[242px]",
+                  isSortedColumn("name") && "bg-accent/10"
+                )}
               >
                 Name <SortIndicator columnKey="name" />
               </th>
               <th
                 onClick={() => handleSort("marketCap")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("marketCap") && "bg-accent/10"
+                )}
               >
                 Market Cap <SortIndicator columnKey="marketCap" />
               </th>
               <th
                 onClick={() => handleSort("price")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("price") && "bg-accent/10"
+                )}
               >
                 Price <SortIndicator columnKey="price" />
               </th>
               <th
                 onClick={() => handleSort("dailyChangePercent")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("dailyChangePercent") && "bg-accent/10"
+                )}
               >
                 Today <SortIndicator columnKey="dailyChangePercent" />
               </th>
               <th
                 onClick={() => handleSort("earnings")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("earnings") && "bg-accent/10"
+                )}
               >
                 Earnings <SortIndicator columnKey="earnings" />
               </th>
               <th
                 onClick={() => handleSort("revenue")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("revenue") && "bg-accent/10"
+                )}
               >
                 Revenue <SortIndicator columnKey="revenue" />
               </th>
               <th
                 onClick={() => handleSort("peRatio")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("peRatio") && "bg-accent/10"
+                )}
               >
                 P/E <SortIndicator columnKey="peRatio" />
               </th>
               <th
                 onClick={() => handleSort("forwardPE")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("forwardPE") && "bg-accent/10"
+                )}
               >
                 Fwd P/E <SortIndicator columnKey="forwardPE" />
               </th>
               <th
                 onClick={() => handleSort("dividendPercent")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("dividendPercent") && "bg-accent/10"
+                )}
               >
                 Div % <SortIndicator columnKey="dividendPercent" />
               </th>
               <th
                 onClick={() => handleSort("operatingMargin")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("operatingMargin") && "bg-accent/10"
+                )}
               >
                 Op. Margin % <SortIndicator columnKey="operatingMargin" />
               </th>
               <th
                 onClick={() => handleSort("revenueGrowth5Y")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("revenueGrowth5Y") && "bg-accent/10"
+                )}
               >
                 Rev CAGR 5Y <SortIndicator columnKey="revenueGrowth5Y" />
               </th>
               <th
                 onClick={() => handleSort("revenueGrowth3Y")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("revenueGrowth3Y") && "bg-accent/10"
+                )}
               >
                 Rev CAGR 3Y <SortIndicator columnKey="revenueGrowth3Y" />
               </th>
               <th
                 onClick={() => handleSort("epsGrowth5Y")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("epsGrowth5Y") && "bg-accent/10"
+                )}
               >
                 EPS CAGR 5Y <SortIndicator columnKey="epsGrowth5Y" />
               </th>
               <th
                 onClick={() => handleSort("epsGrowth3Y")}
-                className="px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors"
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("epsGrowth3Y") && "bg-accent/10"
+                )}
               >
                 EPS CAGR 3Y <SortIndicator columnKey="epsGrowth3Y" />
               </th>
@@ -728,7 +773,10 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                   index % 2 === 0 ? "bg-transparent" : "bg-bg-tertiary/10"
                 )}
               >
-                <td className="px-4 py-3.5 whitespace-nowrap max-w-[242px]">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap max-w-[242px]",
+                  isSortedColumn("name") && "bg-accent/5"
+                )}>
                   <div className="flex items-center gap-2">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
                     <div className="min-w-0 overflow-hidden">
@@ -744,46 +792,85 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary font-semibold">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary font-semibold",
+                  isSortedColumn("marketCap") && "bg-accent/5"
+                )}>
                   {formatMarketCap(company.marketCap)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary",
+                  isSortedColumn("price") && "bg-accent/5"
+                )}>
                   {formatPrice(company.price)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right",
+                  isSortedColumn("dailyChangePercent") && "bg-accent/5"
+                )}>
                   <DailyChange value={company.dailyChangePercent} />
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("earnings") && "bg-accent/5"
+                )}>
                   {formatMarketCap(company.earnings)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("revenue") && "bg-accent/5"
+                )}>
                   {formatMarketCap(company.revenue)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("peRatio") && "bg-accent/5"
+                )}>
                   {formatPERatio(company.peRatio)}
                 </td>
                 <td
-                  className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary"
+                  className={cn(
+                    "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                    isSortedColumn("forwardPE") && "bg-accent/5"
+                  )}
                   title={company.forwardEPSDate ? `FY ending ${company.forwardEPSDate}` : undefined}
                 >
                   {formatPERatio(company.forwardPE)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("dividendPercent") && "bg-accent/5"
+                )}>
                   {formatPercent(company.dividendPercent !== null ? company.dividendPercent * 100 : null)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("operatingMargin") && "bg-accent/5"
+                )}>
                   {formatPercent(company.operatingMargin !== null ? company.operatingMargin * 100 : null)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("revenueGrowth5Y") && "bg-accent/5"
+                )}>
                   {formatCAGR(company.revenueGrowth5Y)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("revenueGrowth3Y") && "bg-accent/5"
+                )}>
                   {formatCAGR(company.revenueGrowth3Y)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("epsGrowth5Y") && "bg-accent/5"
+                )}>
                   {formatCAGR(company.epsGrowth5Y)}
                 </td>
-                <td className="px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary">
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("epsGrowth3Y") && "bg-accent/5"
+                )}>
                   {formatCAGR(company.epsGrowth3Y)}
                 </td>
               </tr>
