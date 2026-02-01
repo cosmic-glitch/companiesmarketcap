@@ -28,9 +28,9 @@ const PRESETS: PresetConfig[] = [
   {
     id: 'garp',
     label: 'Growth At Reasonable Price (GARP)',
-    subtitle: '$10B+, 20%+ Op Margin, Rev Growth, EPS Growth, and Fwd PE < 25',
+    subtitle: '$10B+, 20%+ Op Margin, 20%+ Rev Growth 3Y, 20%+ EPS Growth 3Y, Fwd PE < 25',
     icon: '📈',
-    filters: { minMarketCap: '10', minOperatingMargin: '20', minRevenueGrowth: '20', minEPSGrowth: '20', maxForwardPE: '25' },
+    filters: { minMarketCap: '10', minOperatingMargin: '20', minRevenueGrowth3Y: '20', minEPSGrowth3Y: '20', maxForwardPE: '25' },
     sort: { sortBy: 'forwardPE', sortOrder: 'asc' },
   },
   {
