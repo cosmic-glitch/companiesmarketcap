@@ -213,7 +213,7 @@ const PresetCard = ({ preset, isActive, onClick }: PresetCardProps) => {
       className={cn(
         "px-4 py-2 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
         isActive
-          ? "bg-accent/20 border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
+          ? "sorted-column-header border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
           : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
       )}
     >
@@ -244,7 +244,7 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
       className={cn(
         "px-4 py-2 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
         isExpanded
-          ? "bg-accent/20 border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
+          ? "sorted-column-header border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
           : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
       )}
     >
@@ -640,7 +640,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("name")}
                 className={cn(
                   "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[242px]",
-                  isSortedColumn("name") && "bg-accent/20"
+                  isSortedColumn("name") && "sorted-column-header"
                 )}
               >
                 Name <SortIndicator columnKey="name" />
@@ -649,7 +649,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("marketCap")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("marketCap") && "bg-accent/20"
+                  isSortedColumn("marketCap") && "sorted-column-header"
                 )}
               >
                 Market Cap <SortIndicator columnKey="marketCap" />
@@ -658,7 +658,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("price")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("price") && "bg-accent/20"
+                  isSortedColumn("price") && "sorted-column-header"
                 )}
               >
                 Price <SortIndicator columnKey="price" />
@@ -667,7 +667,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("dailyChangePercent")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("dailyChangePercent") && "bg-accent/20"
+                  isSortedColumn("dailyChangePercent") && "sorted-column-header"
                 )}
               >
                 Today <SortIndicator columnKey="dailyChangePercent" />
@@ -676,7 +676,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("earnings")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("earnings") && "bg-accent/20"
+                  isSortedColumn("earnings") && "sorted-column-header"
                 )}
               >
                 Earnings <SortIndicator columnKey="earnings" />
@@ -685,7 +685,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("revenue")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("revenue") && "bg-accent/20"
+                  isSortedColumn("revenue") && "sorted-column-header"
                 )}
               >
                 Revenue <SortIndicator columnKey="revenue" />
@@ -694,7 +694,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("peRatio")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("peRatio") && "bg-accent/20"
+                  isSortedColumn("peRatio") && "sorted-column-header"
                 )}
               >
                 P/E <SortIndicator columnKey="peRatio" />
@@ -703,7 +703,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("forwardPE")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("forwardPE") && "bg-accent/20"
+                  isSortedColumn("forwardPE") && "sorted-column-header"
                 )}
               >
                 Fwd P/E <SortIndicator columnKey="forwardPE" />
@@ -712,7 +712,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("dividendPercent")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("dividendPercent") && "bg-accent/20"
+                  isSortedColumn("dividendPercent") && "sorted-column-header"
                 )}
               >
                 Div % <SortIndicator columnKey="dividendPercent" />
@@ -721,7 +721,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("operatingMargin")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("operatingMargin") && "bg-accent/20"
+                  isSortedColumn("operatingMargin") && "sorted-column-header"
                 )}
               >
                 Op. Margin % <SortIndicator columnKey="operatingMargin" />
@@ -730,7 +730,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("revenueGrowth5Y")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("revenueGrowth5Y") && "bg-accent/20"
+                  isSortedColumn("revenueGrowth5Y") && "sorted-column-header"
                 )}
               >
                 Rev CAGR 5Y <SortIndicator columnKey="revenueGrowth5Y" />
@@ -739,7 +739,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("revenueGrowth3Y")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("revenueGrowth3Y") && "bg-accent/20"
+                  isSortedColumn("revenueGrowth3Y") && "sorted-column-header"
                 )}
               >
                 Rev CAGR 3Y <SortIndicator columnKey="revenueGrowth3Y" />
@@ -748,7 +748,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("epsGrowth5Y")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("epsGrowth5Y") && "bg-accent/20"
+                  isSortedColumn("epsGrowth5Y") && "sorted-column-header"
                 )}
               >
                 EPS CAGR 5Y <SortIndicator columnKey="epsGrowth5Y" />
@@ -757,7 +757,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 onClick={() => handleSort("epsGrowth3Y")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("epsGrowth3Y") && "bg-accent/20"
+                  isSortedColumn("epsGrowth3Y") && "sorted-column-header"
                 )}
               >
                 EPS CAGR 3Y <SortIndicator columnKey="epsGrowth3Y" />
@@ -775,7 +775,7 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
               >
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap max-w-[242px]",
-                  isSortedColumn("name") && "bg-accent/15"
+                  isSortedColumn("name") && "sorted-column-cell"
                 )}>
                   <div className="flex items-center gap-2">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
@@ -794,44 +794,44 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary font-semibold",
-                  isSortedColumn("marketCap") && "bg-accent/15"
+                  isSortedColumn("marketCap") && "sorted-column-cell"
                 )}>
                   {formatMarketCap(company.marketCap)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary",
-                  isSortedColumn("price") && "bg-accent/15"
+                  isSortedColumn("price") && "sorted-column-cell"
                 )}>
                   {formatPrice(company.price)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right",
-                  isSortedColumn("dailyChangePercent") && "bg-accent/15"
+                  isSortedColumn("dailyChangePercent") && "sorted-column-cell"
                 )}>
                   <DailyChange value={company.dailyChangePercent} />
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("earnings") && "bg-accent/15"
+                  isSortedColumn("earnings") && "sorted-column-cell"
                 )}>
                   {formatMarketCap(company.earnings)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("revenue") && "bg-accent/15"
+                  isSortedColumn("revenue") && "sorted-column-cell"
                 )}>
                   {formatMarketCap(company.revenue)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("peRatio") && "bg-accent/15"
+                  isSortedColumn("peRatio") && "sorted-column-cell"
                 )}>
                   {formatPERatio(company.peRatio)}
                 </td>
                 <td
                   className={cn(
                     "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                    isSortedColumn("forwardPE") && "bg-accent/15"
+                    isSortedColumn("forwardPE") && "sorted-column-cell"
                   )}
                   title={company.forwardEPSDate ? `FY ending ${company.forwardEPSDate}` : undefined}
                 >
@@ -839,37 +839,37 @@ export default function CompaniesTable({ companies, sortBy, sortOrder }: Compani
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("dividendPercent") && "bg-accent/15"
+                  isSortedColumn("dividendPercent") && "sorted-column-cell"
                 )}>
                   {formatPercent(company.dividendPercent !== null ? company.dividendPercent * 100 : null)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("operatingMargin") && "bg-accent/15"
+                  isSortedColumn("operatingMargin") && "sorted-column-cell"
                 )}>
                   {formatPercent(company.operatingMargin !== null ? company.operatingMargin * 100 : null)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("revenueGrowth5Y") && "bg-accent/15"
+                  isSortedColumn("revenueGrowth5Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.revenueGrowth5Y)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("revenueGrowth3Y") && "bg-accent/15"
+                  isSortedColumn("revenueGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.revenueGrowth3Y)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("epsGrowth5Y") && "bg-accent/15"
+                  isSortedColumn("epsGrowth5Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.epsGrowth5Y)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("epsGrowth3Y") && "bg-accent/15"
+                  isSortedColumn("epsGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.epsGrowth3Y)}
                 </td>

@@ -156,3 +156,12 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Sorted column highlight */
+.sorted-column-header {
+  background-color: rgba(8, 145, 178, 0.15);
+}
+
+.sorted-column-cell {
+  background-color: rgba(8, 145, 178, 0.08);
+}
