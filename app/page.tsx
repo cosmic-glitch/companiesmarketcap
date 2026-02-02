@@ -1,12 +1,11 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getCompanies, getAllSymbols, getLastUpdated } from "@/lib/db";
-import { getAllQuotes } from "@/lib/quotes";
+import { getCompanies, getLastUpdated } from "@/lib/db";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 import Link from "next/link";
 import Image from "next/image";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // Revalidate every hour (data updates daily via scraper)
 
 const PER_PAGE = 100;
 
@@ -183,12 +182,9 @@ export default async function Home({ searchParams }: HomeProps) {
     offset: (page - 1) * PER_PAGE,
   };
 
-  // Fetch live quotes from Yahoo Finance
-  const allSymbols = await getAllSymbols();
-  const { quotes } = await getAllQuotes(allSymbols);
-
-  // Pass quotes to getCompanies so it can merge live data and sort correctly
-  const { companies, total } = await getCompanies(queryParams, quotes);
+  // Fetch companies with cached prices from daily scrape
+  // Live quotes are fetched client-side in CompaniesTable for the visible 100 companies
+  const { companies, total } = await getCompanies(queryParams);
 
   // Fetch last updated timestamp
   const lastUpdated = await getLastUpdated();

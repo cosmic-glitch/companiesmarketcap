@@ -13,7 +13,7 @@ interface JsonData {
 
 // Cache for blob data to avoid repeated fetches within a request
 let blobDataCache: { data: JsonData; fetchedAt: number } | null = null;
-const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache (data updates daily via scraper)
 
 // Convert JSON record to Company type
 function dbRowToCompany(row: DatabaseCompany): Company {

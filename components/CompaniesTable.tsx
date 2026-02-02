@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Company } from "@/lib/types";
+import { Company, PriceQuote } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 
 // Preset filter configurations
@@ -274,6 +274,89 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
     (searchParams.get('sortOrder') as 'asc' | 'desc') || sortOrderProp
   );
+
+  // Live quotes state - fetched client-side for visible companies only
+  const [liveQuotes, setLiveQuotes] = useState<Record<string, PriceQuote>>({});
+  const [quotesLoading, setQuotesLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Fetch live quotes for visible companies
+  useEffect(() => {
+    if (companies.length === 0) return;
+
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const fetchQuotes = async () => {
+      setQuotesLoading(true);
+      try {
+        const symbols = companies.map((c) => c.symbol).join(",");
+        const response = await fetch(`/api/quotes?symbols=${symbols}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch quotes");
+        }
+
+        const data = await response.json();
+        setLiveQuotes(data.quotes || {});
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Error fetching live quotes:", error);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setQuotesLoading(false);
+        }
+      }
+    };
+
+    fetchQuotes();
+
+    // Cleanup on unmount or when companies change
+    return () => {
+      controller.abort();
+    };
+  }, [companies]);
+
+  // Merge live quotes with company data
+  const companiesWithLiveData = useMemo(() => {
+    if (Object.keys(liveQuotes).length === 0) {
+      return companies;
+    }
+
+    return companies.map((company) => {
+      const quote = liveQuotes[company.symbol];
+      if (!quote) return company;
+
+      const livePrice = quote.price ?? company.price;
+
+      // Recalculate P/E ratios with live price
+      let dynamicForwardPE = company.forwardPE;
+      if (livePrice && company.forwardEPS && company.forwardEPS > 0) {
+        dynamicForwardPE = livePrice / company.forwardEPS;
+      }
+
+      let dynamicPERatio = company.peRatio;
+      if (livePrice && company.ttmEPS && company.ttmEPS > 0) {
+        dynamicPERatio = livePrice / company.ttmEPS;
+      }
+
+      return {
+        ...company,
+        price: livePrice,
+        dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
+        peRatio: dynamicPERatio,
+        forwardPE: dynamicForwardPE,
+      };
+    });
+  }, [companies, liveQuotes]);
 
   // Sync local state when URL changes (e.g., browser back/forward, preset clicks)
   useEffect(() => {
@@ -790,7 +873,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
-            {companies.map((company, index) => (
+            {companiesWithLiveData.map((company, index) => (
               <tr
                 key={company.symbol}
                 className={cn(
@@ -904,7 +987,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         </table>
       </div>
 
-      {companies.length === 0 && (
+      {companiesWithLiveData.length === 0 && (
         <div className="text-center py-16 text-text-secondary">
           <svg className="mx-auto h-12 w-12 text-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
