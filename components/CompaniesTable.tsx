@@ -267,9 +267,21 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const searchParams = useSearchParams();
   const [showCustomFilters, setShowCustomFilters] = useState(false);
 
-  // Use searchParams for client-side state to ensure highlight updates immediately on navigation
-  const sortBy = (searchParams.get('sortBy') as keyof Company) || sortByProp;
-  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || sortOrderProp;
+  // Track sort state locally for immediate UI updates, synced with URL
+  const [sortBy, setSortBy] = useState<keyof Company>(
+    (searchParams.get('sortBy') as keyof Company) || sortByProp
+  );
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
+    (searchParams.get('sortOrder') as 'asc' | 'desc') || sortOrderProp
+  );
+
+  // Sync local state when URL changes (e.g., browser back/forward, preset clicks)
+  useEffect(() => {
+    const urlSortBy = (searchParams.get('sortBy') as keyof Company) || sortByProp;
+    const urlSortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || sortOrderProp;
+    setSortBy(urlSortBy);
+    setSortOrder(urlSortOrder);
+  }, [searchParams, sortByProp, sortOrderProp]);
 
   // Detect which preset is currently active based on URL params
   const activePreset = useMemo(() => {
@@ -317,6 +329,9 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     if (preset.sort.sortBy) {
       params.set('sortBy', preset.sort.sortBy);
       params.set('sortOrder', preset.sort.sortOrder!);
+      // Update local state immediately for instant visual feedback
+      setSortBy(preset.sort.sortBy as keyof Company);
+      setSortOrder(preset.sort.sortOrder!);
     }
 
     router.push(`/?${params.toString()}`);
@@ -324,8 +339,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   // Clear all filters (when clicking active preset)
   const clearAllFilters = useCallback(() => {
+    // Reset to default sort immediately for instant visual feedback
+    setSortBy(sortByProp);
+    setSortOrder(sortOrderProp);
     router.push('/');
-  }, [router]);
+  }, [router, sortByProp, sortOrderProp]);
 
   // Initialize pending filters from URL
   const getInitialFilters = useCallback((): FilterState => ({
@@ -380,6 +398,9 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   // Handle sorting - clicking a column header
   const handleSort = (key: SortKey) => {
     const newOrder = sortBy === key && sortOrder === "asc" ? "desc" : "asc";
+    // Update local state immediately for instant visual feedback
+    setSortBy(key);
+    setSortOrder(newOrder);
     router.push(buildUrl({
       sortBy: key,
       sortOrder: newOrder,
