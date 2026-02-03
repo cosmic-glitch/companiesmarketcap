@@ -51,19 +51,36 @@ This is a Next.js 15 App Router application that displays US company market cap 
    - `app/page.tsx`: Server component that fetches all companies on initial render
    - `components/CompaniesTable.tsx`: Client component with sorting and filtering UI
 
-### Automated Scraping via API
+### Automated Scraping (Local)
 
-The `/api/scrape` endpoint runs the FMP scraper and uploads to Vercel Blob:
-- **Authentication**: Requires `?token=SCRAPER_SECRET` query parameter
-- **Trigger**: Set up cron-job.org to call daily at 6:00 AM UTC
-- **Storage**: Uploads JSON to Vercel Blob (free tier: 250 MB)
-- **Timeout**: Configured for 300s max (FMP API fetching takes ~2-3 minutes)
+The scraper runs locally via macOS launchd every 3 days. This replaces the previous Vercel API approach which timed out (scraping takes ~10-30 minutes).
 
-**Environment Variables** (set in Vercel dashboard):
+**LaunchAgent:** `~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist`
+
+**Commands:**
+```bash
+# Manual run
+launchctl start com.companiesmarketcap.scraper
+
+# Check status
+launchctl list | grep companiesmarketcap
+
+# View logs
+tail -f ~/Library/Logs/companiesmarketcap-scraper.log
+
+# Reload after editing plist
+launchctl unload ~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist
+launchctl load ~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist
+```
+
+**Environment Variables** (in `.env.local`):
 - `FMP_API_KEY`: Financial Modeling Prep API key (required)
-- `SCRAPER_SECRET`: Random token for API auth (`openssl rand -hex 32`)
-- `BLOB_READ_WRITE_TOKEN`: Auto-created when adding Vercel Blob
-- `BLOB_URL`: Set to blob URL after first scrape run
+- `BLOB_READ_WRITE_TOKEN`: For uploading to Vercel Blob
+
+**Notes:**
+- Job runs every 3 days when Mac is awake
+- Logs: `~/Library/Logs/companiesmarketcap-scraper.log`
+- The `/api/scrape` endpoint still exists but times out on Vercel
 
 ### Data Fields
 
