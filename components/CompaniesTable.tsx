@@ -146,6 +146,21 @@ interface FilterState {
   maxPctTo52WeekHigh: string;
 }
 
+const FILTER_KEYS: (keyof FilterState)[] = [
+  "minMarketCap", "maxMarketCap",
+  "minEarnings", "maxEarnings",
+  "minRevenue", "maxRevenue",
+  "minPERatio", "maxPERatio",
+  "minForwardPE", "maxForwardPE",
+  "minDividend", "maxDividend",
+  "minOperatingMargin", "maxOperatingMargin",
+  "minRevenueGrowth", "maxRevenueGrowth",
+  "minRevenueGrowth3Y", "maxRevenueGrowth3Y",
+  "minEPSGrowth", "maxEPSGrowth",
+  "minEPSGrowth3Y", "maxEPSGrowth3Y",
+  "minPctTo52WeekHigh", "maxPctTo52WeekHigh",
+];
+
 type SortKey = keyof Company;
 
 // Filter input component
@@ -285,6 +300,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     setSortOrder(urlSortOrder);
   }, [searchParams, sortByProp, sortOrderProp]);
 
+  // Keep Custom panel state aligned with URL filter presence
+  useEffect(() => {
+    setShowCustomFilters(FILTER_KEYS.some((key) => searchParams.has(key)));
+  }, [searchParams]);
+
   // Detect which preset is currently active based on URL params
   const activePreset = useMemo(() => {
     for (const preset of PRESETS) {
@@ -299,16 +319,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
          searchParams.get('sortOrder') === preset.sort.sortOrder);
 
       // Also check that there are no extra filters in URL that aren't in preset
-      const filterKeys = [
-        'minMarketCap', 'maxMarketCap', 'minEarnings', 'maxEarnings',
-        'minRevenue', 'maxRevenue', 'minPERatio', 'maxPERatio',
-        'minForwardPE', 'maxForwardPE', 'minDividend', 'maxDividend',
-        'minOperatingMargin', 'maxOperatingMargin', 'minRevenueGrowth',
-        'maxRevenueGrowth', 'minRevenueGrowth3Y', 'maxRevenueGrowth3Y',
-        'minEPSGrowth', 'maxEPSGrowth', 'minEPSGrowth3Y', 'maxEPSGrowth3Y',
-        'minPctTo52WeekHigh', 'maxPctTo52WeekHigh'
-      ];
-      const activeFilterKeys = filterKeys.filter(key => searchParams.has(key));
+      const activeFilterKeys = FILTER_KEYS.filter((key) => searchParams.has(key));
       const presetFilterKeys = Object.keys(preset.filters);
       const noExtraFilters = activeFilterKeys.length === presetFilterKeys.length;
 
@@ -471,20 +482,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   };
 
   // Check if any filters are active (in URL)
-  const hasActiveFilters = [
-    "minMarketCap", "maxMarketCap",
-    "minEarnings", "maxEarnings",
-    "minRevenue", "maxRevenue",
-    "minPERatio", "maxPERatio",
-    "minForwardPE", "maxForwardPE",
-    "minDividend", "maxDividend",
-    "minOperatingMargin", "maxOperatingMargin",
-    "minRevenueGrowth", "maxRevenueGrowth",
-    "minRevenueGrowth3Y", "maxRevenueGrowth3Y",
-    "minEPSGrowth", "maxEPSGrowth",
-    "minEPSGrowth3Y", "maxEPSGrowth3Y",
-    "minPctTo52WeekHigh", "maxPctTo52WeekHigh"
-  ].some(key => searchParams.has(key));
+  const hasActiveFilters = FILTER_KEYS.some((key) => searchParams.has(key));
 
   // Check if pending filters are different from URL filters
   const currentFilters = getInitialFilters();
@@ -523,14 +521,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         <CustomCard
           isExpanded={showCustomFilters}
           onClick={() => {
-            if (!showCustomFilters) {
-              // Opening custom: clear any preset filters and show panel
-              clearAllFilters();
-              setShowCustomFilters(true);
-            } else {
-              // Closing custom: just hide the panel
-              setShowCustomFilters(false);
-            }
+            setShowCustomFilters((prev) => !prev);
           }}
         />
       </div>

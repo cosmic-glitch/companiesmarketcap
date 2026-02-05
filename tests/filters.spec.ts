@@ -7,7 +7,7 @@ test.describe('Company Table with Pagination', () => {
     await page.waitForSelector('table');
   });
 
-  test('should display all 9 filter input groups', async ({ page }) => {
+  test('should display all 12 filter input groups', async ({ page }) => {
     // Click Custom button to expand filter panel
     await page.locator('button:has-text("Custom")').click();
 
@@ -20,11 +20,14 @@ test.describe('Company Table with Pagination', () => {
     await expect(page.locator('label:has-text("Fwd P/E")')).toBeVisible();
     await expect(page.locator('label:has-text("Op. Margin %")')).toBeVisible();
     await expect(page.locator('label:has-text("Rev CAGR 5Y")')).toBeVisible();
+    await expect(page.locator('label:has-text("Rev CAGR 3Y")')).toBeVisible();
     await expect(page.locator('label:has-text("EPS CAGR 5Y")')).toBeVisible();
+    await expect(page.locator('label:has-text("EPS CAGR 3Y")')).toBeVisible();
+    await expect(page.locator('label:has-text("% to 52W High")')).toBeVisible();
 
-    // Check that input fields are present (2 per filter: min and max = 18 total)
+    // Check that input fields are present (2 per filter: min and max = 24 total)
     const inputs = page.locator('input[type="number"]');
-    await expect(inputs).toHaveCount(18);
+    await expect(inputs).toHaveCount(24);
   });
 
   test('should show pagination with correct format', async ({ page }) => {
@@ -166,10 +169,7 @@ test.describe('Company Table with Pagination', () => {
     await page.goto('/?minMarketCap=100');
     await page.waitForSelector('table');
 
-    // Click Custom button to expand filter panel
-    await page.locator('button:has-text("Custom")').click();
-
-    // Now Clear button should be visible
+    // Filter panel auto-opens for active URL filters, so Clear should be visible
     await expect(page.locator('button:has-text("Clear")')).toBeVisible();
   });
 
@@ -178,17 +178,14 @@ test.describe('Company Table with Pagination', () => {
     await page.goto('/?minMarketCap=100&maxMarketCap=500');
     await page.waitForSelector('table');
 
-    // Click Custom button to expand filter panel
-    await page.locator('button:has-text("Custom")').click();
-
     // Verify filter is active
     await expect(page.locator('button:has-text("Clear")')).toBeVisible();
 
     // Click Clear
     await page.locator('button:has-text("Clear")').click();
 
-    // Wait for navigation (filters removed)
-    await page.waitForURL('/');
+    // Wait for navigation (filters removed while preserving sort state)
+    await page.waitForURL((url) => !url.searchParams.has('minMarketCap') && !url.searchParams.has('maxMarketCap'));
 
     // Clear button should disappear (filter panel still open)
     await expect(page.locator('button:has-text("Clear")')).not.toBeVisible();
@@ -253,8 +250,41 @@ test.describe('Company Table with Pagination', () => {
     // Verify grid has correct responsive classes (9 filters)
     const gridClasses = await filterGrid.getAttribute('class');
     expect(gridClasses).toContain('md:grid-cols-3');
-    expect(gridClasses).toContain('lg:grid-cols-5');
-    expect(gridClasses).toContain('xl:grid-cols-9');
+    expect(gridClasses).toContain('lg:grid-cols-7');
+  });
+
+  test('should auto-open custom panel and prefill values from shared URL filters', async ({ page }) => {
+    await page.goto('/?minMarketCap=100&maxForwardPE=25');
+    await page.waitForSelector('table');
+
+    await expect(page.locator('label:has-text("Market Cap")')).toBeVisible();
+    await expect(page.locator('input[placeholder="Min billions"]').first()).toHaveValue('100');
+    await expect(page.locator('input[placeholder="Max "]').nth(1)).toHaveValue('25');
+  });
+
+  test('should not mutate URL when toggling custom panel on filtered links and should retain values', async ({ page }) => {
+    await page.goto('/?minMarketCap=100&maxForwardPE=25');
+    await page.waitForSelector('table');
+
+    const initialUrl = page.url();
+    await page.locator('button:has-text("Custom")').click(); // collapse
+    expect(page.url()).toBe(initialUrl);
+
+    await page.locator('button:has-text("Custom")').click(); // expand
+    expect(page.url()).toBe(initialUrl);
+    await expect(page.locator('input[placeholder="Min billions"]').first()).toHaveValue('100');
+    await expect(page.locator('input[placeholder="Max "]').nth(1)).toHaveValue('25');
+  });
+
+  test('should highlight both custom and matching preset when custom is open', async ({ page }) => {
+    await page.goto('/?minMarketCap=1000&maxForwardPE=25&sortBy=forwardPE&sortOrder=asc');
+    await page.waitForSelector('table');
+
+    const customCard = page.locator('button:has-text("Custom")');
+    const presetCard = page.locator('button:has-text("Mega Cap Value")');
+
+    await expect(customCard).toHaveClass(/sorted-column-header/);
+    await expect(presetCard).toHaveClass(/sorted-column-header/);
   });
 
   test('should have proper hover states on table rows', async ({ page }) => {
