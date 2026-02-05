@@ -11,6 +11,8 @@ export interface Company {
   rank: number;
   marketCap: number | null;
   price: number | null;
+  week52High: number | null;
+  pctTo52WeekHigh: number | null;
   dailyChangePercent: number | null;
   earnings: number | null;
   revenue: number | null;
@@ -76,6 +78,7 @@ export interface DatabaseCompany {
   rank: number | null;
   market_cap: number | null;
   price: number | null;
+  week_52_high: number | null;
   daily_change_percent: number | null;
   earnings: number | null;
   revenue: number | null;

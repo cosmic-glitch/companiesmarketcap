@@ -11,18 +11,29 @@ interface JsonData {
   exportedAt: string;
 }
 
+function calculatePctTo52WeekHigh(price: number | null, week52High: number | null): number | null {
+  if (price === null || week52High === null || price <= 0) {
+    return null;
+  }
+  return ((week52High - price) / price) * 100;
+}
+
 // Cache for blob data to avoid repeated fetches within a request
 let blobDataCache: { data: JsonData; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache (data updates daily via scraper)
 
 // Convert JSON record to Company type
 function dbRowToCompany(row: DatabaseCompany): Company {
+  const week52High = row.week_52_high ?? null;
+  const price = row.price;
   return {
     symbol: row.symbol,
     name: row.name,
     rank: row.rank ?? 0,
     marketCap: row.market_cap,
-    price: row.price,
+    price,
+    week52High,
+    pctTo52WeekHigh: calculatePctTo52WeekHigh(price, week52High),
     dailyChangePercent: row.daily_change_percent,
     earnings: row.earnings,
     revenue: row.revenue,
@@ -50,6 +61,7 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     rank: company.rank ?? null,
     market_cap: company.marketCap ?? null,
     price: company.price ?? null,
+    week_52_high: company.week52High ?? null,
     daily_change_percent: company.dailyChangePercent ?? null,
     earnings: company.earnings ?? null,
     revenue: company.revenue ?? null,
@@ -160,6 +172,7 @@ export async function getCompanies(
         return {
           ...company,
           price: livePrice,
+          pctTo52WeekHigh: calculatePctTo52WeekHigh(livePrice, company.week52High),
           dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
           peRatio: dynamicPERatio,
           forwardPE: dynamicForwardPE,

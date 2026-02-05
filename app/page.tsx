@@ -16,6 +16,7 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
     name: "name",
     price: "price",
     dailyChangePercent: "daily change",
+    pctTo52WeekHigh: "% to 52W High",
     earnings: "earnings",
     revenue: "revenue",
     peRatio: "P/E ratio",

@@ -14,6 +14,7 @@
  *   npm run scrape                      # Full scrape (all data)
  *   npm run scrape -- --only forward_pe # Only update forward P/E
  *   npm run scrape -- --only quotes     # Only update price/market cap/daily change
+ *   npm run scrape -- --only week_52_high # Only update 52-week high
  *   npm run scrape -- --only financials # Only update revenue/earnings/margins/ratios
  *   npm run scrape -- --only growth     # Only update growth metrics
  *   npm run scrape -- --only pe_ratio   # Only update P/E ratio and TTM EPS
@@ -64,6 +65,7 @@ interface FMPQuote {
   price: number;
   changePercentage: number;
   marketCap: number;
+  yearHigh?: number;
 }
 
 interface FMPProfile {
@@ -109,6 +111,7 @@ interface CompanyData {
   country: string;
   marketCap: number | null;
   price: number | null;
+  week52High: number | null;
   dailyChangePercent: number | null;
   peRatio: number | null;
   ttmEPS: number | null;
@@ -488,6 +491,7 @@ async function runFMPScraper(): Promise<{
       country: profile?.country || "United States",
       marketCap: quote.marketCap,
       price: quote.price,
+      week52High: quote.yearHigh ?? null,
       dailyChangePercent: quote.changePercentage,
       peRatio,
       ttmEPS,
@@ -519,6 +523,7 @@ async function runFMPScraper(): Promise<{
     rank: (c as any).rank,
     market_cap: c.marketCap,
     price: c.price,
+    week_52_high: c.week52High,
     daily_change_percent: c.dailyChangePercent,
     earnings: c.earnings,
     revenue: c.revenue,
@@ -579,7 +584,7 @@ async function runFMPScraper(): Promise<{
 export { runFMPScraper };
 
 // Partial update types
-type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio";
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high";
 
 // Run a partial update (only fetch and update specific fields)
 async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
@@ -644,6 +649,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       if (quote) {
         company.price = quote.price;
         company.market_cap = quote.marketCap;
+        company.week_52_high = quote.yearHigh ?? company.week_52_high ?? null;
         company.daily_change_percent = quote.changePercentage;
         updated++;
       }
@@ -656,6 +662,22 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     sortedCompanies.forEach((c, i) => {
       c.rank = i + 1;
     });
+
+  } else if (updateType === "week_52_high") {
+    console.log("Fetching quotes...");
+    const quotes = await fetchBatchQuotes(symbols);
+    console.log(`  Got quotes for ${quotes.size} symbols\n`);
+
+    // Update only week_52_high from quote.yearHigh
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const quote = quotes.get(symbol);
+      if (quote) {
+        company.week_52_high = quote.yearHigh ?? company.week_52_high ?? null;
+        updated++;
+      }
+    }
+    console.log(`Updated week_52_high for ${updated} companies`);
 
   } else if (updateType === "financials") {
     console.log("Fetching quarterly income statements...");
@@ -771,7 +793,7 @@ function parseArgs(): { only?: PartialUpdateType } {
 
   if (onlyIndex !== -1 && args[onlyIndex + 1]) {
     const updateType = args[onlyIndex + 1] as PartialUpdateType;
-    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio"];
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high"];
     if (!validTypes.includes(updateType)) {
       console.error(`Error: Invalid update type '${updateType}'`);
       console.error(`Valid types: ${validTypes.join(", ")}`);

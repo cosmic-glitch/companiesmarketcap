@@ -351,6 +351,10 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       return {
         ...company,
         price: livePrice,
+        pctTo52WeekHigh:
+          livePrice !== null && livePrice > 0 && company.week52High !== null
+            ? ((company.week52High - livePrice) / livePrice) * 100
+            : null,
         dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
         peRatio: dynamicPERatio,
         forwardPE: dynamicForwardPE,
@@ -781,6 +785,15 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Today <SortIndicator columnKey="dailyChangePercent" />
               </th>
               <th
+                onClick={() => handleSort("pctTo52WeekHigh")}
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("pctTo52WeekHigh") && "sorted-column-header"
+                )}
+              >
+                % to 52W High <SortIndicator columnKey="pctTo52WeekHigh" />
+              </th>
+              <th
                 onClick={() => handleSort("earnings")}
                 className={cn(
                   "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
@@ -917,6 +930,12 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("dailyChangePercent") && "sorted-column-cell"
                 )}>
                   <DailyChange value={company.dailyChangePercent} />
+                </td>
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("pctTo52WeekHigh") && "sorted-column-cell"
+                )}>
+                  {formatPercent(company.pctTo52WeekHigh, true)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
