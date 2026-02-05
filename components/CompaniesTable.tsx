@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Company } from "@/lib/types";
@@ -283,6 +283,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showCustomFilters, setShowCustomFilters] = useState(false);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const previousFilterSignatureRef = useRef<string | null>(null);
 
   // Track sort state locally for immediate UI updates, synced with URL
   const [sortBy, setSortBy] = useState<keyof Company>(
@@ -304,6 +306,24 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   useEffect(() => {
     setShowCustomFilters(FILTER_KEYS.some((key) => searchParams.has(key)));
   }, [searchParams]);
+
+  // Scroll the company list back to the top whenever applied filters change.
+  const filterSignature = useMemo(
+    () => FILTER_KEYS.map((key) => `${key}:${searchParams.get(key) ?? ""}`).join("|"),
+    [searchParams]
+  );
+
+  useEffect(() => {
+    if (previousFilterSignatureRef.current === null) {
+      previousFilterSignatureRef.current = filterSignature;
+      return;
+    }
+
+    if (previousFilterSignatureRef.current !== filterSignature) {
+      tableScrollRef.current?.scrollTo({ top: 0 });
+      previousFilterSignatureRef.current = filterSignature;
+    }
+  }, [filterSignature]);
 
   // Detect which preset is currently active based on URL params
   const activePreset = useMemo(() => {
@@ -647,7 +667,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               onClick={applyFilters}
               disabled={!hasUnappliedChanges}
               className={cn(
-                "px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300",
+                "h-10 px-6 py-2.5 inline-flex items-center text-sm font-semibold rounded-lg transition-all duration-300",
                 hasUnappliedChanges
                   ? "bg-accent text-white hover:bg-accent-hover hover:shadow-glow hover:scale-[1.02]"
                   : "bg-[#e0f7fa] text-[#0891b2]/50 cursor-not-allowed"
@@ -658,7 +678,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="px-4 py-2.5 text-sm font-medium text-text-secondary bg-bg-tertiary border border-border-subtle rounded-lg hover:bg-bg-hover hover:text-text-primary transition-all duration-300"
+                className="h-10 px-4 py-2.5 inline-flex items-center text-sm font-medium text-text-secondary bg-bg-tertiary border border-border-subtle rounded-lg hover:bg-bg-hover hover:text-text-primary transition-all duration-300"
               >
                 Clear
               </button>
@@ -669,7 +689,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       )}
 
       {/* Table */}
-      <div className="overflow-auto max-h-[75vh] bg-bg-secondary border border-border-subtle rounded-2xl shadow-lg">
+      <div
+        ref={tableScrollRef}
+        data-testid="companies-table-scroll"
+        className="overflow-auto max-h-[75vh] bg-bg-secondary border border-border-subtle rounded-2xl shadow-lg"
+      >
         <table className="min-w-full">
           <thead className="bg-bg-tertiary sticky top-0 z-10 border-b border-border-subtle">
             <tr>

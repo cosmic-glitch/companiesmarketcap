@@ -158,6 +158,36 @@ test.describe('Company Table with Pagination', () => {
     expect(total).toBeLessThan(3000); // Should be less than full dataset
   });
 
+  test('should scroll table to top when applying custom filters', async ({ page }) => {
+    const tableScroller = page.getByTestId('companies-table-scroll');
+
+    await tableScroller.evaluate((el) => {
+      el.scrollTop = 600;
+    });
+    await expect.poll(async () => tableScroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+
+    await page.locator('button:has-text("Custom")').click();
+    await page.locator('input[placeholder="Min billions"]').first().fill('200');
+    await page.locator('button:has-text("Apply")').click();
+
+    await page.waitForURL(/minMarketCap=200/);
+    await expect.poll(async () => tableScroller.evaluate((el) => el.scrollTop)).toBe(0);
+  });
+
+  test('should scroll table to top when applying a preset', async ({ page }) => {
+    const tableScroller = page.getByTestId('companies-table-scroll');
+
+    await tableScroller.evaluate((el) => {
+      el.scrollTop = 600;
+    });
+    await expect.poll(async () => tableScroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+
+    await page.locator('button:has-text("Mega Cap Value")').click();
+    await page.waitForURL(/minMarketCap=1000/);
+
+    await expect.poll(async () => tableScroller.evaluate((el) => el.scrollTop)).toBe(0);
+  });
+
   test('should show Clear button when filters are active', async ({ page }) => {
     // Click Custom button to expand filter panel
     await page.locator('button:has-text("Custom")').click();
