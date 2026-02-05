@@ -1,6 +1,7 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getCompanies, getLastUpdated } from "@/lib/db";
+import { getAllSymbols, getCompanies, getLastUpdated } from "@/lib/db";
+import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 import Link from "next/link";
 import Image from "next/image";
@@ -79,6 +80,9 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
   // EPS Growth 3Y
   addFilter('EPS Growth 3Y', params.minEPSGrowth3Y, params.maxEPSGrowth3Y, '%');
 
+  // % to 52W High
+  addFilter('% to 52W High', params.minPctTo52WeekHigh, params.maxPctTo52WeekHigh, '%');
+
   // Earnings
   addFilter('Earnings', params.minEarnings, params.maxEarnings, 'B');
 
@@ -121,6 +125,8 @@ interface SearchParams {
   maxEPSGrowth?: string;
   minEPSGrowth3Y?: string;
   maxEPSGrowth3Y?: string;
+  minPctTo52WeekHigh?: string;
+  maxPctTo52WeekHigh?: string;
   search?: string;
 }
 
@@ -178,14 +184,17 @@ export default async function Home({ searchParams }: HomeProps) {
     maxEPSGrowth: parseGrowthPercent(params.maxEPSGrowth),
     minEPSGrowth3Y: parseGrowthPercent(params.minEPSGrowth3Y),
     maxEPSGrowth3Y: parseGrowthPercent(params.maxEPSGrowth3Y),
+    minPctTo52WeekHigh: parseNumber(params.minPctTo52WeekHigh),
+    maxPctTo52WeekHigh: parseNumber(params.maxPctTo52WeekHigh),
     search: params.search,
     limit: PER_PAGE,
     offset: (page - 1) * PER_PAGE,
   };
 
-  // Fetch companies with cached prices from daily scrape
-  // Live quotes are fetched client-side in CompaniesTable for the visible 100 companies
-  const { companies, total } = await getCompanies(queryParams);
+  // Fetch live quotes server-side once, then use them for filtering/sorting/display consistently
+  const symbols = await getAllSymbols();
+  const { quotes } = await getAllQuotes(symbols);
+  const { companies, total } = await getCompanies(queryParams, quotes);
 
   // Fetch last updated timestamp
   const lastUpdated = await getLastUpdated();

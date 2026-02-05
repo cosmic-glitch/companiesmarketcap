@@ -208,6 +208,8 @@ export async function getCompanies(
     maxEPSGrowth,
     minEPSGrowth3Y,
     maxEPSGrowth3Y,
+    minPctTo52WeekHigh,
+    maxPctTo52WeekHigh,
     limit = 100,
     offset = 0,
   } = params;
@@ -314,6 +316,14 @@ export async function getCompanies(
   }
   if (maxEPSGrowth3Y !== undefined) {
     companies = companies.filter((c) => c.epsGrowth3Y !== null && c.epsGrowth3Y <= maxEPSGrowth3Y);
+  }
+
+  // Apply % to 52W high filters (values as percentage points, e.g., 20 = 20%)
+  if (minPctTo52WeekHigh !== undefined) {
+    companies = companies.filter((c) => c.pctTo52WeekHigh !== null && c.pctTo52WeekHigh >= minPctTo52WeekHigh);
+  }
+  if (maxPctTo52WeekHigh !== undefined) {
+    companies = companies.filter((c) => c.pctTo52WeekHigh !== null && c.pctTo52WeekHigh <= maxPctTo52WeekHigh);
   }
 
   const total = companies.length;

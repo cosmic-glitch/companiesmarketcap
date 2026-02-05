@@ -4,7 +4,7 @@ import { PriceQuote } from "./types";
 // In-memory cache for quotes
 let cache: Map<string, PriceQuote> | null = null;
 let cacheTime = 0;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour TTL (client-side fetches fresh quotes per page)
+const CACHE_TTL = 60 * 1000; // 1 minute TTL for live server-side filtering/sorting/display consistency
 
 export interface QuotesResult {
   quotes: Map<string, PriceQuote>;

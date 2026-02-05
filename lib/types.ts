@@ -58,6 +58,8 @@ export interface CompaniesQueryParams {
   maxEPSGrowth?: number;
   minEPSGrowth3Y?: number;
   maxEPSGrowth3Y?: number;
+  minPctTo52WeekHigh?: number;
+  maxPctTo52WeekHigh?: number;
   limit?: number;
   offset?: number;
 }
