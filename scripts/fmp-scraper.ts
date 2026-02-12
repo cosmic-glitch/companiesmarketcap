@@ -48,6 +48,12 @@ const BASE_URL = "https://financialmodelingprep.com/stable";
 // Process one request at a time (no concurrency)
 const CONCURRENT_REQUESTS = 1;
 
+// Base delay between API requests (ms) to avoid hammering the API
+const REQUEST_DELAY_MS = 100;
+
+// Extra delay applied after hitting a rate limit (ms), decays over time
+let rateLimitCooldownUntil = 0;
+
 // FMP API response types
 interface FMPScreenerResult {
   symbol: string;
@@ -284,39 +290,55 @@ async function fetchAnalystEstimates(symbol: string): Promise<FMPAnalystEstimate
   return null;
 }
 
-// Fetch single symbol with retry only on 429 rate limit
+// Check if an error is transient and worth retrying
+function isTransientError(error: any): boolean {
+  const status = error.response?.status;
+  if (status === 429) return true;
+  if (status && status >= 500) return true;
+  const code = error.code || '';
+  return ['ECONNABORTED', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'EAI_AGAIN'].includes(code);
+}
+
+// Fetch single symbol with retry on transient errors
 async function fetchWithRetry(
   symbol: string,
   fetchFn: (symbol: string) => Promise<any>,
-  maxRetries: number = 10
+  maxRetries: number = 5
 ): Promise<{ symbol: string; data: any }> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
+      // Wait for any active rate limit cooldown
+      const now = Date.now();
+      if (rateLimitCooldownUntil > now) {
+        await sleep(rateLimitCooldownUntil - now);
+      }
+
       const data = await fetchFn(symbol);
       return { symbol, data };
     } catch (error: any) {
       const status = error.response?.status;
 
-      // Only retry on 429 rate limit
-      if (status === 429) {
-        if (attempt < maxRetries - 1) {
-          // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s, 60s...
-          const backoffMs = Math.min(1000 * Math.pow(2, attempt), 60000);
-          console.log(`  Rate limited on ${symbol}, waiting ${backoffMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
-          await sleep(backoffMs);
-          continue;
+      if (isTransientError(error) && attempt < maxRetries - 1) {
+        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 30000);
+        const reason = status === 429 ? 'rate limited' : (error.code || `HTTP ${status}`);
+        console.log(`  ${reason} on ${symbol}, waiting ${backoffMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+
+        // On rate limit, also set a global cooldown so the next symbols wait too
+        if (status === 429) {
+          rateLimitCooldownUntil = Date.now() + backoffMs;
         }
-        // Exhausted retries on rate limit
-        throw new Error(`Rate limit exceeded for ${symbol} after ${maxRetries} retries`);
+
+        await sleep(backoffMs);
+        continue;
       }
 
-      // Hard fail on any other error
+      // Non-retryable or exhausted retries — return null data instead of crashing
       const errorMsg = status ? `HTTP ${status}` : (error.code || error.message || 'unknown');
-      throw new Error(`Failed to fetch ${symbol}: ${errorMsg}`);
+      console.log(`  Skipping ${symbol}: ${errorMsg}`);
+      return { symbol, data: null };
     }
   }
-  // Should never reach here
-  throw new Error(`Unexpected state in fetchWithRetry for ${symbol}`);
+  return { symbol, data: null };
 }
 
 // Process symbols with concurrent requests and automatic retries
@@ -353,6 +375,11 @@ async function processSymbolsBatch(
       console.log(
         `  ${description}: ${processed}/${symbols.length} (${Math.round((processed / symbols.length) * 100)}%) - success: ${successCount} - ${elapsed}m elapsed`
       );
+    }
+
+    // Base delay between requests to avoid hammering the API
+    if (i + CONCURRENT_REQUESTS < symbols.length) {
+      await sleep(REQUEST_DELAY_MS);
     }
   }
 
