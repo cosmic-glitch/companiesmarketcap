@@ -358,6 +358,19 @@ export async function getCompanyBySymbol(symbol: string): Promise<Company | null
   return row ? dbRowToCompany(row) : null;
 }
 
+// Get multiple companies by symbols (case-insensitive)
+export async function getCompaniesBySymbols(symbols: string[]): Promise<Map<string, Company>> {
+  const jsonData = await loadJsonDataAsync();
+  const symbolSet = new Set(symbols.map((s) => s.toUpperCase()));
+  const result = new Map<string, Company>();
+  for (const row of jsonData.companies) {
+    if (symbolSet.has(row.symbol.toUpperCase())) {
+      result.set(row.symbol, dbRowToCompany(row));
+    }
+  }
+  return result;
+}
+
 // Get last updated timestamp
 export async function getLastUpdated(): Promise<string | null> {
   const jsonData = await loadJsonDataAsync();

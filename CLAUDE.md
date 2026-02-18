@@ -45,6 +45,7 @@ This is a Next.js 15 App Router application that displays US company market cap 
 
 3. **API Endpoints**:
    - `app/api/companies/route.ts`: Query endpoint with search, sort, filter, pagination
+   - `app/api/company/route.ts`: Lookup endpoint — fetch specific companies by symbol with optional field selection (`?symbols=AAPL,MSFT&fields=forwardPE,pctTo52WeekHigh`)
    - `app/api/scrape/route.ts`: Automated scraping endpoint (see below)
 
 4. **Frontend**: Server-rendered page with client-side interactivity
