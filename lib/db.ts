@@ -150,6 +150,11 @@ export async function getCompanies(
 
   let companies = jsonData.companies.map(dbRowToCompany);
 
+  // Exclude sub-$100M market cap companies (matches scraper threshold)
+  companies = companies.filter(
+    (c) => c.marketCap !== null && c.marketCap >= 100_000_000
+  );
+
   // If quotes provided, merge live data into companies
   if (quotes) {
     companies = companies.map((company) => {
