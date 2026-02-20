@@ -94,9 +94,9 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
 
   if (filterDescriptions.length > 0) {
     const criteria = filterDescriptions.join(', ');
-    return `${countText} companies with ${criteria}; ordered by ${sortLabel}`;
+    return `${countText} US companies (min $100M mkt cap) with ${criteria}; ordered by ${sortLabel}`;
   }
-  return `${countText} companies ranked by ${sortLabel}`;
+  return `${countText} US companies over $100M market cap, ranked by ${sortLabel}`;
 }
 
 interface SearchParams {

@@ -413,7 +413,7 @@ async function runFMPScraper(): Promise<{
   // Filter to symbols that have valid quotes and market cap
   const validSymbols = allSymbols.filter((s) => {
     const quote = quotes.get(s);
-    return quote && quote.marketCap && quote.marketCap > 0;
+    return quote && quote.marketCap && quote.marketCap >= 100_000_000;
   });
   console.log(`Valid symbols after quote filter: ${validSymbols.length}\n`);
 
