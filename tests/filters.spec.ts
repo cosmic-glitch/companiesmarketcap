@@ -7,7 +7,7 @@ test.describe('Company Table with Pagination', () => {
     await page.waitForSelector('table');
   });
 
-  test('should display all 12 filter input groups', async ({ page }) => {
+  test('should display all 12 filter input groups and country dropdown', async ({ page }) => {
     // Click Custom button to expand filter panel
     await page.locator('button:has-text("Custom")').click();
 
@@ -24,10 +24,15 @@ test.describe('Company Table with Pagination', () => {
     await expect(page.locator('label:has-text("EPS CAGR 5Y")')).toBeVisible();
     await expect(page.locator('label:has-text("EPS CAGR 3Y")')).toBeVisible();
     await expect(page.locator('label:has-text("% to 52W High")')).toBeVisible();
+    await expect(page.locator('label:has-text("Country")')).toBeVisible();
 
-    // Check that input fields are present (2 per filter: min and max = 24 total)
+    // Check that number input fields are present (2 per filter: min and max = 24 total)
     const inputs = page.locator('input[type="number"]');
     await expect(inputs).toHaveCount(24);
+
+    // Check country dropdown is present
+    const countrySelect = page.locator('select');
+    await expect(countrySelect).toBeVisible();
   });
 
   test('should show pagination with correct format', async ({ page }) => {
@@ -46,7 +51,7 @@ test.describe('Company Table with Pagination', () => {
 
     expect(startItem).toBe(1); // First page starts at 1
     expect(endItem).toBe(100); // First page shows 100 items
-    expect(totalItems).toBeGreaterThan(3000); // Total should be 3,500+
+    expect(totalItems).toBeGreaterThan(1000); // Total should be 1,000+ companies ($1B+ market cap)
   });
 
   test('should display Previous and Next pagination buttons', async ({ page }) => {
@@ -108,6 +113,7 @@ test.describe('Company Table with Pagination', () => {
   test('should display table with company data', async ({ page }) => {
     // Check table headers
     await expect(page.locator('th:has-text("Name")')).toBeVisible();
+    await expect(page.locator('th:has-text("Country")')).toBeVisible();
     await expect(page.locator('th:has-text("Market cap")')).toBeVisible();
     await expect(page.locator('th:has-text("Price")')).toBeVisible();
     await expect(page.locator('th:has-text("Today")')).toBeVisible();
@@ -155,7 +161,7 @@ test.describe('Company Table with Pagination', () => {
     const match = text?.match(/of ([\d,]+)/);
     expect(match).toBeTruthy();
     const total = parseInt(match![1].replace(/,/g, ''));
-    expect(total).toBeLessThan(3000); // Should be less than full dataset
+    expect(total).toBeLessThan(1500); // Should be less than full dataset
   });
 
   test('should scroll table to top when applying custom filters', async ({ page }) => {

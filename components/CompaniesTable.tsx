@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Company } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
+import { formatCountry, COUNTRIES } from "@/lib/countries";
 
 // Preset filter configurations
 interface PresetConfig {
@@ -117,6 +118,7 @@ interface CompaniesTableProps {
   companies: Company[];
   sortBy: keyof Company;
   sortOrder: "asc" | "desc";
+  countries: string[];
 }
 
 interface FilterState {
@@ -144,6 +146,7 @@ interface FilterState {
   maxEPSGrowth3Y: string;
   minPctTo52WeekHigh: string;
   maxPctTo52WeekHigh: string;
+  country: string;
 }
 
 const FILTER_KEYS: (keyof FilterState)[] = [
@@ -159,6 +162,7 @@ const FILTER_KEYS: (keyof FilterState)[] = [
   "minEPSGrowth", "maxEPSGrowth",
   "minEPSGrowth3Y", "maxEPSGrowth3Y",
   "minPctTo52WeekHigh", "maxPctTo52WeekHigh",
+  "country",
 ];
 
 type SortKey = keyof Company;
@@ -279,7 +283,7 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
   );
 };
 
-export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp }: CompaniesTableProps) {
+export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showCustomFilters, setShowCustomFilters] = useState(false);
@@ -405,6 +409,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     maxEPSGrowth3Y: searchParams.get("maxEPSGrowth3Y") || "",
     minPctTo52WeekHigh: searchParams.get("minPctTo52WeekHigh") || "",
     maxPctTo52WeekHigh: searchParams.get("maxPctTo52WeekHigh") || "",
+    country: searchParams.get("country") || "",
   }), [searchParams]);
 
   const [pendingFilters, setPendingFilters] = useState<FilterState>(getInitialFilters);
@@ -485,6 +490,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       maxEPSGrowth3Y: "",
       minPctTo52WeekHigh: "",
       maxPctTo52WeekHigh: "",
+      country: "",
     };
     setPendingFilters(emptyFilters);
 
@@ -604,7 +610,21 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             updateFilter={updateFilter}
             applyFilters={applyFilters}
           />
-          <div className="hidden lg:block" />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-text-secondary uppercase tracking-wider">Country</label>
+            <select
+              value={pendingFilters.country}
+              onChange={(e) => {
+                updateFilter("country", e.target.value);
+              }}
+              className="w-full px-3 py-2.5 text-sm bg-bg-tertiary border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
+            >
+              <option value="">All Countries</option>
+              {countries.map((c) => (
+                <option key={c} value={c}>{formatCountry(c)}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
@@ -705,6 +725,15 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 )}
               >
                 Name <SortIndicator columnKey="name" />
+              </th>
+              <th
+                onClick={() => handleSort("country")}
+                className={cn(
+                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("country") && "sorted-column-header"
+                )}
+              >
+                Country <SortIndicator columnKey="country" />
               </th>
               <th
                 onClick={() => handleSort("marketCap")}
@@ -861,6 +890,12 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                       <div className="text-sm text-text-muted">{company.symbol}</div>
                     </div>
                   </div>
+                </td>
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-sm text-text-secondary",
+                  isSortedColumn("country") && "sorted-column-cell"
+                )}>
+                  {formatCountry(company.country)}
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary font-semibold",

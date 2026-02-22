@@ -76,7 +76,7 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     revenue_growth_3y: company.revenueGrowth3Y ?? null,
     eps_growth_5y: company.epsGrowth5Y ?? null,
     eps_growth_3y: company.epsGrowth3Y ?? null,
-    country: company.country || "United States",
+    country: company.country || "",
     last_updated: lastUpdated,
   };
 }
@@ -150,9 +150,9 @@ export async function getCompanies(
 
   let companies = jsonData.companies.map(dbRowToCompany);
 
-  // Exclude sub-$100M market cap companies (matches scraper threshold)
+  // Exclude sub-$1B market cap companies (matches scraper threshold)
   companies = companies.filter(
-    (c) => c.marketCap !== null && c.marketCap >= 100_000_000
+    (c) => c.marketCap !== null && c.marketCap >= 1_000_000_000
   );
 
   // If quotes provided, merge live data into companies
@@ -215,6 +215,7 @@ export async function getCompanies(
     maxEPSGrowth3Y,
     minPctTo52WeekHigh,
     maxPctTo52WeekHigh,
+    country,
     limit = 100,
     offset = 0,
   } = params;
@@ -227,6 +228,11 @@ export async function getCompanies(
         c.name.toLowerCase().includes(searchLower) ||
         c.symbol.toLowerCase().includes(searchLower)
     );
+  }
+
+  // Apply country filter
+  if (country) {
+    companies = companies.filter((c) => c.country === country);
   }
 
   // Apply market cap filters (values in billions, stored in raw)
@@ -386,4 +392,11 @@ export async function getLastUpdated(): Promise<string | null> {
 export async function getAllSymbols(): Promise<string[]> {
   const jsonData = await loadJsonDataAsync();
   return jsonData.companies.map((c) => c.symbol);
+}
+
+// Get distinct country values for the country filter dropdown
+export async function getDistinctCountries(): Promise<string[]> {
+  const jsonData = await loadJsonDataAsync();
+  const countries = new Set(jsonData.companies.map((c) => c.country).filter(Boolean));
+  return Array.from(countries).sort();
 }

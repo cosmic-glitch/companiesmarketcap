@@ -1,8 +1,9 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getAllSymbols, getCompanies, getLastUpdated } from "@/lib/db";
+import { getAllSymbols, getCompanies, getDistinctCountries, getLastUpdated } from "@/lib/db";
 import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
+import { formatCountry } from "@/lib/countries";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -89,14 +90,19 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
   // Revenue
   addFilter('Revenue', params.minRevenue, params.maxRevenue, 'B');
 
+  // Country
+  if (params.country) {
+    filterDescriptions.push(`Country: ${formatCountry(params.country)}`);
+  }
+
   const countText = total.toLocaleString();
   const sortLabel = sortLabels[sortBy] || "market capitalization";
 
   if (filterDescriptions.length > 0) {
     const criteria = filterDescriptions.join(', ');
-    return `${countText} US companies (min $100M mkt cap) with ${criteria}; ordered by ${sortLabel}`;
+    return `${countText} companies (min $1B mkt cap) with ${criteria}; ordered by ${sortLabel}`;
   }
-  return `${countText} US companies over $100M market cap, ranked by ${sortLabel}`;
+  return `${countText} companies over $1B market cap, ranked by ${sortLabel}`;
 }
 
 interface SearchParams {
@@ -127,6 +133,7 @@ interface SearchParams {
   maxEPSGrowth3Y?: string;
   minPctTo52WeekHigh?: string;
   maxPctTo52WeekHigh?: string;
+  country?: string;
   search?: string;
 }
 
@@ -186,6 +193,7 @@ export default async function Home({ searchParams }: HomeProps) {
     maxEPSGrowth3Y: parseGrowthPercent(params.maxEPSGrowth3Y),
     minPctTo52WeekHigh: parseNumber(params.minPctTo52WeekHigh),
     maxPctTo52WeekHigh: parseNumber(params.maxPctTo52WeekHigh),
+    country: params.country,
     search: params.search,
     limit: PER_PAGE,
     offset: (page - 1) * PER_PAGE,
@@ -196,8 +204,9 @@ export default async function Home({ searchParams }: HomeProps) {
   const { quotes } = await getAllQuotes(symbols);
   const { companies, total } = await getCompanies(queryParams, quotes);
 
-  // Fetch last updated timestamp
+  // Fetch last updated timestamp and distinct countries for filter dropdown
   const lastUpdated = await getLastUpdated();
+  const countries = await getDistinctCountries();
 
   return (
     <main className="min-h-screen bg-bg-primary">
@@ -222,7 +231,7 @@ export default async function Home({ searchParams }: HomeProps) {
             </Link>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold gradient-text">
-                Largest US Companies
+                Largest Companies by Market Cap
               </h1>
               <p className="text-base text-text-secondary mt-1">
                 {getSubtitleText(sortBy, total, params)}
@@ -238,6 +247,7 @@ export default async function Home({ searchParams }: HomeProps) {
           companies={companies}
           sortBy={sortBy}
           sortOrder={sortOrder}
+          countries={countries}
         />
 
         <Pagination

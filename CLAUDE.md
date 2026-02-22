@@ -23,12 +23,12 @@ npx playwright test -g "should display table with company data"
 
 ## Architecture
 
-This is a Next.js 15 App Router application that displays US company market cap rankings with data from the Financial Modeling Prep (FMP) API.
+This is a Next.js 15 App Router application that displays global company market cap rankings with data from the Financial Modeling Prep (FMP) API.
 
 ### Data Flow
 
 1. **Scraper** (`scripts/fmp-scraper.ts`) fetches all data from FMP API:
-   - Stock list from `stock-screener?country=US&isActivelyTrading=true`
+   - Global stock list from `company-screener?marketCapMoreThan=1000000000&isActivelyTrading=true`
    - Batch quotes (price, market cap, P/E ratio, daily change)
    - Batch profiles (name, country)
    - Quarterly income statements (TTM revenue, earnings, operating margin)

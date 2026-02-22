@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const maxMarketCap = searchParams.get("maxMarketCap")
       ? parseFloat(searchParams.get("maxMarketCap")!)
       : undefined;
+    const country = searchParams.get("country") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 100;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : 0;
 
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
       sortOrder,
       minMarketCap,
       maxMarketCap,
+      country,
       limit,
       offset,
     });
