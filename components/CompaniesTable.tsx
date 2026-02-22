@@ -283,12 +283,45 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
   );
 };
 
+const DEFAULT_HIDDEN_COLUMNS = new Set(["dividendPercent", "operatingMargin", "revenueGrowth5Y", "epsGrowth5Y"]);
+
+const OPTIONAL_COLUMNS = [
+  { key: "dividendPercent", label: "Div %" },
+  { key: "operatingMargin", label: "Op. Margin %" },
+  { key: "revenueGrowth5Y", label: "Rev CAGR 5Y" },
+  { key: "epsGrowth5Y", label: "EPS CAGR 5Y" },
+] as const;
+
 export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showCustomFilters, setShowCustomFilters] = useState(false);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const previousFilterSignatureRef = useRef<string | null>(null);
+
+  // Column visibility state with localStorage persistence
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("columnVisibility");
+        if (stored) return new Set(JSON.parse(stored));
+      } catch {}
+    }
+    return new Set(DEFAULT_HIDDEN_COLUMNS);
+  });
+
+  const toggleColumn = (key: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      localStorage.setItem("columnVisibility", JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   // Track sort state locally for immediate UI updates, synced with URL
   const [sortBy, setSortBy] = useState<keyof Company>(
@@ -708,6 +741,22 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       </div>
       )}
 
+      {/* Column Visibility Toggles */}
+      <div className="mb-2 flex items-center gap-4 text-xs text-text-muted">
+        <span className="font-medium text-text-secondary">Columns:</span>
+        {OPTIONAL_COLUMNS.map((col) => (
+          <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={!hiddenColumns.has(col.key)}
+              onChange={() => toggleColumn(col.key)}
+              className="accent-accent w-3 h-3"
+            />
+            {col.label}
+          </label>
+        ))}
+      </div>
+
       {/* Table */}
       <div
         ref={tableScrollRef}
@@ -816,6 +865,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Fwd P/E <SortIndicator columnKey="forwardPE" />
               </th>
+              {!hiddenColumns.has("dividendPercent") && (
               <th
                 onClick={() => handleSort("dividendPercent")}
                 className={cn(
@@ -825,6 +875,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Div % <SortIndicator columnKey="dividendPercent" />
               </th>
+              )}
+              {!hiddenColumns.has("operatingMargin") && (
               <th
                 onClick={() => handleSort("operatingMargin")}
                 className={cn(
@@ -834,6 +886,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Op. Margin % <SortIndicator columnKey="operatingMargin" />
               </th>
+              )}
+              {!hiddenColumns.has("revenueGrowth5Y") && (
               <th
                 onClick={() => handleSort("revenueGrowth5Y")}
                 className={cn(
@@ -843,6 +897,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Rev CAGR 5Y <SortIndicator columnKey="revenueGrowth5Y" />
               </th>
+              )}
               <th
                 onClick={() => handleSort("revenueGrowth3Y")}
                 className={cn(
@@ -852,6 +907,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Rev CAGR 3Y <SortIndicator columnKey="revenueGrowth3Y" />
               </th>
+              {!hiddenColumns.has("epsGrowth5Y") && (
               <th
                 onClick={() => handleSort("epsGrowth5Y")}
                 className={cn(
@@ -861,6 +917,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 EPS CAGR 5Y <SortIndicator columnKey="epsGrowth5Y" />
               </th>
+              )}
               <th
                 onClick={() => handleSort("epsGrowth3Y")}
                 className={cn(
@@ -963,36 +1020,44 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 >
                   {formatPERatio(company.forwardPE)}
                 </td>
+                {!hiddenColumns.has("dividendPercent") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("dividendPercent") && "sorted-column-cell"
                 )}>
                   {formatPercent(company.dividendPercent !== null ? company.dividendPercent * 100 : null)}
                 </td>
+                )}
+                {!hiddenColumns.has("operatingMargin") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("operatingMargin") && "sorted-column-cell"
                 )}>
                   {formatPercent(company.operatingMargin !== null ? company.operatingMargin * 100 : null)}
                 </td>
+                )}
+                {!hiddenColumns.has("revenueGrowth5Y") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("revenueGrowth5Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.revenueGrowth5Y)}
                 </td>
+                )}
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("revenueGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.revenueGrowth3Y)}
                 </td>
+                {!hiddenColumns.has("epsGrowth5Y") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("epsGrowth5Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.epsGrowth5Y)}
                 </td>
+                )}
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("epsGrowth3Y") && "sorted-column-cell"
