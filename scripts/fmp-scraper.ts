@@ -18,7 +18,8 @@
  *   npm run scrape -- --only financials   # Only update revenue/earnings/margins/ratios
  *   npm run scrape -- --only growth       # Only update growth metrics
  *   npm run scrape -- --only pe_ratio     # Only update P/E ratio and TTM EPS
- *   npm run scrape -- --only new_symbols  # Fetch data for supplemental symbols not yet in JSON
+ *   npm run scrape -- --only new_symbols    # Fetch data for supplemental symbols not yet in JSON
+ *   npm run scrape -- --only currency_fix  # Fix non-USD revenue/earnings/forward_eps → USD
  */
 
 import axios from "axios";
@@ -45,6 +46,33 @@ if (fs.existsSync(envPath)) {
 const FMP_API_KEY = process.env.FMP_API_KEY;
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 const BASE_URL = "https://financialmodelingprep.com/stable";
+
+// Fetch USD exchange rates from open.er-api.com
+// Returns map of currency code → units per 1 USD (e.g. JPY → 155.14)
+async function fetchFXRates(): Promise<Map<string, number>> {
+  console.log("Fetching FX rates...");
+  const response = await axios.get<{ rates: Record<string, number> }>(
+    "https://open.er-api.com/v6/latest/USD",
+    { timeout: 15000 }
+  );
+  const rates = new Map<string, number>();
+  for (const [currency, rate] of Object.entries(response.data.rates)) {
+    rates.set(currency, rate);
+  }
+  console.log(`  Got ${rates.size} FX rates\n`);
+  return rates;
+}
+
+// Convert an amount from a foreign currency to USD
+function toUSD(amount: number, currency: string, fxRates: Map<string, number>): number {
+  if (currency === "USD") return amount;
+  const rate = fxRates.get(currency);
+  if (!rate) {
+    console.log(`  Warning: no FX rate for ${currency}, treating as USD`);
+    return amount;
+  }
+  return amount / rate;
+}
 
 // Process one request at a time (no concurrency)
 const CONCURRENT_REQUESTS = 1;
@@ -223,6 +251,7 @@ interface FMPIncomeStatement {
   revenue: number;
   netIncome: number;
   operatingIncome: number;
+  reportedCurrency: string;
 }
 
 interface FMPRatiosTTM {
@@ -365,13 +394,14 @@ async function fetchBatchProfiles(symbols: string[]): Promise<Map<string, FMPPro
   return processSymbolsBatch(symbols, fetchProfile, "Profiles") as Promise<Map<string, FMPProfile>>;
 }
 
-// Fetch quarterly income statements for a symbol (returns last 4 quarters)
-async function fetchQuarterlyIncome(symbol: string): Promise<FMPIncomeStatement[] | null> {
+// Fetch quarterly income statements for a symbol (returns last 4 quarters + reportedCurrency)
+async function fetchQuarterlyIncome(symbol: string): Promise<{ statements: FMPIncomeStatement[]; reportedCurrency: string } | null> {
   const url = `${BASE_URL}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${FMP_API_KEY}`;
   const response = await axios.get<FMPIncomeStatement[]>(url, { timeout: 10000 });
 
   if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-    return response.data;
+    const reportedCurrency = response.data[0].reportedCurrency || "USD";
+    return { statements: response.data, reportedCurrency };
   }
   return null;
 }
@@ -556,7 +586,10 @@ async function runFMPScraper(): Promise<{
   const profiles = await fetchBatchProfiles(validSymbols);
   console.log(`  Got profiles for ${profiles.size} symbols\n`);
 
-  // Step 4: Fetch individual data (income statements, ratios, growth, estimates)
+  // Step 4: Fetch FX rates for currency conversion
+  const fxRates = await fetchFXRates();
+
+  // Step 5: Fetch individual data (income statements, ratios, growth, estimates)
   console.log("Fetching quarterly income statements...");
   const incomeStatements = await processSymbolsBatch(validSymbols, fetchQuarterlyIncome, "Income statements");
   console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
@@ -573,36 +606,41 @@ async function runFMPScraper(): Promise<{
   const estimates = await processSymbolsBatch(validSymbols, fetchAnalystEstimates, "Analyst estimates");
   console.log(`  Got estimates for ${estimates.size} symbols\n`);
 
-  // Step 5: Build company data
+  // Step 6: Build company data
   console.log("Building company data...");
   const companies: CompanyData[] = [];
 
   for (const symbol of validSymbols) {
     const quote = quotes.get(symbol);
     const profile = profiles.get(symbol);
-    const quarterlyIncome = incomeStatements.get(symbol) as FMPIncomeStatement[] | undefined;
+    const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
     const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
     const growthData = growth.get(symbol) as FMPFinancialGrowth | undefined;
     const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
 
     if (!quote) continue;
 
+    // Get reporting currency for this company
+    const reportedCurrency = incomeResult?.reportedCurrency || "USD";
+
     // Calculate TTM values from quarterly income statements
     let ttmRevenue: number | null = null;
     let ttmEarnings: number | null = null;
     let ttmOperatingMargin: number | null = null;
 
-    if (quarterlyIncome && quarterlyIncome.length > 0) {
-      const revenue = quarterlyIncome.reduce((sum, q) => sum + (q.revenue || 0), 0);
-      const netIncome = quarterlyIncome.reduce((sum, q) => sum + (q.netIncome || 0), 0);
-      const operatingIncome = quarterlyIncome.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
+    if (incomeResult && incomeResult.statements.length > 0) {
+      const stmts = incomeResult.statements;
+      const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
+      const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
+      const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
 
       if (revenue > 0) {
-        ttmRevenue = revenue;
+        ttmRevenue = toUSD(revenue, reportedCurrency, fxRates);
+        // Operating margin is a ratio — compute before conversion (same result)
         ttmOperatingMargin = operatingIncome / revenue;
       }
       if (netIncome !== 0) {
-        ttmEarnings = netIncome;
+        ttmEarnings = toUSD(netIncome, reportedCurrency, fxRates);
       }
     }
 
@@ -614,15 +652,16 @@ async function runFMPScraper(): Promise<{
     }
 
     // Store raw forward EPS data and calculate forward PE
+    // Analyst estimates are in reporting currency — convert to USD before computing PE
     let forwardPE: number | null = null;
     let forwardEPS: number | null = null;
     let forwardEPSDate: string | null = null;
 
     if (estimate?.epsAvg && estimate.epsAvg > 0) {
-      forwardEPS = estimate.epsAvg;
+      forwardEPS = toUSD(estimate.epsAvg, reportedCurrency, fxRates);
       forwardEPSDate = estimate.date;
-      if (quote.price) {
-        forwardPE = quote.price / estimate.epsAvg;
+      if (quote.price && forwardEPS > 0) {
+        forwardPE = quote.price / forwardEPS;
       }
     }
 
@@ -671,13 +710,13 @@ async function runFMPScraper(): Promise<{
     });
   }
 
-  // Step 6: Sort by market cap and assign ranks
+  // Step 7: Sort by market cap and assign ranks
   companies.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
   companies.forEach((c, i) => {
     (c as any).rank = i + 1;
   });
 
-  // Step 7: Convert to DatabaseCompany format
+  // Step 8: Convert to DatabaseCompany format
   const timestamp = new Date().toISOString();
   const dbCompanies: DatabaseCompany[] = companies.map((c) => ({
     symbol: c.symbol,
@@ -746,7 +785,7 @@ async function runFMPScraper(): Promise<{
 export { runFMPScraper };
 
 // Partial update types
-type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols";
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix";
 
 // Run a partial update (only fetch and update specific fields)
 async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
@@ -780,19 +819,28 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
 
   // Fetch only the required data based on update type
   if (updateType === "forward_pe") {
+    const fxRates = await fetchFXRates();
+
+    console.log("Fetching quarterly income statements (for currency detection)...");
+    const incomeStatements = await processSymbolsBatch(symbols, fetchQuarterlyIncome, "Income statements");
+    console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
+
     console.log("Fetching analyst estimates...");
     const estimates = await processSymbolsBatch(symbols, fetchAnalystEstimates, "Analyst estimates");
     console.log(`  Got estimates for ${estimates.size} symbols\n`);
 
-    // Update forward_pe and store raw EPS for each company
+    // Update forward_pe and store USD-converted EPS for each company
     let updated = 0;
     for (const [symbol, company] of companyMap) {
       const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
       if (estimate?.epsAvg && estimate.epsAvg > 0) {
-        company.forward_eps = estimate.epsAvg;
+        const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
+        const reportedCurrency = incomeResult?.reportedCurrency || "USD";
+        const epsUSD = toUSD(estimate.epsAvg, reportedCurrency, fxRates);
+        company.forward_eps = epsUSD;
         company.forward_eps_date = estimate.date;
-        if (company.price) {
-          company.forward_pe = company.price / estimate.epsAvg;
+        if (company.price && epsUSD > 0) {
+          company.forward_pe = company.price / epsUSD;
         }
         updated++;
       }
@@ -842,6 +890,8 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     console.log(`Updated week_52_high for ${updated} companies`);
 
   } else if (updateType === "financials") {
+    const fxRates = await fetchFXRates();
+
     console.log("Fetching quarterly income statements...");
     const incomeStatements = await processSymbolsBatch(symbols, fetchQuarterlyIncome, "Income statements");
     console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
@@ -853,20 +903,22 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     // Update financial fields
     let updated = 0;
     for (const [symbol, company] of companyMap) {
-      const quarterlyIncome = incomeStatements.get(symbol) as FMPIncomeStatement[] | undefined;
+      const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
 
-      if (quarterlyIncome && quarterlyIncome.length > 0) {
-        const revenue = quarterlyIncome.reduce((sum, q) => sum + (q.revenue || 0), 0);
-        const netIncome = quarterlyIncome.reduce((sum, q) => sum + (q.netIncome || 0), 0);
-        const operatingIncome = quarterlyIncome.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
+      if (incomeResult && incomeResult.statements.length > 0) {
+        const reportedCurrency = incomeResult.reportedCurrency;
+        const stmts = incomeResult.statements;
+        const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
+        const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
+        const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
 
         if (revenue > 0) {
-          company.revenue = revenue;
+          company.revenue = toUSD(revenue, reportedCurrency, fxRates);
           company.operating_margin = operatingIncome / revenue;
         }
         if (netIncome !== 0) {
-          company.earnings = netIncome;
+          company.earnings = toUSD(netIncome, reportedCurrency, fxRates);
         }
         updated++;
       }
@@ -929,6 +981,63 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     }
     console.log(`Updated pe_ratio for ${updated} companies`);
 
+  } else if (updateType === "currency_fix") {
+    // Fix currency mismatch: convert revenue/earnings/forward_eps from reporting currency to USD
+    // Only updates companies where reportedCurrency != 'USD'
+    const fxRates = await fetchFXRates();
+
+    console.log("Fetching quarterly income statements (for currency detection)...");
+    const incomeStatements = await processSymbolsBatch(symbols, fetchQuarterlyIncome, "Income statements");
+    console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
+
+    console.log("Fetching analyst estimates...");
+    const estimates = await processSymbolsBatch(symbols, fetchAnalystEstimates, "Analyst estimates");
+    console.log(`  Got estimates for ${estimates.size} symbols\n`);
+
+    let updated = 0;
+    let skippedUSD = 0;
+    for (const [symbol, company] of companyMap) {
+      const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
+      if (!incomeResult) continue;
+
+      const reportedCurrency = incomeResult.reportedCurrency;
+      if (reportedCurrency === "USD") {
+        skippedUSD++;
+        continue;
+      }
+
+      const stmts = incomeResult.statements;
+
+      // Recompute and convert revenue/earnings from income statements
+      if (stmts.length > 0) {
+        const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
+        const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
+        const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
+
+        if (revenue > 0) {
+          company.revenue = toUSD(revenue, reportedCurrency, fxRates);
+          company.operating_margin = operatingIncome / revenue;
+        }
+        if (netIncome !== 0) {
+          company.earnings = toUSD(netIncome, reportedCurrency, fxRates);
+        }
+      }
+
+      // Convert forward EPS and recalculate forward PE
+      const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
+      if (estimate?.epsAvg && estimate.epsAvg > 0) {
+        const epsUSD = toUSD(estimate.epsAvg, reportedCurrency, fxRates);
+        company.forward_eps = epsUSD;
+        company.forward_eps_date = estimate.date;
+        if (company.price && epsUSD > 0) {
+          company.forward_pe = company.price / epsUSD;
+        }
+      }
+
+      updated++;
+    }
+    console.log(`Fixed currency for ${updated} non-USD companies (skipped ${skippedUSD} USD companies)`);
+
   } else if (updateType === "new_symbols") {
     // Find supplemental symbols not already in the dataset
     const existingSymbolSet = new Set(symbols);
@@ -940,6 +1049,8 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     }
 
     console.log(`Found ${newSymbols.length} new symbols to fetch: ${newSymbols.slice(0, 10).join(", ")}${newSymbols.length > 10 ? "..." : ""}\n`);
+
+    const fxRates = await fetchFXRates();
 
     // Fetch all data for new symbols
     console.log("Fetching quotes...");
@@ -981,29 +1092,32 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     for (const symbol of validNewSymbols) {
       const quote = quotes.get(symbol);
       const profile = profiles.get(symbol);
-      const quarterlyIncome = incomeStatements.get(symbol) as FMPIncomeStatement[] | undefined;
+      const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
       const gd = growthData.get(symbol) as FMPFinancialGrowth | undefined;
       const estimate = estData.get(symbol) as FMPAnalystEstimate | undefined;
 
       if (!quote) continue;
 
+      const reportedCurrency = incomeResult?.reportedCurrency || "USD";
+
       // Calculate TTM values from quarterly income statements
       let ttmRevenue: number | null = null;
       let ttmEarnings: number | null = null;
       let ttmOperatingMargin: number | null = null;
 
-      if (quarterlyIncome && quarterlyIncome.length > 0) {
-        const revenue = quarterlyIncome.reduce((sum, q) => sum + (q.revenue || 0), 0);
-        const netIncome = quarterlyIncome.reduce((sum, q) => sum + (q.netIncome || 0), 0);
-        const operatingIncome = quarterlyIncome.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
+      if (incomeResult && incomeResult.statements.length > 0) {
+        const stmts = incomeResult.statements;
+        const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
+        const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
+        const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
 
         if (revenue > 0) {
-          ttmRevenue = revenue;
+          ttmRevenue = toUSD(revenue, reportedCurrency, fxRates);
           ttmOperatingMargin = operatingIncome / revenue;
         }
         if (netIncome !== 0) {
-          ttmEarnings = netIncome;
+          ttmEarnings = toUSD(netIncome, reportedCurrency, fxRates);
         }
       }
 
@@ -1014,16 +1128,16 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         ttmEPS = quote.price / peRatio;
       }
 
-      // Forward PE from analyst estimates
+      // Forward PE from analyst estimates (convert EPS to USD)
       let forwardPE: number | null = null;
       let forwardEPS: number | null = null;
       let forwardEPSDate: string | null = null;
 
       if (estimate?.epsAvg && estimate.epsAvg > 0) {
-        forwardEPS = estimate.epsAvg;
+        forwardEPS = toUSD(estimate.epsAvg, reportedCurrency, fxRates);
         forwardEPSDate = estimate.date;
-        if (quote.price) {
-          forwardPE = quote.price / estimate.epsAvg;
+        if (quote.price && forwardEPS > 0) {
+          forwardPE = quote.price / forwardEPS;
         }
       }
 
@@ -1118,7 +1232,7 @@ function parseArgs(): { only?: PartialUpdateType } {
 
   if (onlyIndex !== -1 && args[onlyIndex + 1]) {
     const updateType = args[onlyIndex + 1] as PartialUpdateType;
-    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols"];
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix"];
     if (!validTypes.includes(updateType)) {
       console.error(`Error: Invalid update type '${updateType}'`);
       console.error(`Valid types: ${validTypes.join(", ")}`);

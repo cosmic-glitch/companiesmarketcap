@@ -718,6 +718,15 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
           <thead className="bg-bg-tertiary sticky top-0 z-10 border-b border-border-subtle">
             <tr>
               <th
+                onClick={() => handleSort("rank")}
+                className={cn(
+                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("rank") && "sorted-column-header"
+                )}
+              >
+                # <SortIndicator columnKey="rank" />
+              </th>
+              <th
                 onClick={() => handleSort("name")}
                 className={cn(
                   "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[242px]",
@@ -872,6 +881,12 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   index % 2 === 0 ? "bg-transparent" : "bg-bg-tertiary/10"
                 )}
               >
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap",
+                  isSortedColumn("rank") && "sorted-column-cell"
+                )}>
+                  <span className="text-sm text-text-muted">{company.rank}</span>
+                </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap max-w-[242px]",
                   isSortedColumn("name") && "sorted-column-cell"
