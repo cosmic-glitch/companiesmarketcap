@@ -283,7 +283,7 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
   );
 };
 
-const DEFAULT_HIDDEN_COLUMNS = new Set(["dividendPercent", "revenueGrowth5Y", "epsGrowth5Y"]);
+const DEFAULT_HIDDEN_COLUMNS = new Set(["dividendPercent", "operatingMargin", "revenueGrowth5Y", "epsGrowth5Y"]);
 
 const OPTIONAL_COLUMNS = [
   { key: "dividendPercent", label: "Div %" },
@@ -299,16 +299,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const previousFilterSignatureRef = useRef<string | null>(null);
 
-  // Column visibility state with localStorage persistence
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("columnVisibility");
-        if (stored) return new Set(JSON.parse(stored));
-      } catch {}
-    }
-    return new Set(DEFAULT_HIDDEN_COLUMNS);
-  });
+  // Column visibility state (resets on every page load)
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set(DEFAULT_HIDDEN_COLUMNS));
 
   const toggleColumn = (key: string) => {
     setHiddenColumns((prev) => {
@@ -318,7 +310,6 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       } else {
         next.add(key);
       }
-      localStorage.setItem("columnVisibility", JSON.stringify([...next]));
       return next;
     });
   };
