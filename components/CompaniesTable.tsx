@@ -561,28 +561,44 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   return (
     <div className="w-full">
       {/* Preset Cards Row */}
-      <div className="mb-2 flex gap-3 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
-        {PRESETS.map((preset) => (
-          <PresetCard
-            key={preset.id}
-            preset={preset}
-            isActive={activePreset === preset.id}
+      <div className="mb-2 flex gap-3 items-center pb-1">
+        <div className="flex gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
+          {PRESETS.map((preset) => (
+            <PresetCard
+              key={preset.id}
+              preset={preset}
+              isActive={activePreset === preset.id}
+              onClick={() => {
+                setShowCustomFilters(false);
+                if (activePreset === preset.id) {
+                  clearAllFilters();
+                } else {
+                  applyPreset(preset);
+                }
+              }}
+            />
+          ))}
+          <CustomCard
+            isExpanded={showCustomFilters}
             onClick={() => {
-              setShowCustomFilters(false);
-              if (activePreset === preset.id) {
-                clearAllFilters();
-              } else {
-                applyPreset(preset);
-              }
+              setShowCustomFilters((prev) => !prev);
             }}
           />
-        ))}
-        <CustomCard
-          isExpanded={showCustomFilters}
-          onClick={() => {
-            setShowCustomFilters((prev) => !prev);
-          }}
-        />
+        </div>
+        <div className="ml-auto flex items-center gap-3 text-xs text-text-muted flex-shrink-0">
+          <span className="font-medium text-text-secondary">Columns:</span>
+          {OPTIONAL_COLUMNS.map((col) => (
+            <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={!hiddenColumns.has(col.key)}
+                onChange={() => toggleColumn(col.key)}
+                className="accent-accent w-3 h-3"
+              />
+              {col.label}
+            </label>
+          ))}
+        </div>
       </div>
 
       {/* Filter Panel - shown when Custom is expanded */}
@@ -740,22 +756,6 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         </div>
       </div>
       )}
-
-      {/* Column Visibility Toggles */}
-      <div className="mb-2 flex items-center gap-4 text-xs text-text-muted">
-        <span className="font-medium text-text-secondary">Columns:</span>
-        {OPTIONAL_COLUMNS.map((col) => (
-          <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={!hiddenColumns.has(col.key)}
-              onChange={() => toggleColumn(col.key)}
-              className="accent-accent w-3 h-3"
-            />
-            {col.label}
-          </label>
-        ))}
-      </div>
 
       {/* Table */}
       <div
