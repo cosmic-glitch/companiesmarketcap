@@ -585,19 +585,34 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             }}
           />
         </div>
-        <div className="ml-auto flex items-center gap-3 text-xs text-text-muted flex-shrink-0">
-          <span className="font-medium text-text-secondary">Columns:</span>
-          {OPTIONAL_COLUMNS.map((col) => (
-            <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={!hiddenColumns.has(col.key)}
-                onChange={() => toggleColumn(col.key)}
-                className="accent-accent w-3 h-3"
-              />
-              {col.label}
-            </label>
-          ))}
+        <div className="ml-auto flex flex-col items-end gap-0.5 text-xs text-text-muted flex-shrink-0">
+          <span className="font-medium text-text-secondary">Additional Columns:</span>
+          <div className="flex items-center gap-3">
+            {OPTIONAL_COLUMNS.slice(0, 2).map((col) => (
+              <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!hiddenColumns.has(col.key)}
+                  onChange={() => toggleColumn(col.key)}
+                  className="accent-accent w-3 h-3"
+                />
+                {col.label}
+              </label>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            {OPTIONAL_COLUMNS.slice(2).map((col) => (
+              <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!hiddenColumns.has(col.key)}
+                  onChange={() => toggleColumn(col.key)}
+                  className="accent-accent w-3 h-3"
+                />
+                {col.label}
+              </label>
+            ))}
+          </div>
         </div>
       </div>
 
