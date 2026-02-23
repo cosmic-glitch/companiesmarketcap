@@ -283,7 +283,7 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
   );
 };
 
-const DEFAULT_HIDDEN_COLUMNS = new Set(["dividendPercent", "operatingMargin", "revenueGrowth5Y", "epsGrowth5Y"]);
+const DEFAULT_HIDDEN_COLUMNS = new Set(["dividendPercent", "revenueGrowth5Y", "epsGrowth5Y"]);
 
 const OPTIONAL_COLUMNS = [
   { key: "dividendPercent", label: "Div %" },
