@@ -13,6 +13,7 @@ npm run scrape       # Run FMP scraper to fetch/update company data from Financi
 npm test             # Run Playwright tests (starts dev server automatically)
 npm run test:ui      # Run Playwright tests with UI
 npm run test:headed  # Run Playwright tests in headed browser mode
+npx tsx scripts/upload-blob.ts  # Upload local companies.json to Vercel Blob (production data)
 ```
 
 Run a single test:
@@ -82,6 +83,7 @@ launchctl load ~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist
 - Job runs every 3 days when Mac is awake
 - Logs: `~/Library/Logs/companiesmarketcap-scraper.log`
 - The `/api/scrape` endpoint still exists but times out on Vercel
+- **Production reads from Vercel Blob, not local JSON.** After modifying `data/companies.json` locally (scraping, dedup, manual fixes), run `npx tsx scripts/upload-blob.ts` to push the updated data to production. The full scraper (`npm run scrape`) uploads automatically, but manual data changes require this separate upload step.
 
 ### Data Fields
 
