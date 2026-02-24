@@ -948,7 +948,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   "px-4 py-3.5 whitespace-nowrap",
                   isSortedColumn("rank") && "sorted-column-cell"
                 )}>
-                  <span className="text-sm text-text-muted">{company.rank}</span>
+                  <span className="text-sm text-text-primary tabular-nums">{company.rank}</span>
                 </td>
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap max-w-[242px]",
