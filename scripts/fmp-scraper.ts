@@ -551,6 +551,54 @@ async function processSymbolsBatch(
   return results;
 }
 
+// Deduplicate symbols by company name, keeping the highest market cap symbol per name
+function deduplicateByName(
+  symbols: string[],
+  quotes: Map<string, FMPQuote>,
+  profiles: Map<string, FMPProfile>
+): string[] {
+  // Normalize company name for grouping: lowercase, strip suffixes like "Inc", "Corp", "Ltd", etc.
+  function normalizeName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[,.]|'s\b/g, "")
+      .replace(/\b(inc|corp|corporation|ltd|limited|plc|sa|se|nv|ag|co|group|holdings|holding|class [a-z])\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // Group symbols by normalized name
+  const nameGroups = new Map<string, string[]>();
+  for (const symbol of symbols) {
+    const profile = profiles.get(symbol);
+    const quote = quotes.get(symbol);
+    const rawName = profile?.companyName || quote?.name || symbol;
+    const normalized = normalizeName(rawName);
+    const group = nameGroups.get(normalized) || [];
+    group.push(symbol);
+    nameGroups.set(normalized, group);
+  }
+
+  // For groups with multiple symbols, keep only the one with highest market cap
+  const kept = new Set<string>();
+  const removed: string[] = [];
+  for (const [name, group] of nameGroups) {
+    if (group.length === 1) {
+      kept.add(group[0]);
+      continue;
+    }
+    // Sort by market cap descending, pick the winner
+    group.sort((a, b) => (quotes.get(b)?.marketCap || 0) - (quotes.get(a)?.marketCap || 0));
+    kept.add(group[0]);
+    for (let i = 1; i < group.length; i++) {
+      removed.push(group[i]);
+    }
+    console.log(`  Dedup: keeping ${group[0]} for "${name}" (dropped: ${group.slice(1).join(", ")})`);
+  }
+
+  return symbols.filter(s => kept.has(s));
+}
+
 // Global start time for elapsed time tracking
 let globalStartTime = Date.now();
 
@@ -586,31 +634,35 @@ async function runFMPScraper(): Promise<{
   const profiles = await fetchBatchProfiles(validSymbols);
   console.log(`  Got profiles for ${profiles.size} symbols\n`);
 
+  // Step 3.5: Deduplicate symbols by company name (keep highest market cap)
+  const dedupedSymbols = deduplicateByName(validSymbols, quotes, profiles);
+  console.log(`Symbols after dedup: ${dedupedSymbols.length} (removed ${validSymbols.length - dedupedSymbols.length})\n`);
+
   // Step 4: Fetch FX rates for currency conversion
   const fxRates = await fetchFXRates();
 
   // Step 5: Fetch individual data (income statements, ratios, growth, estimates)
   console.log("Fetching quarterly income statements...");
-  const incomeStatements = await processSymbolsBatch(validSymbols, fetchQuarterlyIncome, "Income statements");
+  const incomeStatements = await processSymbolsBatch(dedupedSymbols, fetchQuarterlyIncome, "Income statements");
   console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
 
   console.log("Fetching ratios TTM...");
-  const ratios = await processSymbolsBatch(validSymbols, fetchRatiosTTM, "Ratios TTM");
+  const ratios = await processSymbolsBatch(dedupedSymbols, fetchRatiosTTM, "Ratios TTM");
   console.log(`  Got ratios for ${ratios.size} symbols\n`);
 
   console.log("Fetching financial growth...");
-  const growth = await processSymbolsBatch(validSymbols, fetchFinancialGrowth, "Financial growth");
+  const growth = await processSymbolsBatch(dedupedSymbols, fetchFinancialGrowth, "Financial growth");
   console.log(`  Got growth data for ${growth.size} symbols\n`);
 
   console.log("Fetching analyst estimates...");
-  const estimates = await processSymbolsBatch(validSymbols, fetchAnalystEstimates, "Analyst estimates");
+  const estimates = await processSymbolsBatch(dedupedSymbols, fetchAnalystEstimates, "Analyst estimates");
   console.log(`  Got estimates for ${estimates.size} symbols\n`);
 
   // Step 6: Build company data
   console.log("Building company data...");
   const companies: CompanyData[] = [];
 
-  for (const symbol of validSymbols) {
+  for (const symbol of dedupedSymbols) {
     const quote = quotes.get(symbol);
     const profile = profiles.get(symbol);
     const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
