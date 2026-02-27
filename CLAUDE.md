@@ -47,21 +47,39 @@ This is a Next.js 15 App Router application that displays global company market 
 3. **API Endpoints**:
    - `app/api/companies/route.ts`: Query endpoint with search, sort, filter, pagination
    - `app/api/company/route.ts`: Lookup endpoint — fetch specific companies by symbol with optional field selection (`?symbols=AAPL,MSFT&fields=forwardPE,pctTo52WeekHigh`)
-   - `app/api/scrape/route.ts`: Automated scraping endpoint (see below)
+   - `app/api/scrape/route.ts`: Legacy/manual scrape endpoint (not used by scheduled automation)
 
 4. **Frontend**: Server-rendered page with client-side interactivity
    - `app/page.tsx`: Server component that fetches all companies on initial render
    - `components/CompaniesTable.tsx`: Client component with sorting and filtering UI
 
-### Automated Scraping (Local)
+### Automated Scraping (GitHub Actions)
 
-The scraper runs locally via macOS launchd every 3 days. This replaces the previous Vercel API approach which timed out (scraping takes ~10-30 minutes).
+Primary automation runs in GitHub Actions via `.github/workflows/fmp-refresh.yml`.
+
+**Workflow behavior:**
+- Trigger: every 3rd day at 18:30 UTC (`cron`) + manual `workflow_dispatch`
+- Runtime target: up to 240 minutes (`timeout-minutes`)
+- Concurrency: single run at a time (`fmp-refresh` group)
+- Execution: runs `npm run scrape` on GitHub runner, not on a Vercel Function
+
+**Required GitHub repo secrets:**
+- `FMP_API_KEY`: Financial Modeling Prep API key
+- `BLOB_READ_WRITE_TOKEN`: Upload token for Vercel Blob
+
+**Notes:**
+- `/api/scrape` still exists, but is not used for scheduled refreshes
+- **Production reads from Vercel Blob, not local JSON.**
+- Full scraper uploads to Blob automatically when `BLOB_READ_WRITE_TOKEN` is set
+
+### Local Fallback (Optional)
+
+Use local `launchd` only as a backup/manual fallback.
 
 **LaunchAgent:** `~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist`
 
-**Commands:**
 ```bash
-# Manual run
+# Manual fallback run
 launchctl start com.companiesmarketcap.scraper
 
 # Check status
@@ -69,21 +87,7 @@ launchctl list | grep companiesmarketcap
 
 # View logs
 tail -f ~/Library/Logs/companiesmarketcap-scraper.log
-
-# Reload after editing plist
-launchctl unload ~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist
-launchctl load ~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist
 ```
-
-**Environment Variables** (in `.env.local`):
-- `FMP_API_KEY`: Financial Modeling Prep API key (required)
-- `BLOB_READ_WRITE_TOKEN`: For uploading to Vercel Blob
-
-**Notes:**
-- Job runs every 3 days when Mac is awake
-- Logs: `~/Library/Logs/companiesmarketcap-scraper.log`
-- The `/api/scrape` endpoint still exists but times out on Vercel
-- **Production reads from Vercel Blob, not local JSON.** After modifying `data/companies.json` locally (scraping, dedup, manual fixes), run `npx tsx scripts/upload-blob.ts` to push the updated data to production. The full scraper (`npm run scrape`) uploads automatically, but manual data changes require this separate upload step.
 
 ### Data Fields
 

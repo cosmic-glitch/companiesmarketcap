@@ -1,0 +1,63 @@
+name: FMP Refresh
+
+on:
+  schedule:
+    # Every 3rd day-of-month at 18:30 UTC (~10:30 PT)
+    - cron: "30 18 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fmp-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Validate required secrets
+        run: |
+          if [ -z "$FMP_API_KEY" ]; then
+            echo "Missing FMP_API_KEY secret"
+            exit 1
+          fi
+
+          if [ -z "$BLOB_READ_WRITE_TOKEN" ]; then
+            echo "Missing BLOB_READ_WRITE_TOKEN secret"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run scraper and upload to Blob
+        run: npm run scrape
+
+      - name: Write run summary
+        if: always()
+        run: |
+          node -e 'const fs=require("fs"); if(!fs.existsSync("data/companies.json")){fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## FMP Refresh Result\n\ncompanies.json not found.\n"); process.exit(0);} const d=JSON.parse(fs.readFileSync("data/companies.json","utf8")); const lines=["## FMP Refresh Result","","- Companies: "+d.companies.length,"- Last updated (UTC): "+(d.lastUpdated||"N/A"),"- Exported at (UTC): "+(d.exportedAt||"N/A")]; fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n")+"\n");'
+
+      - name: Upload companies.json artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: companies-json
+          path: data/companies.json
+          if-no-files-found: warn
+          retention-days: 7

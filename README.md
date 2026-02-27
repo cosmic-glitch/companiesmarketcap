@@ -5,7 +5,7 @@ A modern, unified web application that displays real-time rankings of US compani
 ## Features
 
 - **Unified Interface**: Single page displaying all US companies with sortable columns
-- **Real-Time Data**: Auto-updates via scraper that fetches data from companiesmarketcap.com
+- **Scheduled Refreshes**: GitHub Actions runs the scraper every 3 days and uploads to Vercel Blob
 - **Sortable Columns**: Click any column header to sort by:
   - Rank
   - Company Name
@@ -67,6 +67,17 @@ npm run dev
 - `npm run build` - Build for production
 - `npm start` - Start production server
 - `npm run scrape` - Run data scraper to update data
+
+## Automated Data Refresh
+
+- Workflow: `.github/workflows/fmp-refresh.yml`
+- Schedule: every 3rd day at 18:30 UTC, plus manual trigger (`workflow_dispatch`)
+- Runtime: runs entirely on GitHub Actions (not a Vercel Function), so long scrape duration is supported
+- Required GitHub repo secrets:
+  - `FMP_API_KEY`
+  - `BLOB_READ_WRITE_TOKEN`
+- Output: scraper writes `data/companies.json` and uploads `companies.json` to Vercel Blob
+- Production read path: app fetches Blob JSON via `BLOB_URL`
 
 ## Project Structure
 
@@ -132,12 +143,11 @@ Data is scraped from the following CSV endpoints on companiesmarketcap.com:
 
 - Some CSV files have formatting issues, resulting in missing data for earnings, revenue, P/E ratio, dividend %, and operating margin
 - Daily change % calculation requires at least one previous day's data
-- Data updates are manual (run `npm run scrape` to update)
+- Full scrape duration is long (~2 hours), so refreshes happen in background jobs rather than on-request API execution
 
 ## Future Enhancements
 
 - Fix CSV parsing issues to populate all metrics
-- Automated daily data updates (cron job or Vercel Cron)
 - Historical price charts
 - Company detail pages
 - Dark mode
@@ -160,7 +170,11 @@ To deploy to Vercel:
 1. Push code to GitHub
 2. Connect repository to Vercel
 3. Deploy
-4. Set up Vercel Cron to run scraper daily
+4. In GitHub repository settings, add secrets:
+   - `FMP_API_KEY`
+   - `BLOB_READ_WRITE_TOKEN`
+5. Enable/run the `FMP Refresh` GitHub Actions workflow for scheduled data refreshes
+6. In Vercel project settings, set `BLOB_URL` to the Blob URL for `companies.json`
 
 ## License
 
