@@ -35,6 +35,26 @@ test.describe('Company Table with Pagination', () => {
     await expect(countrySelect).toBeVisible();
   });
 
+  test('should show all columns in the selector and allow hiding a default column', async ({ page }) => {
+    const columnToggles = page.locator('input[type="checkbox"]');
+    await expect(columnToggles).toHaveCount(17);
+
+    const marketCapToggle = page.getByRole('checkbox', { name: 'Market Cap' });
+    const dividendToggle = page.getByRole('checkbox', { name: 'Div %' });
+    const epsGrowth3YToggle = page.getByRole('checkbox', { name: 'EPS CAGR 3Y' });
+
+    await expect(marketCapToggle).toBeChecked();
+    await expect(epsGrowth3YToggle).toBeChecked();
+    await expect(dividendToggle).not.toBeChecked();
+
+    await expect(page.locator('thead th:has-text("Market Cap")')).toBeVisible();
+    await marketCapToggle.click();
+    await expect(page.locator('thead th:has-text("Market Cap")')).toHaveCount(0);
+
+    await marketCapToggle.click();
+    await expect(page.locator('thead th:has-text("Market Cap")')).toBeVisible();
+  });
+
   test('should show pagination with correct format', async ({ page }) => {
     // Should show "Showing X-Y of Z" format
     const paginationText = page.locator('text=/Showing \\d+-\\d+ of [\\d,]+/');

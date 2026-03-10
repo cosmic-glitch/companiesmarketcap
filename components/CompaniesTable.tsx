@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Company } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
-import { formatCountry, COUNTRIES } from "@/lib/countries";
+import { formatCountry } from "@/lib/countries";
 
 // Preset filter configurations
 interface PresetConfig {
@@ -95,25 +95,6 @@ function DailyChange({ value }: { value: number | null }) {
   );
 }
 
-// Rank badge with special styling for top companies
-function RankBadge({ rank }: { rank: number }) {
-  const isTop3 = rank <= 3;
-  const isTop10 = rank <= 10;
-
-  return (
-    <span
-      className={cn(
-        "font-medium tabular-nums",
-        isTop3 && "text-accent font-bold",
-        !isTop3 && isTop10 && "text-accent/70",
-        !isTop10 && "text-text-secondary"
-      )}
-    >
-      {rank}
-    </span>
-  );
-}
-
 interface CompaniesTableProps {
   companies: Company[];
   sortBy: keyof Company;
@@ -166,6 +147,12 @@ const FILTER_KEYS: (keyof FilterState)[] = [
 ];
 
 type SortKey = keyof Company;
+
+interface ColumnOption {
+  key: SortKey;
+  label: string;
+  defaultVisible: boolean;
+}
 
 // Filter input component
 interface FilterInputProps {
@@ -283,14 +270,29 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
   );
 };
 
-const DEFAULT_HIDDEN_COLUMNS = new Set(["dividendPercent", "operatingMargin", "revenueGrowth5Y", "epsGrowth5Y"]);
+const COLUMN_OPTIONS: readonly ColumnOption[] = [
+  { key: "rank", label: "Rank", defaultVisible: true },
+  { key: "name", label: "Name", defaultVisible: true },
+  { key: "country", label: "Country", defaultVisible: true },
+  { key: "marketCap", label: "Market Cap", defaultVisible: true },
+  { key: "price", label: "Price", defaultVisible: true },
+  { key: "dailyChangePercent", label: "Today", defaultVisible: true },
+  { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
+  { key: "earnings", label: "Earnings", defaultVisible: true },
+  { key: "revenue", label: "Revenue", defaultVisible: true },
+  { key: "peRatio", label: "P/E", defaultVisible: true },
+  { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
+  { key: "dividendPercent", label: "Div %", defaultVisible: false },
+  { key: "operatingMargin", label: "Op. Margin %", defaultVisible: false },
+  { key: "revenueGrowth5Y", label: "Rev CAGR 5Y", defaultVisible: false },
+  { key: "revenueGrowth3Y", label: "Rev CAGR 3Y", defaultVisible: true },
+  { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
+  { key: "epsGrowth3Y", label: "EPS CAGR 3Y", defaultVisible: true },
+];
 
-const OPTIONAL_COLUMNS = [
-  { key: "dividendPercent", label: "Div %" },
-  { key: "operatingMargin", label: "Op. Margin %" },
-  { key: "revenueGrowth5Y", label: "Rev CAGR 5Y" },
-  { key: "epsGrowth5Y", label: "EPS CAGR 5Y" },
-] as const;
+const DEFAULT_VISIBLE_COLUMNS = new Set<SortKey>(
+  COLUMN_OPTIONS.filter((column) => column.defaultVisible).map((column) => column.key)
+);
 
 export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries }: CompaniesTableProps) {
   const router = useRouter();
@@ -300,16 +302,13 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const previousFilterSignatureRef = useRef<string | null>(null);
 
   // Column visibility state (resets on every page load)
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set(DEFAULT_HIDDEN_COLUMNS));
+  const [visibleColumns, setVisibleColumns] = useState<Set<SortKey>>(() => new Set(DEFAULT_VISIBLE_COLUMNS));
 
-  const toggleColumn = (key: string) => {
-    setHiddenColumns((prev) => {
+  const toggleColumn = (key: SortKey) => {
+    setVisibleColumns((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -548,12 +547,13 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   // Helper to check if a column is the sorted column
   const isSortedColumn = (columnKey: SortKey) => sortBy === columnKey;
+  const isColumnVisible = (columnKey: SortKey) => visibleColumns.has(columnKey);
 
   return (
     <div className="w-full">
       {/* Preset Cards Row */}
-      <div className="mb-2 flex gap-3 items-center pb-1">
-        <div className="flex gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
+      <div className="mb-2 flex flex-col gap-3 pb-1 xl:flex-row xl:items-start">
+        <div className="flex gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent xl:flex-1">
           {PRESETS.map((preset) => (
             <PresetCard
               key={preset.id}
@@ -576,27 +576,14 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             }}
           />
         </div>
-        <div className="ml-auto flex flex-col items-end gap-0.5 text-xs text-text-muted flex-shrink-0">
-          <span className="font-medium text-text-secondary">Additional Columns:</span>
-          <div className="flex items-center gap-3">
-            {OPTIONAL_COLUMNS.slice(0, 2).map((col) => (
-              <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
+        <div className="flex flex-col gap-1 text-xs text-text-muted xl:ml-auto xl:max-w-[640px] xl:items-end">
+          <span className="font-medium text-text-secondary">Columns:</span>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 xl:justify-end">
+            {COLUMN_OPTIONS.map((col) => (
+              <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
                 <input
                   type="checkbox"
-                  checked={!hiddenColumns.has(col.key)}
-                  onChange={() => toggleColumn(col.key)}
-                  className="accent-accent w-3 h-3"
-                />
-                {col.label}
-              </label>
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            {OPTIONAL_COLUMNS.slice(2).map((col) => (
-              <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={!hiddenColumns.has(col.key)}
+                  checked={isColumnVisible(col.key)}
                   onChange={() => toggleColumn(col.key)}
                   className="accent-accent w-3 h-3"
                 />
@@ -772,6 +759,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         <table className="min-w-full">
           <thead className="bg-bg-tertiary sticky top-0 z-10 border-b border-border-subtle">
             <tr>
+              {isColumnVisible("rank") && (
               <th
                 onClick={() => handleSort("rank")}
                 className={cn(
@@ -781,6 +769,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 # <SortIndicator columnKey="rank" />
               </th>
+              )}
+              {isColumnVisible("name") && (
               <th
                 onClick={() => handleSort("name")}
                 className={cn(
@@ -790,6 +780,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Name <SortIndicator columnKey="name" />
               </th>
+              )}
+              {isColumnVisible("country") && (
               <th
                 onClick={() => handleSort("country")}
                 className={cn(
@@ -799,6 +791,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Country <SortIndicator columnKey="country" />
               </th>
+              )}
+              {isColumnVisible("marketCap") && (
               <th
                 onClick={() => handleSort("marketCap")}
                 className={cn(
@@ -808,6 +802,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Market Cap <SortIndicator columnKey="marketCap" />
               </th>
+              )}
+              {isColumnVisible("price") && (
               <th
                 onClick={() => handleSort("price")}
                 className={cn(
@@ -817,6 +813,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Price <SortIndicator columnKey="price" />
               </th>
+              )}
+              {isColumnVisible("dailyChangePercent") && (
               <th
                 onClick={() => handleSort("dailyChangePercent")}
                 className={cn(
@@ -826,6 +824,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Today <SortIndicator columnKey="dailyChangePercent" />
               </th>
+              )}
+              {isColumnVisible("pctTo52WeekHigh") && (
               <th
                 onClick={() => handleSort("pctTo52WeekHigh")}
                 className={cn(
@@ -835,6 +835,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 % to 52W High <SortIndicator columnKey="pctTo52WeekHigh" />
               </th>
+              )}
+              {isColumnVisible("earnings") && (
               <th
                 onClick={() => handleSort("earnings")}
                 className={cn(
@@ -844,6 +846,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Earnings <SortIndicator columnKey="earnings" />
               </th>
+              )}
+              {isColumnVisible("revenue") && (
               <th
                 onClick={() => handleSort("revenue")}
                 className={cn(
@@ -853,6 +857,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Revenue <SortIndicator columnKey="revenue" />
               </th>
+              )}
+              {isColumnVisible("peRatio") && (
               <th
                 onClick={() => handleSort("peRatio")}
                 className={cn(
@@ -862,6 +868,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 P/E <SortIndicator columnKey="peRatio" />
               </th>
+              )}
+              {isColumnVisible("forwardPE") && (
               <th
                 onClick={() => handleSort("forwardPE")}
                 className={cn(
@@ -871,7 +879,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Fwd P/E <SortIndicator columnKey="forwardPE" />
               </th>
-              {!hiddenColumns.has("dividendPercent") && (
+              )}
+              {isColumnVisible("dividendPercent") && (
               <th
                 onClick={() => handleSort("dividendPercent")}
                 className={cn(
@@ -882,7 +891,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Div % <SortIndicator columnKey="dividendPercent" />
               </th>
               )}
-              {!hiddenColumns.has("operatingMargin") && (
+              {isColumnVisible("operatingMargin") && (
               <th
                 onClick={() => handleSort("operatingMargin")}
                 className={cn(
@@ -893,7 +902,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Op. Margin % <SortIndicator columnKey="operatingMargin" />
               </th>
               )}
-              {!hiddenColumns.has("revenueGrowth5Y") && (
+              {isColumnVisible("revenueGrowth5Y") && (
               <th
                 onClick={() => handleSort("revenueGrowth5Y")}
                 className={cn(
@@ -904,6 +913,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Rev CAGR 5Y <SortIndicator columnKey="revenueGrowth5Y" />
               </th>
               )}
+              {isColumnVisible("revenueGrowth3Y") && (
               <th
                 onClick={() => handleSort("revenueGrowth3Y")}
                 className={cn(
@@ -913,7 +923,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 Rev CAGR 3Y <SortIndicator columnKey="revenueGrowth3Y" />
               </th>
-              {!hiddenColumns.has("epsGrowth5Y") && (
+              )}
+              {isColumnVisible("epsGrowth5Y") && (
               <th
                 onClick={() => handleSort("epsGrowth5Y")}
                 className={cn(
@@ -924,6 +935,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 EPS CAGR 5Y <SortIndicator columnKey="epsGrowth5Y" />
               </th>
               )}
+              {isColumnVisible("epsGrowth3Y") && (
               <th
                 onClick={() => handleSort("epsGrowth3Y")}
                 className={cn(
@@ -933,6 +945,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               >
                 EPS CAGR 3Y <SortIndicator columnKey="epsGrowth3Y" />
               </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
@@ -944,12 +957,15 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   index % 2 === 0 ? "bg-transparent" : "bg-bg-tertiary/10"
                 )}
               >
+                {isColumnVisible("rank") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap",
                   isSortedColumn("rank") && "sorted-column-cell"
                 )}>
                   <span className="text-sm text-text-primary tabular-nums">{company.rank}</span>
                 </td>
+                )}
+                {isColumnVisible("name") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap max-w-[242px]",
                   isSortedColumn("name") && "sorted-column-cell"
@@ -969,54 +985,72 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                     </div>
                   </div>
                 </td>
+                )}
+                {isColumnVisible("country") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-sm text-text-secondary",
                   isSortedColumn("country") && "sorted-column-cell"
                 )}>
                   {formatCountry(company.country)}
                 </td>
+                )}
+                {isColumnVisible("marketCap") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary font-semibold",
                   isSortedColumn("marketCap") && "sorted-column-cell"
                 )}>
                   {formatMarketCap(company.marketCap)}
                 </td>
+                )}
+                {isColumnVisible("price") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-primary",
                   isSortedColumn("price") && "sorted-column-cell"
                 )}>
                   {formatPrice(company.price)}
                 </td>
+                )}
+                {isColumnVisible("dailyChangePercent") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right",
                   isSortedColumn("dailyChangePercent") && "sorted-column-cell"
                 )}>
                   <DailyChange value={company.dailyChangePercent} />
                 </td>
+                )}
+                {isColumnVisible("pctTo52WeekHigh") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("pctTo52WeekHigh") && "sorted-column-cell"
                 )}>
                   {formatPercent(company.pctTo52WeekHigh, true)}
                 </td>
+                )}
+                {isColumnVisible("earnings") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("earnings") && "sorted-column-cell"
                 )}>
                   {formatMarketCap(company.earnings)}
                 </td>
+                )}
+                {isColumnVisible("revenue") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("revenue") && "sorted-column-cell"
                 )}>
                   {formatMarketCap(company.revenue)}
                 </td>
+                )}
+                {isColumnVisible("peRatio") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("peRatio") && "sorted-column-cell"
                 )}>
                   {formatPERatio(company.peRatio)}
                 </td>
+                )}
+                {isColumnVisible("forwardPE") && (
                 <td
                   className={cn(
                     "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
@@ -1026,7 +1060,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 >
                   {formatPERatio(company.forwardPE)}
                 </td>
-                {!hiddenColumns.has("dividendPercent") && (
+                )}
+                {isColumnVisible("dividendPercent") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("dividendPercent") && "sorted-column-cell"
@@ -1034,7 +1069,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {formatPercent(company.dividendPercent !== null ? company.dividendPercent * 100 : null)}
                 </td>
                 )}
-                {!hiddenColumns.has("operatingMargin") && (
+                {isColumnVisible("operatingMargin") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("operatingMargin") && "sorted-column-cell"
@@ -1042,7 +1077,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {formatPercent(company.operatingMargin !== null ? company.operatingMargin * 100 : null)}
                 </td>
                 )}
-                {!hiddenColumns.has("revenueGrowth5Y") && (
+                {isColumnVisible("revenueGrowth5Y") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("revenueGrowth5Y") && "sorted-column-cell"
@@ -1050,13 +1085,15 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {formatCAGR(company.revenueGrowth5Y)}
                 </td>
                 )}
+                {isColumnVisible("revenueGrowth3Y") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("revenueGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.revenueGrowth3Y)}
                 </td>
-                {!hiddenColumns.has("epsGrowth5Y") && (
+                )}
+                {isColumnVisible("epsGrowth5Y") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("epsGrowth5Y") && "sorted-column-cell"
@@ -1064,12 +1101,14 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {formatCAGR(company.epsGrowth5Y)}
                 </td>
                 )}
+                {isColumnVisible("epsGrowth3Y") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
                   isSortedColumn("epsGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.epsGrowth3Y)}
                 </td>
+                )}
               </tr>
             ))}
           </tbody>
