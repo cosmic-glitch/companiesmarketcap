@@ -271,8 +271,6 @@ const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
 };
 
 const COLUMN_OPTIONS: readonly ColumnOption[] = [
-  { key: "rank", label: "Rank", defaultVisible: true },
-  { key: "name", label: "Name", defaultVisible: true },
   { key: "country", label: "Country", defaultVisible: true },
   { key: "marketCap", label: "Market Cap", defaultVisible: true },
   { key: "price", label: "Price", defaultVisible: true },
@@ -289,6 +287,8 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
   { key: "epsGrowth3Y", label: "EPS CAGR 3Y", defaultVisible: true },
 ];
+
+const ALWAYS_VISIBLE_COLUMNS = new Set<SortKey>(["rank", "name"]);
 
 const DEFAULT_VISIBLE_COLUMNS = new Set<SortKey>(
   COLUMN_OPTIONS.filter((column) => column.defaultVisible).map((column) => column.key)
@@ -547,7 +547,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   // Helper to check if a column is the sorted column
   const isSortedColumn = (columnKey: SortKey) => sortBy === columnKey;
-  const isColumnVisible = (columnKey: SortKey) => visibleColumns.has(columnKey);
+  const isColumnVisible = (columnKey: SortKey) => ALWAYS_VISIBLE_COLUMNS.has(columnKey) || visibleColumns.has(columnKey);
 
   return (
     <div className="w-full">
@@ -576,9 +576,9 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             }}
           />
         </div>
-        <div className="flex flex-col gap-1 text-xs text-text-muted xl:ml-auto xl:max-w-[640px] xl:items-end">
+        <div className="flex flex-col gap-1 text-xs text-text-muted xl:ml-auto xl:max-w-[640px]">
           <span className="font-medium text-text-secondary">Columns:</span>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 xl:justify-end">
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
             {COLUMN_OPTIONS.map((col) => (
               <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
                 <input

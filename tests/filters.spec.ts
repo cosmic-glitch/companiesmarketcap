@@ -37,15 +37,19 @@ test.describe('Company Table with Pagination', () => {
 
   test('should show all columns in the selector and allow hiding a default column', async ({ page }) => {
     const columnToggles = page.locator('input[type="checkbox"]');
-    await expect(columnToggles).toHaveCount(17);
+    await expect(columnToggles).toHaveCount(15);
 
     const marketCapToggle = page.getByRole('checkbox', { name: 'Market Cap' });
     const dividendToggle = page.getByRole('checkbox', { name: 'Div %' });
     const epsGrowth3YToggle = page.getByRole('checkbox', { name: 'EPS CAGR 3Y' });
+    const rankToggle = page.getByRole('checkbox', { name: 'Rank' });
+    const nameToggle = page.getByRole('checkbox', { name: 'Name' });
 
     await expect(marketCapToggle).toBeChecked();
     await expect(epsGrowth3YToggle).toBeChecked();
     await expect(dividendToggle).not.toBeChecked();
+    await expect(rankToggle).toHaveCount(0);
+    await expect(nameToggle).toHaveCount(0);
 
     await expect(page.locator('thead th:has-text("Market Cap")')).toBeVisible();
     await marketCapToggle.click();
