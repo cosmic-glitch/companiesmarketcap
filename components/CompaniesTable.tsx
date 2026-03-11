@@ -154,121 +154,66 @@ interface ColumnOption {
   defaultVisible: boolean;
 }
 
-// Filter input component
-interface FilterInputProps {
+// Dropdown trigger button
+interface DropdownButtonProps {
+  label: string;
+  isActive: boolean;
+  isOpen: boolean;
+  onClick: () => void;
+  badge?: number;
+}
+
+const DropdownButton = ({ label, isActive, isOpen, onClick, badge }: DropdownButtonProps) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border transition-colors whitespace-nowrap",
+      isActive
+        ? "bg-accent/15 border-accent/40 text-accent"
+        : "bg-bg-tertiary border-border-subtle text-text-secondary hover:border-accent/50 hover:text-text-primary"
+    )}
+  >
+    {label}
+    {badge !== undefined && badge > 0 && (
+      <span className="bg-accent text-white text-[10px] font-bold px-1.5 py-0 rounded-full leading-4">{badge}</span>
+    )}
+    <span className={cn("text-[10px] transition-transform", isOpen && "rotate-180")}>▾</span>
+  </button>
+);
+
+// Min/Max input pair for the filter panel grid
+interface FilterGridInputProps {
   label: string;
   minKey: keyof FilterState;
   maxKey: keyof FilterState;
-  placeholder: string;
   pendingFilters: FilterState;
   updateFilter: (key: keyof FilterState, value: string) => void;
   applyFilters: () => void;
 }
 
-const FilterInput = ({
-  label,
-  minKey,
-  maxKey,
-  placeholder,
-  pendingFilters,
-  updateFilter,
-  applyFilters
-}: FilterInputProps) => {
-  return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-text-secondary uppercase tracking-wider">{label}</label>
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          type="number"
-          placeholder={`Min ${placeholder}`}
-          value={pendingFilters[minKey]}
-          onChange={(e) => updateFilter(minKey, e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              applyFilters();
-            }
-          }}
-          className="px-3 py-2.5 text-sm bg-bg-tertiary border border-border-subtle rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-        <input
-          type="number"
-          placeholder={`Max ${placeholder}`}
-          value={pendingFilters[maxKey]}
-          onChange={(e) => updateFilter(maxKey, e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              applyFilters();
-            }
-          }}
-          className="px-3 py-2.5 text-sm bg-bg-tertiary border border-border-subtle rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-      </div>
+const FilterGridInput = ({ label, minKey, maxKey, pendingFilters, updateFilter, applyFilters }: FilterGridInputProps) => (
+  <div>
+    <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">{label}</label>
+    <div className="grid grid-cols-2 gap-1.5">
+      <input
+        type="number"
+        placeholder="Min"
+        value={pendingFilters[minKey]}
+        onChange={(e) => updateFilter(minKey, e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+        className="px-2 py-1.5 text-xs bg-bg-secondary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+      <input
+        type="number"
+        placeholder="Max"
+        value={pendingFilters[maxKey]}
+        onChange={(e) => updateFilter(maxKey, e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+        className="px-2 py-1.5 text-xs bg-bg-secondary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
     </div>
-  );
-};
-
-// Preset card component
-interface PresetCardProps {
-  preset: PresetConfig;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-const PresetCard = ({ preset, isActive, onClick }: PresetCardProps) => {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "px-4 py-2 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
-        isActive
-          ? "sorted-column-header border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
-          : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{preset.icon}</span>
-        <span className={cn(
-          "font-semibold text-sm",
-          isActive ? "text-accent" : "text-text-primary"
-        )}>
-          {preset.label}
-        </span>
-      </div>
-      <div className="text-xs text-text-muted mt-1">{preset.subtitle}</div>
-    </button>
-  );
-};
-
-// Custom filters toggle card
-interface CustomCardProps {
-  isExpanded: boolean;
-  onClick: () => void;
-}
-
-const CustomCard = ({ isExpanded, onClick }: CustomCardProps) => {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "px-4 py-2 rounded-xl border cursor-pointer transition-all duration-200 text-left flex-shrink-0 min-w-[140px]",
-        isExpanded
-          ? "sorted-column-header border-accent shadow-[0_0_12px_rgba(8,145,178,0.3)]"
-          : "bg-bg-secondary border-border-subtle hover:border-accent/50 hover:bg-bg-tertiary"
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-lg">🎛️</span>
-        <span className={cn(
-          "font-semibold text-sm",
-          isExpanded ? "text-accent" : "text-text-primary"
-        )}>
-          Custom
-        </span>
-      </div>
-      <div className="text-xs text-text-muted mt-1">Filters</div>
-    </button>
-  );
-};
+  </div>
+);
 
 const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "country", label: "Country", defaultVisible: true },
@@ -297,9 +242,10 @@ const DEFAULT_VISIBLE_COLUMNS = new Set<SortKey>(
 export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [showCustomFilters, setShowCustomFilters] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const previousFilterSignatureRef = useRef<string | null>(null);
+  const dropdownBarRef = useRef<HTMLDivElement>(null);
 
   // Column visibility state (resets on every page load)
   const [visibleColumns, setVisibleColumns] = useState<Set<SortKey>>(() => new Set(DEFAULT_VISIBLE_COLUMNS));
@@ -329,10 +275,16 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     setSortOrder(urlSortOrder);
   }, [searchParams, sortByProp, sortOrderProp]);
 
-  // Keep Custom panel state aligned with URL filter presence
+  // Close dropdown on outside click
   useEffect(() => {
-    setShowCustomFilters(FILTER_KEYS.some((key) => searchParams.has(key)));
-  }, [searchParams]);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownBarRef.current && !dropdownBarRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Scroll the company list back to the top whenever applied filters change.
   const filterSignature = useMemo(
@@ -537,6 +489,21 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const currentFilters = getInitialFilters();
   const hasUnappliedChanges = JSON.stringify(pendingFilters) !== JSON.stringify(currentFilters);
 
+  // Count active filters for badge
+  const activeFilterCount = FILTER_KEYS.filter((key) => searchParams.has(key)).length;
+
+  // Apply filters and close dropdown
+  const applyFiltersAndClose = () => {
+    applyFilters();
+    setOpenDropdown(null);
+  };
+
+  // Clear filters and close dropdown
+  const clearFiltersAndClose = () => {
+    clearFilters();
+    setOpenDropdown(null);
+  };
+
   // Sort indicator component
   const SortIndicator = ({ columnKey }: { columnKey: SortKey }) => {
     if (sortBy !== columnKey) {
@@ -551,204 +518,163 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   return (
     <div className="w-full">
-      {/* Preset Cards Row */}
-      <div className="mb-2 flex flex-col gap-3 pb-1 xl:flex-row xl:items-start">
-        <div className="flex gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent xl:flex-1">
-          {PRESETS.map((preset) => (
-            <PresetCard
-              key={preset.id}
-              preset={preset}
-              isActive={activePreset === preset.id}
-              onClick={() => {
-                setShowCustomFilters(false);
-                if (activePreset === preset.id) {
-                  clearAllFilters();
-                } else {
-                  applyPreset(preset);
-                }
-              }}
-            />
-          ))}
-          <CustomCard
-            isExpanded={showCustomFilters}
-            onClick={() => {
-              setShowCustomFilters((prev) => !prev);
-            }}
+      {/* Dropdown Filter Bar */}
+      <div ref={dropdownBarRef} className="mb-2 flex flex-wrap items-center gap-1.5 pb-1">
+        {/* Presets Dropdown */}
+        <div className="relative">
+          <DropdownButton
+            label={activePreset ? `${PRESETS.find(p => p.id === activePreset)?.icon} ${PRESETS.find(p => p.id === activePreset)?.label}` : "Preset Filters"}
+            isActive={activePreset !== null}
+            isOpen={openDropdown === "presets"}
+            onClick={() => setOpenDropdown(openDropdown === "presets" ? null : "presets")}
           />
-        </div>
-        <div className="flex flex-col gap-1 text-xs text-text-muted xl:ml-auto xl:max-w-[640px]">
-          <span className="font-medium text-text-secondary">Columns:</span>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {COLUMN_OPTIONS.map((col) => (
-              <label key={col.key} className="flex items-center gap-1.5 cursor-pointer select-none whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={isColumnVisible(col.key)}
-                  onChange={() => toggleColumn(col.key)}
-                  className="accent-accent w-3 h-3"
-                />
-                {col.label}
-              </label>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Panel - shown when Custom is expanded */}
-      {showCustomFilters && (
-      <div className="mb-4 bg-bg-secondary border border-border-subtle rounded-2xl p-5 shadow-lg">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-          <FilterInput
-            label="Market Cap"
-            minKey="minMarketCap"
-            maxKey="maxMarketCap"
-            placeholder="billions"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="% to 52W High"
-            minKey="minPctTo52WeekHigh"
-            maxKey="maxPctTo52WeekHigh"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Earnings (TTM)"
-            minKey="minEarnings"
-            maxKey="maxEarnings"
-            placeholder="billions"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Revenue (TTM)"
-            minKey="minRevenue"
-            maxKey="maxRevenue"
-            placeholder="billions"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="P/E Ratio"
-            minKey="minPERatio"
-            maxKey="maxPERatio"
-            placeholder=""
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Fwd P/E"
-            minKey="minForwardPE"
-            maxKey="maxForwardPE"
-            placeholder=""
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-text-secondary uppercase tracking-wider">Country</label>
-            <select
-              value={pendingFilters.country}
-              onChange={(e) => {
-                updateFilter("country", e.target.value);
-              }}
-              className="w-full px-3 py-2.5 text-sm bg-bg-tertiary border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
-            >
-              <option value="">All Countries</option>
-              {countries.map((c) => (
-                <option key={c} value={c}>{formatCountry(c)}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-          <FilterInput
-            label="Div. Yield %"
-            minKey="minDividend"
-            maxKey="maxDividend"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Op. Margin %"
-            minKey="minOperatingMargin"
-            maxKey="maxOperatingMargin"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Rev CAGR 5Y"
-            minKey="minRevenueGrowth"
-            maxKey="maxRevenueGrowth"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="Rev CAGR 3Y"
-            minKey="minRevenueGrowth3Y"
-            maxKey="maxRevenueGrowth3Y"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="EPS CAGR 5Y"
-            minKey="minEPSGrowth"
-            maxKey="maxEPSGrowth"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <FilterInput
-            label="EPS CAGR 3Y"
-            minKey="minEPSGrowth3Y"
-            maxKey="maxEPSGrowth3Y"
-            placeholder="%"
-            pendingFilters={pendingFilters}
-            updateFilter={updateFilter}
-            applyFilters={applyFilters}
-          />
-          <div className="col-span-2 md:col-span-3 lg:col-span-1 flex justify-start lg:justify-end items-end gap-2">
-            <button
-              onClick={applyFilters}
-              disabled={!hasUnappliedChanges}
-              className={cn(
-                "h-10 px-6 py-2.5 inline-flex items-center text-sm font-semibold rounded-lg transition-all duration-300",
-                hasUnappliedChanges
-                  ? "bg-accent text-white hover:bg-accent-hover hover:shadow-glow hover:scale-[1.02]"
-                  : "bg-[#e0f7fa] text-[#0891b2]/50 cursor-not-allowed"
-              )}
-            >
-              Apply Filters
-            </button>
-            {hasActiveFilters && (
+          {openDropdown === "presets" && (
+            <div className="absolute top-full left-0 mt-1 min-w-[280px] bg-bg-tertiary border border-border-subtle rounded-xl p-2 z-50 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
               <button
-                onClick={clearFilters}
-                className="h-10 px-4 py-2.5 inline-flex items-center text-sm font-medium text-text-secondary bg-bg-tertiary border border-border-subtle rounded-lg hover:bg-bg-hover hover:text-text-primary transition-all duration-300"
+                onClick={() => {
+                  clearAllFilters();
+                  setOpenDropdown(null);
+                }}
+                className={cn(
+                  "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors",
+                  !hasActiveFilters
+                    ? "bg-accent/15 text-accent"
+                    : "hover:bg-bg-secondary text-text-primary"
+                )}
               >
-                Clear
+                <span className="text-base">🔄</span>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium">None (show all)</div>
+                  <div className="text-[11px] text-text-muted">No filters, ranked by market cap</div>
+                </div>
+                {!hasActiveFilters && <span className="ml-auto text-accent">✓</span>}
               </button>
-            )}
-          </div>
+              <div className="border-t border-border-subtle my-1" />
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => {
+                    if (activePreset === preset.id) {
+                      clearAllFilters();
+                    } else {
+                      applyPreset(preset);
+                    }
+                    setOpenDropdown(null);
+                  }}
+                  className={cn(
+                    "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors",
+                    activePreset === preset.id
+                      ? "bg-accent/15 text-accent"
+                      : "hover:bg-bg-secondary text-text-primary"
+                  )}
+                >
+                  <span className="text-base">{preset.icon}</span>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium">{preset.label}</div>
+                    <div className="text-[11px] text-text-muted">{preset.subtitle}</div>
+                  </div>
+                  {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-5 bg-border-subtle mx-1" />
+
+        {/* Single Filters Dropdown */}
+        <div className="relative">
+          <DropdownButton
+            label="Custom Filters"
+            isActive={hasActiveFilters}
+            isOpen={openDropdown === "filters"}
+            onClick={() => setOpenDropdown(openDropdown === "filters" ? null : "filters")}
+            badge={activeFilterCount}
+          />
+          {openDropdown === "filters" && (
+            <div className="absolute top-full left-0 mt-1 bg-bg-tertiary border border-border-subtle rounded-xl p-4 z-50 shadow-[0_12px_32px_rgba(0,0,0,0.5)] w-[680px]">
+              <div className="grid grid-cols-4 gap-3">
+                <FilterGridInput label="Market Cap ($B)" minKey="minMarketCap" maxKey="maxMarketCap" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="P/E Ratio" minKey="minPERatio" maxKey="maxPERatio" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Forward P/E" minKey="minForwardPE" maxKey="maxForwardPE" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Earnings TTM ($B)" minKey="minEarnings" maxKey="maxEarnings" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Revenue TTM ($B)" minKey="minRevenue" maxKey="maxRevenue" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Op. Margin (%)" minKey="minOperatingMargin" maxKey="maxOperatingMargin" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Div. Yield (%)" minKey="minDividend" maxKey="maxDividend" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="% to 52W High" minKey="minPctTo52WeekHigh" maxKey="maxPctTo52WeekHigh" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Rev CAGR 5Y (%)" minKey="minRevenueGrowth" maxKey="maxRevenueGrowth" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Rev CAGR 3Y (%)" minKey="minRevenueGrowth3Y" maxKey="maxRevenueGrowth3Y" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="EPS CAGR 5Y (%)" minKey="minEPSGrowth" maxKey="maxEPSGrowth" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="EPS CAGR 3Y (%)" minKey="minEPSGrowth3Y" maxKey="maxEPSGrowth3Y" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Country</label>
+                  <select
+                    value={pendingFilters.country}
+                    onChange={(e) => updateFilter("country", e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs bg-bg-secondary border border-border-subtle rounded-md text-text-primary focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
+                  >
+                    <option value="">All Countries</option>
+                    {countries.map((c) => (
+                      <option key={c} value={c}>{formatCountry(c)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end mt-3">
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFiltersAndClose}
+                    className="px-3 py-1.5 text-xs font-medium text-text-secondary bg-bg-secondary border border-border-subtle rounded-md hover:bg-bg-hover hover:text-text-primary transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+                <button
+                  onClick={applyFiltersAndClose}
+                  disabled={!hasUnappliedChanges}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-semibold rounded-md transition-colors",
+                    hasUnappliedChanges
+                      ? "bg-accent text-white hover:bg-accent-hover"
+                      : "bg-bg-secondary text-text-muted cursor-not-allowed"
+                  )}
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-5 bg-border-subtle mx-1" />
+
+        {/* Columns Dropdown */}
+        <div className="relative">
+          <DropdownButton
+            label={`Columns (${visibleColumns.size}/${COLUMN_OPTIONS.length})`}
+            isActive={false}
+            isOpen={openDropdown === "columns"}
+            onClick={() => setOpenDropdown(openDropdown === "columns" ? null : "columns")}
+          />
+          {openDropdown === "columns" && (
+            <div className="absolute top-full left-0 mt-1 min-w-[260px] bg-bg-tertiary border border-border-subtle rounded-xl p-2.5 z-50 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
+              <div className="grid grid-cols-2 gap-0.5">
+                {COLUMN_OPTIONS.map((col) => (
+                  <label key={col.key} className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer hover:bg-bg-secondary text-[12px] text-text-secondary select-none">
+                    <input
+                      type="checkbox"
+                      checked={isColumnVisible(col.key)}
+                      onChange={() => toggleColumn(col.key)}
+                      className="accent-accent w-3 h-3"
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      )}
 
       {/* Table */}
       <div
