@@ -5,7 +5,7 @@ A modern, unified web application that displays real-time rankings of US compani
 ## Features
 
 - **Unified Interface**: Single page displaying all US companies with sortable columns
-- **Scheduled Refreshes**: GitHub Actions runs the scraper every 3 days and uploads to Vercel Blob
+- **Scheduled Refreshes**: A cron job on the DigitalOcean VM runs the scraper every Thursday at 18:30 UTC and uploads to Vercel Blob
 - **Sortable Columns**: Click any column header to sort by:
   - Rank
   - Company Name
@@ -70,14 +70,16 @@ npm run dev
 
 ## Automated Data Refresh
 
-- Workflow: `.github/workflows/fmp-refresh.yml`
-- Schedule: every 3rd day at 18:30 UTC, plus manual trigger (`workflow_dispatch`)
-- Runtime: runs entirely on GitHub Actions (not a Vercel Function), so long scrape duration is supported
-- Required GitHub repo secrets:
+- Wrapper: `scripts/refresh.sh`
+- Host: DigitalOcean VM, triggered by user-level cron
+- Schedule: every Thursday at 18:30 UTC (cron expression `30 18 * * 4`)
+- Runtime: runs on the VM (not a Vercel Function), so long scrape duration is supported
+- Required secrets in `~/companiesmarketcap/.env.local`:
   - `FMP_API_KEY`
   - `BLOB_READ_WRITE_TOKEN`
 - Output: scraper writes `data/companies.json` and uploads `companies.json` to Vercel Blob
 - Production read path: app fetches Blob JSON via `BLOB_URL`
+- Logs: `scripts/refresh.log` on the VM
 
 ## Project Structure
 
@@ -170,10 +172,10 @@ To deploy to Vercel:
 1. Push code to GitHub
 2. Connect repository to Vercel
 3. Deploy
-4. In GitHub repository settings, add secrets:
+4. On the DigitalOcean VM, populate `~/companiesmarketcap/.env.local` with:
    - `FMP_API_KEY`
    - `BLOB_READ_WRITE_TOKEN`
-5. Enable/run the `FMP Refresh` GitHub Actions workflow for scheduled data refreshes
+5. Ensure the weekly cron entry is installed (see `crontab -l`); runs `scripts/refresh.sh` at 18:30 UTC every Thursday
 6. In Vercel project settings, set `BLOB_URL` to the Blob URL for `companies.json`
 
 ## License

@@ -53,17 +53,21 @@ This is a Next.js 15 App Router application that displays global company market 
    - `app/page.tsx`: Server component that fetches all companies on initial render
    - `components/CompaniesTable.tsx`: Client component with sorting and filtering UI
 
-### Automated Scraping (GitHub Actions)
+### Automated Scraping (VM cron)
 
-Primary automation runs in GitHub Actions via `.github/workflows/fmp-refresh.yml`.
+Primary automation runs on the DigitalOcean VM via cron, invoking `scripts/refresh.sh`.
 
-**Workflow behavior:**
-- Trigger: every 3rd day at 18:30 UTC (`cron`) + manual `workflow_dispatch`
-- Runtime target: up to 240 minutes (`timeout-minutes`)
-- Concurrency: single run at a time (`fmp-refresh` group)
-- Execution: runs `npm run scrape` on GitHub runner, not on a Vercel Function
+**Schedule:**
+- Every Thursday at 18:30 UTC
+- Single cron entry in user `av`'s crontab (`crontab -l`)
+- Runs `npm run scrape` against the working tree at `~/companiesmarketcap`
 
-**Required GitHub repo secrets:**
+**Wrapper behavior (`scripts/refresh.sh`):**
+- Sources secrets from `.env.local`
+- `git pull --ff-only origin main` so scraper edits propagate without manual SSH (non-fatal on failure)
+- Appends all output to `scripts/refresh.log`
+
+**Required secrets in `~/companiesmarketcap/.env.local`:**
 - `FMP_API_KEY`: Financial Modeling Prep API key
 - `BLOB_READ_WRITE_TOKEN`: Upload token for Vercel Blob
 
@@ -71,22 +75,19 @@ Primary automation runs in GitHub Actions via `.github/workflows/fmp-refresh.yml
 - `/api/scrape` still exists, but is not used for scheduled refreshes
 - **Production reads from Vercel Blob, not local JSON.**
 - Full scraper uploads to Blob automatically when `BLOB_READ_WRITE_TOKEN` is set
+- Previously ran via a Codex automation on the user's MacBook; moved to the VM because the Mac wasn't always on
 
-### Local Fallback (Optional)
-
-Use local `launchd` only as a backup/manual fallback.
-
-**LaunchAgent:** `~/Library/LaunchAgents/com.companiesmarketcap.scraper.plist`
+**Manual run / debugging:**
 
 ```bash
-# Manual fallback run
-launchctl start com.companiesmarketcap.scraper
+# Trigger a refresh immediately
+~/companiesmarketcap/scripts/refresh.sh
 
-# Check status
-launchctl list | grep companiesmarketcap
+# Tail the log
+tail -f ~/companiesmarketcap/scripts/refresh.log
 
-# View logs
-tail -f ~/Library/Logs/companiesmarketcap-scraper.log
+# Inspect the cron entry
+crontab -l | grep companiesmarketcap
 ```
 
 ### Data Fields
