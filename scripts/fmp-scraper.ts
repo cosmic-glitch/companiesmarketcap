@@ -1211,12 +1211,16 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     console.log(`Updated annual revenue series for ${updated} companies (also EPS for ${epsUpdated})`);
 
   } else if (updateType === "annual_eps") {
-    // Backfill/refresh the 10Y annual diluted-EPS series for all existing companies.
+    // Backfill/refresh the 10Y annual diluted-EPS series (and opportunistically
+    // revenue) for all existing companies — same fetch populates both.
+    const fxRates = await fetchFXRates();
+
     console.log("Fetching annual income statements (10 years)...");
     const annualIncome = await processSymbolsBatch(symbols, fetchAnnualIncome, "Annual income");
     console.log(`  Got annual income for ${annualIncome.size} symbols\n`);
 
     let updated = 0;
+    let revUpdated = 0;
     for (const [symbol, company] of companyMap) {
       const result = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       if (!result) continue;
@@ -1225,8 +1229,13 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         company.eps_annual = series;
         updated++;
       }
+      const revSeries = buildRevenueAnnual(result.statements, result.reportedCurrency, fxRates);
+      if (revSeries) {
+        company.revenue_annual = revSeries;
+        revUpdated++;
+      }
     }
-    console.log(`Updated annual EPS series for ${updated} companies`);
+    console.log(`Updated annual EPS series for ${updated} companies (also revenue for ${revUpdated})`);
 
   } else if (updateType === "new_symbols") {
     // Find supplemental symbols not already in the dataset
