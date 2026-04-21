@@ -16,6 +16,7 @@ export interface Company {
   dailyChangePercent: number | null;
   earnings: number | null;
   revenue: number | null;
+  revenueAnnual: { year: number; revenue: number }[] | null;
   peRatio: number | null;
   ttmEPS: number | null;  // TTM earnings per share (derived from FMP P/E ratio)
   forwardPE: number | null;
@@ -85,6 +86,7 @@ export interface DatabaseCompany {
   daily_change_percent: number | null;
   earnings: number | null;
   revenue: number | null;
+  revenue_annual: { year: number; revenue: number }[] | null;
   pe_ratio: number | null;
   ttm_eps: number | null;
   forward_pe: number | null;

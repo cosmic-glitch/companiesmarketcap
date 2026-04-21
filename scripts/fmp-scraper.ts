@@ -20,6 +20,7 @@
  *   npm run scrape -- --only pe_ratio     # Only update P/E ratio and TTM EPS
  *   npm run scrape -- --only new_symbols    # Fetch data for supplemental symbols not yet in JSON
  *   npm run scrape -- --only currency_fix  # Fix non-USD revenue/earnings/forward_eps → USD
+ *   npm run scrape -- --only annual_revenue # Backfill/refresh 10Y annual revenue series
  */
 
 import axios from "axios";
@@ -296,6 +297,7 @@ interface CompanyData {
   revenueGrowth3Y: number | null;
   epsGrowth5Y: number | null;
   epsGrowth3Y: number | null;
+  revenueAnnual: { year: number; revenue: number }[] | null;
 }
 
 // Convert total 5-year growth to CAGR
@@ -312,6 +314,26 @@ function totalGrowthToCAGR3Y(totalGrowth: number): number {
     return -1;
   }
   return Math.pow(1 + totalGrowth, 1 / 3) - 1;
+}
+
+// Build per-year revenue series in USD from annual income statements.
+// Returns newest-first (matches FMP order). Null if fewer than 2 valid years.
+function buildRevenueAnnual(
+  statements: FMPIncomeStatement[],
+  reportedCurrency: string,
+  fxRates: Map<string, number>
+): { year: number; revenue: number }[] | null {
+  const series: { year: number; revenue: number }[] = [];
+  for (const s of statements) {
+    if (!s.revenue || s.revenue <= 0 || !s.date) continue;
+    const year = parseInt(s.date.substring(0, 4), 10);
+    if (!Number.isFinite(year)) continue;
+    series.push({
+      year,
+      revenue: toUSD(s.revenue, reportedCurrency, fxRates),
+    });
+  }
+  return series.length >= 2 ? series : null;
 }
 
 // Sleep utility
@@ -397,6 +419,18 @@ async function fetchBatchProfiles(symbols: string[]): Promise<Map<string, FMPPro
 // Fetch quarterly income statements for a symbol (returns last 4 quarters + reportedCurrency)
 async function fetchQuarterlyIncome(symbol: string): Promise<{ statements: FMPIncomeStatement[]; reportedCurrency: string } | null> {
   const url = `${BASE_URL}/income-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPIncomeStatement[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    const reportedCurrency = response.data[0].reportedCurrency || "USD";
+    return { statements: response.data, reportedCurrency };
+  }
+  return null;
+}
+
+// Fetch annual income statements for a symbol (returns last 10 fiscal years + reportedCurrency)
+async function fetchAnnualIncome(symbol: string): Promise<{ statements: FMPIncomeStatement[]; reportedCurrency: string } | null> {
+  const url = `${BASE_URL}/income-statement?symbol=${symbol}&period=annual&limit=10&apikey=${FMP_API_KEY}`;
   const response = await axios.get<FMPIncomeStatement[]>(url, { timeout: 10000 });
 
   if (response.data && Array.isArray(response.data) && response.data.length > 0) {
@@ -646,6 +680,10 @@ async function runFMPScraper(): Promise<{
   const incomeStatements = await processSymbolsBatch(dedupedSymbols, fetchQuarterlyIncome, "Income statements");
   console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
 
+  console.log("Fetching annual income statements (10 years)...");
+  const annualIncome = await processSymbolsBatch(dedupedSymbols, fetchAnnualIncome, "Annual income");
+  console.log(`  Got annual income for ${annualIncome.size} symbols\n`);
+
   console.log("Fetching ratios TTM...");
   const ratios = await processSymbolsBatch(dedupedSymbols, fetchRatiosTTM, "Ratios TTM");
   console.log(`  Got ratios for ${ratios.size} symbols\n`);
@@ -666,6 +704,7 @@ async function runFMPScraper(): Promise<{
     const quote = quotes.get(symbol);
     const profile = profiles.get(symbol);
     const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
+    const annualResult = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
     const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
     const growthData = growth.get(symbol) as FMPFinancialGrowth | undefined;
     const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
@@ -738,6 +777,11 @@ async function runFMPScraper(): Promise<{
       }
     }
 
+    // Build 10-year revenue series (newest-first, USD-converted)
+    const revenueAnnual = annualResult
+      ? buildRevenueAnnual(annualResult.statements, annualResult.reportedCurrency, fxRates)
+      : null;
+
     companies.push({
       symbol,
       name: profile?.companyName || quote.name || symbol,
@@ -759,6 +803,7 @@ async function runFMPScraper(): Promise<{
       revenueGrowth3Y,
       epsGrowth5Y,
       epsGrowth3Y,
+      revenueAnnual,
     });
   }
 
@@ -791,6 +836,7 @@ async function runFMPScraper(): Promise<{
     revenue_growth_3y: c.revenueGrowth3Y,
     eps_growth_5y: c.epsGrowth5Y,
     eps_growth_3y: c.epsGrowth3Y,
+    revenue_annual: c.revenueAnnual,
     country: c.country,
     last_updated: timestamp,
   }));
@@ -809,6 +855,7 @@ async function runFMPScraper(): Promise<{
     withRevenueGrowth3Y: dbCompanies.filter((c) => c.revenue_growth_3y !== null).length,
     withEPSGrowth5Y: dbCompanies.filter((c) => c.eps_growth_5y !== null).length,
     withEPSGrowth3Y: dbCompanies.filter((c) => c.eps_growth_3y !== null).length,
+    withRevenueAnnual: dbCompanies.filter((c) => c.revenue_annual !== null).length,
   };
 
   console.log("\n========================================");
@@ -825,6 +872,7 @@ async function runFMPScraper(): Promise<{
   console.log(`With revenue growth 3Y: ${stats.withRevenueGrowth3Y} (${Math.round((stats.withRevenueGrowth3Y / stats.total) * 100)}%)`);
   console.log(`With EPS growth 5Y:     ${stats.withEPSGrowth5Y} (${Math.round((stats.withEPSGrowth5Y / stats.total) * 100)}%)`);
   console.log(`With EPS growth 3Y:     ${stats.withEPSGrowth3Y} (${Math.round((stats.withEPSGrowth3Y / stats.total) * 100)}%)`);
+  console.log(`With 10Y revenue trend: ${stats.withRevenueAnnual} (${Math.round((stats.withRevenueAnnual / stats.total) * 100)}%)`);
   console.log(`\nDuration: ${duration} minutes`);
 
   return {
@@ -837,7 +885,7 @@ async function runFMPScraper(): Promise<{
 export { runFMPScraper };
 
 // Partial update types
-type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix";
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix" | "annual_revenue";
 
 // Run a partial update (only fetch and update specific fields)
 async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
@@ -948,6 +996,10 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     const incomeStatements = await processSymbolsBatch(symbols, fetchQuarterlyIncome, "Income statements");
     console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
 
+    console.log("Fetching annual income statements (10 years)...");
+    const annualIncome = await processSymbolsBatch(symbols, fetchAnnualIncome, "Annual income");
+    console.log(`  Got annual income for ${annualIncome.size} symbols\n`);
+
     console.log("Fetching ratios TTM...");
     const ratios = await processSymbolsBatch(symbols, fetchRatiosTTM, "Ratios TTM");
     console.log(`  Got ratios for ${ratios.size} symbols\n`);
@@ -956,6 +1008,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     let updated = 0;
     for (const [symbol, company] of companyMap) {
       const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
+      const annualResult = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
 
       if (incomeResult && incomeResult.statements.length > 0) {
@@ -973,6 +1026,13 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
           company.earnings = toUSD(netIncome, reportedCurrency, fxRates);
         }
         updated++;
+      }
+
+      if (annualResult) {
+        const series = buildRevenueAnnual(annualResult.statements, annualResult.reportedCurrency, fxRates);
+        if (series) {
+          company.revenue_annual = series;
+        }
       }
 
       if (ratio) {
@@ -1090,6 +1150,26 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     }
     console.log(`Fixed currency for ${updated} non-USD companies (skipped ${skippedUSD} USD companies)`);
 
+  } else if (updateType === "annual_revenue") {
+    // Backfill/refresh the 10Y annual revenue series for all existing companies.
+    const fxRates = await fetchFXRates();
+
+    console.log("Fetching annual income statements (10 years)...");
+    const annualIncome = await processSymbolsBatch(symbols, fetchAnnualIncome, "Annual income");
+    console.log(`  Got annual income for ${annualIncome.size} symbols\n`);
+
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const result = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
+      if (!result) continue;
+      const series = buildRevenueAnnual(result.statements, result.reportedCurrency, fxRates);
+      if (series) {
+        company.revenue_annual = series;
+        updated++;
+      }
+    }
+    console.log(`Updated annual revenue series for ${updated} companies`);
+
   } else if (updateType === "new_symbols") {
     // Find supplemental symbols not already in the dataset
     const existingSymbolSet = new Set(symbols);
@@ -1124,6 +1204,10 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     const incomeStatements = await processSymbolsBatch(validNewSymbols, fetchQuarterlyIncome, "Income statements");
     console.log(`  Got income statements for ${incomeStatements.size} symbols\n`);
 
+    console.log("Fetching annual income statements (10 years)...");
+    const annualIncome = await processSymbolsBatch(validNewSymbols, fetchAnnualIncome, "Annual income");
+    console.log(`  Got annual income for ${annualIncome.size} symbols\n`);
+
     console.log("Fetching ratios TTM...");
     const ratios = await processSymbolsBatch(validNewSymbols, fetchRatiosTTM, "Ratios TTM");
     console.log(`  Got ratios for ${ratios.size} symbols\n`);
@@ -1145,6 +1229,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       const quote = quotes.get(symbol);
       const profile = profiles.get(symbol);
       const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
+      const annualResult = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
       const gd = growthData.get(symbol) as FMPFinancialGrowth | undefined;
       const estimate = estData.get(symbol) as FMPAnalystEstimate | undefined;
@@ -1152,6 +1237,9 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       if (!quote) continue;
 
       const reportedCurrency = incomeResult?.reportedCurrency || "USD";
+      const revenueAnnual = annualResult
+        ? buildRevenueAnnual(annualResult.statements, annualResult.reportedCurrency, fxRates)
+        : null;
 
       // Calculate TTM values from quarterly income statements
       let ttmRevenue: number | null = null;
@@ -1235,6 +1323,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         revenue_growth_3y: revenueGrowth3Y,
         eps_growth_5y: epsGrowth5Y,
         eps_growth_3y: epsGrowth3Y,
+        revenue_annual: revenueAnnual,
         country: profile?.country || "US",
         last_updated: timestamp,
       };
@@ -1284,7 +1373,7 @@ function parseArgs(): { only?: PartialUpdateType } {
 
   if (onlyIndex !== -1 && args[onlyIndex + 1]) {
     const updateType = args[onlyIndex + 1] as PartialUpdateType;
-    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix"];
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix", "annual_revenue"];
     if (!validTypes.includes(updateType)) {
       console.error(`Error: Invalid update type '${updateType}'`);
       console.error(`Valid types: ${validTypes.join(", ")}`);

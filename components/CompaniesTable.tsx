@@ -95,6 +95,52 @@ function DailyChange({ value }: { value: number | null }) {
   );
 }
 
+// Inline SVG bar chart showing annual revenue trend.
+// Storage order is newest-first; render oldest→newest (left→right).
+function RevenueSparkline({ values }: { values: { year: number; revenue: number }[] | null }) {
+  if (!values || values.length < 2) {
+    return <span className="text-text-muted">-</span>;
+  }
+
+  const ordered = [...values].reverse();
+  const width = 104;
+  const height = 28;
+  const gap = 2;
+  const barWidth = (width - gap * (ordered.length - 1)) / ordered.length;
+  const maxRevenue = Math.max(...ordered.map((v) => v.revenue));
+  // Floor at 2px so non-zero tiny values stay visible.
+  const minBarHeight = 2;
+
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="inline-block align-middle"
+      aria-label="10-year revenue trend"
+    >
+      {ordered.map((v, i) => {
+        const scaled = maxRevenue > 0 ? (v.revenue / maxRevenue) * height : 0;
+        const barHeight = Math.max(scaled, minBarHeight);
+        const x = i * (barWidth + gap);
+        const y = height - barHeight;
+        return (
+          <rect
+            key={v.year}
+            x={x}
+            y={y}
+            width={barWidth}
+            height={barHeight}
+            className="fill-accent/60"
+          >
+            <title>{`${v.year}: ${formatMarketCap(v.revenue)}`}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
 interface CompaniesTableProps {
   companies: Company[];
   sortBy: keyof Company;
@@ -229,6 +275,7 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "operatingMargin", label: "Op. Margin %", defaultVisible: false },
   { key: "revenueGrowth5Y", label: "Rev CAGR 5Y", defaultVisible: false },
   { key: "revenueGrowth3Y", label: "Rev CAGR 3Y", defaultVisible: true },
+  { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: false },
   { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
   { key: "epsGrowth3Y", label: "EPS CAGR 3Y", defaultVisible: true },
 ];
@@ -850,6 +897,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Rev CAGR 3Y <SortIndicator columnKey="revenueGrowth3Y" />
               </th>
               )}
+              {isColumnVisible("revenueAnnual") && (
+              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                10Y Rev Trend
+              </th>
+              )}
               {isColumnVisible("epsGrowth5Y") && (
               <th
                 onClick={() => handleSort("epsGrowth5Y")}
@@ -1017,6 +1069,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("revenueGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.revenueGrowth3Y)}
+                </td>
+                )}
+                {isColumnVisible("revenueAnnual") && (
+                <td className="px-4 py-3.5 whitespace-nowrap text-center">
+                  <RevenueSparkline values={company.revenueAnnual} />
                 </td>
                 )}
                 {isColumnVisible("epsGrowth5Y") && (

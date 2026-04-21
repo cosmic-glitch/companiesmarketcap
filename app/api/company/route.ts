@@ -15,6 +15,7 @@ const VALID_FIELDS = new Set<keyof Company>([
   "dailyChangePercent",
   "earnings",
   "revenue",
+  "revenueAnnual",
   "peRatio",
   "ttmEPS",
   "forwardPE",
