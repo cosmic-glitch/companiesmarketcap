@@ -131,7 +131,7 @@ function RevenueSparkline({ values }: { values: { year: number; revenue: number 
             y={y}
             width={barWidth}
             height={barHeight}
-            className="fill-accent/60"
+            className="fill-text-muted/50"
           >
             <title>{`${v.year}: ${formatMarketCap(v.revenue)}`}</title>
           </rect>
@@ -182,7 +182,7 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
               y={zeroY - h}
               width={barWidth}
               height={h}
-              className="fill-accent/60"
+              className="fill-text-muted/50"
             >
               <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
             </rect>
@@ -198,7 +198,7 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
             y={zeroY}
             width={barWidth}
             height={h}
-            className="fill-negative/60"
+            className="fill-negative/55"
           >
             <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
           </rect>
@@ -334,18 +334,18 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "price", label: "Price", defaultVisible: true },
   { key: "dailyChangePercent", label: "Today", defaultVisible: true },
   { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
-  { key: "earnings", label: "Earnings", defaultVisible: true },
-  { key: "revenue", label: "Revenue", defaultVisible: true },
+  { key: "earnings", label: "Earnings", defaultVisible: false },
+  { key: "revenue", label: "Revenue", defaultVisible: false },
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
   { key: "dividendPercent", label: "Div %", defaultVisible: false },
   { key: "operatingMargin", label: "Op. Margin %", defaultVisible: false },
   { key: "revenueGrowth5Y", label: "Rev CAGR 5Y", defaultVisible: false },
   { key: "revenueGrowth3Y", label: "Rev CAGR 3Y", defaultVisible: true },
-  { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: false },
   { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
   { key: "epsGrowth3Y", label: "EPS CAGR 3Y", defaultVisible: true },
-  { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: false },
+  { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: true },
+  { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: true },
 ];
 
 const ALWAYS_VISIBLE_COLUMNS = new Set<SortKey>(["rank", "name"]);
@@ -965,11 +965,6 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Rev CAGR 3Y <SortIndicator columnKey="revenueGrowth3Y" />
               </th>
               )}
-              {isColumnVisible("revenueAnnual") && (
-              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
-                10Y Rev Trend
-              </th>
-              )}
               {isColumnVisible("epsGrowth5Y") && (
               <th
                 onClick={() => handleSort("epsGrowth5Y")}
@@ -990,6 +985,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 )}
               >
                 EPS CAGR 3Y <SortIndicator columnKey="epsGrowth3Y" />
+              </th>
+              )}
+              {isColumnVisible("revenueAnnual") && (
+              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                10Y Rev Trend
               </th>
               )}
               {isColumnVisible("epsAnnual") && (
@@ -1144,11 +1144,6 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {formatCAGR(company.revenueGrowth3Y)}
                 </td>
                 )}
-                {isColumnVisible("revenueAnnual") && (
-                <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                  <RevenueSparkline values={company.revenueAnnual} />
-                </td>
-                )}
                 {isColumnVisible("epsGrowth5Y") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
@@ -1163,6 +1158,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("epsGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.epsGrowth3Y)}
+                </td>
+                )}
+                {isColumnVisible("revenueAnnual") && (
+                <td className="px-4 py-3.5 whitespace-nowrap text-center">
+                  <RevenueSparkline values={company.revenueAnnual} />
                 </td>
                 )}
                 {isColumnVisible("epsAnnual") && (
