@@ -17,6 +17,9 @@ export interface Company {
   earnings: number | null;
   revenue: number | null;
   revenueAnnual: { year: number; revenue: number }[] | null;
+  // EPS in the company's reportedCurrency (not USD-converted). Shape is
+  // scale-invariant so currency doesn't affect the sparkline visual.
+  epsAnnual: { year: number; eps: number }[] | null;
   peRatio: number | null;
   ttmEPS: number | null;  // TTM earnings per share (derived from FMP P/E ratio)
   forwardPE: number | null;
@@ -87,6 +90,7 @@ export interface DatabaseCompany {
   earnings: number | null;
   revenue: number | null;
   revenue_annual: { year: number; revenue: number }[] | null;
+  eps_annual: { year: number; eps: number }[] | null;
   pe_ratio: number | null;
   ttm_eps: number | null;
   forward_pe: number | null;

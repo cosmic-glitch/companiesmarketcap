@@ -141,6 +141,73 @@ function RevenueSparkline({ values }: { values: { year: number; revenue: number 
   );
 }
 
+// Zero-baseline sparkline for annual diluted-EPS. Positive bars above the
+// axis (accent), negative bars below (red). Axis position is proportional
+// to the pos/neg range so both polarities stay visible. Self-scaled per
+// company — no cross-row comparison.
+function EpsSparkline({ values }: { values: { year: number; eps: number }[] | null }) {
+  if (!values || values.length < 2) {
+    return <span className="text-text-muted">-</span>;
+  }
+
+  const ordered = [...values].reverse();
+  const width = 104;
+  const height = 28;
+  const gap = 2;
+  const barWidth = (width - gap * (ordered.length - 1)) / ordered.length;
+  const maxPos = Math.max(0, ...ordered.map((v) => v.eps));
+  const maxNeg = Math.max(0, ...ordered.map((v) => -v.eps));
+  const range = maxPos + maxNeg;
+  const zeroY = range > 0 ? (maxPos / range) * height : height;
+  const minBar = 1;
+
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="inline-block align-middle"
+      aria-label="10-year EPS trend"
+    >
+      {ordered.map((v, i) => {
+        const x = i * (barWidth + gap);
+        const absEps = Math.abs(v.eps);
+        if (v.eps >= 0) {
+          const scaled = maxPos > 0 ? (absEps / maxPos) * zeroY : 0;
+          const h = absEps > 0 ? Math.max(scaled, minBar) : 0;
+          return (
+            <rect
+              key={v.year}
+              x={x}
+              y={zeroY - h}
+              width={barWidth}
+              height={h}
+              className="fill-accent/60"
+            >
+              <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
+            </rect>
+          );
+        }
+        const maxDown = height - zeroY;
+        const scaled = maxNeg > 0 ? (absEps / maxNeg) * maxDown : 0;
+        const h = Math.max(scaled, minBar);
+        return (
+          <rect
+            key={v.year}
+            x={x}
+            y={zeroY}
+            width={barWidth}
+            height={h}
+            className="fill-negative/60"
+          >
+            <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
 interface CompaniesTableProps {
   companies: Company[];
   sortBy: keyof Company;
@@ -278,6 +345,7 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: false },
   { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
   { key: "epsGrowth3Y", label: "EPS CAGR 3Y", defaultVisible: true },
+  { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: false },
 ];
 
 const ALWAYS_VISIBLE_COLUMNS = new Set<SortKey>(["rank", "name"]);
@@ -924,6 +992,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 EPS CAGR 3Y <SortIndicator columnKey="epsGrowth3Y" />
               </th>
               )}
+              {isColumnVisible("epsAnnual") && (
+              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                10Y EPS Trend
+              </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
@@ -1090,6 +1163,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("epsGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.epsGrowth3Y)}
+                </td>
+                )}
+                {isColumnVisible("epsAnnual") && (
+                <td className="px-4 py-3.5 whitespace-nowrap text-center">
+                  <EpsSparkline values={company.epsAnnual} />
                 </td>
                 )}
               </tr>

@@ -21,6 +21,7 @@
  *   npm run scrape -- --only new_symbols    # Fetch data for supplemental symbols not yet in JSON
  *   npm run scrape -- --only currency_fix  # Fix non-USD revenue/earnings/forward_eps → USD
  *   npm run scrape -- --only annual_revenue # Backfill/refresh 10Y annual revenue series
+ *   npm run scrape -- --only annual_eps     # Backfill/refresh 10Y annual diluted-EPS series
  */
 
 import axios from "axios";
@@ -252,6 +253,8 @@ interface FMPIncomeStatement {
   revenue: number;
   netIncome: number;
   operatingIncome: number;
+  eps: number;
+  epsDiluted: number;
   reportedCurrency: string;
 }
 
@@ -298,6 +301,7 @@ interface CompanyData {
   epsGrowth5Y: number | null;
   epsGrowth3Y: number | null;
   revenueAnnual: { year: number; revenue: number }[] | null;
+  epsAnnual: { year: number; eps: number }[] | null;
 }
 
 // Convert total 5-year growth to CAGR
@@ -332,6 +336,24 @@ function buildRevenueAnnual(
       year,
       revenue: toUSD(s.revenue, reportedCurrency, fxRates),
     });
+  }
+  return series.length >= 2 ? series : null;
+}
+
+// Per-year diluted-EPS series in reported currency from annual income
+// statements. Newest-first. Null if < 2 valid years. Negative EPS (loss
+// years) are kept — the sparkline renders them below a zero baseline.
+function buildEpsAnnual(
+  statements: FMPIncomeStatement[]
+): { year: number; eps: number }[] | null {
+  const series: { year: number; eps: number }[] = [];
+  for (const s of statements) {
+    const raw = typeof s.epsDiluted === "number" && s.epsDiluted !== 0 ? s.epsDiluted : s.eps;
+    if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
+    if (!s.date) continue;
+    const year = parseInt(s.date.substring(0, 4), 10);
+    if (!Number.isFinite(year)) continue;
+    series.push({ year, eps: raw });
   }
   return series.length >= 2 ? series : null;
 }
@@ -782,6 +804,9 @@ async function runFMPScraper(): Promise<{
       ? buildRevenueAnnual(annualResult.statements, annualResult.reportedCurrency, fxRates)
       : null;
 
+    // Build 10-year diluted-EPS series (newest-first, reported currency)
+    const epsAnnual = annualResult ? buildEpsAnnual(annualResult.statements) : null;
+
     companies.push({
       symbol,
       name: profile?.companyName || quote.name || symbol,
@@ -804,6 +829,7 @@ async function runFMPScraper(): Promise<{
       epsGrowth5Y,
       epsGrowth3Y,
       revenueAnnual,
+      epsAnnual,
     });
   }
 
@@ -837,6 +863,7 @@ async function runFMPScraper(): Promise<{
     eps_growth_5y: c.epsGrowth5Y,
     eps_growth_3y: c.epsGrowth3Y,
     revenue_annual: c.revenueAnnual,
+    eps_annual: c.epsAnnual,
     country: c.country,
     last_updated: timestamp,
   }));
@@ -856,6 +883,7 @@ async function runFMPScraper(): Promise<{
     withEPSGrowth5Y: dbCompanies.filter((c) => c.eps_growth_5y !== null).length,
     withEPSGrowth3Y: dbCompanies.filter((c) => c.eps_growth_3y !== null).length,
     withRevenueAnnual: dbCompanies.filter((c) => c.revenue_annual !== null).length,
+    withEpsAnnual: dbCompanies.filter((c) => c.eps_annual !== null).length,
   };
 
   console.log("\n========================================");
@@ -873,6 +901,7 @@ async function runFMPScraper(): Promise<{
   console.log(`With EPS growth 5Y:     ${stats.withEPSGrowth5Y} (${Math.round((stats.withEPSGrowth5Y / stats.total) * 100)}%)`);
   console.log(`With EPS growth 3Y:     ${stats.withEPSGrowth3Y} (${Math.round((stats.withEPSGrowth3Y / stats.total) * 100)}%)`);
   console.log(`With 10Y revenue trend: ${stats.withRevenueAnnual} (${Math.round((stats.withRevenueAnnual / stats.total) * 100)}%)`);
+  console.log(`With 10Y EPS trend:     ${stats.withEpsAnnual} (${Math.round((stats.withEpsAnnual / stats.total) * 100)}%)`);
   console.log(`\nDuration: ${duration} minutes`);
 
   return {
@@ -885,7 +914,7 @@ async function runFMPScraper(): Promise<{
 export { runFMPScraper };
 
 // Partial update types
-type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix" | "annual_revenue";
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix" | "annual_revenue" | "annual_eps";
 
 // Run a partial update (only fetch and update specific fields)
 async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
@@ -1033,6 +1062,10 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         if (series) {
           company.revenue_annual = series;
         }
+        const epsSeries = buildEpsAnnual(annualResult.statements);
+        if (epsSeries) {
+          company.eps_annual = epsSeries;
+        }
       }
 
       if (ratio) {
@@ -1151,7 +1184,8 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     console.log(`Fixed currency for ${updated} non-USD companies (skipped ${skippedUSD} USD companies)`);
 
   } else if (updateType === "annual_revenue") {
-    // Backfill/refresh the 10Y annual revenue series for all existing companies.
+    // Backfill/refresh the 10Y annual revenue series (and opportunistically EPS)
+    // for all existing companies — same fetch populates both.
     const fxRates = await fetchFXRates();
 
     console.log("Fetching annual income statements (10 years)...");
@@ -1159,6 +1193,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     console.log(`  Got annual income for ${annualIncome.size} symbols\n`);
 
     let updated = 0;
+    let epsUpdated = 0;
     for (const [symbol, company] of companyMap) {
       const result = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       if (!result) continue;
@@ -1167,8 +1202,31 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         company.revenue_annual = series;
         updated++;
       }
+      const epsSeries = buildEpsAnnual(result.statements);
+      if (epsSeries) {
+        company.eps_annual = epsSeries;
+        epsUpdated++;
+      }
     }
-    console.log(`Updated annual revenue series for ${updated} companies`);
+    console.log(`Updated annual revenue series for ${updated} companies (also EPS for ${epsUpdated})`);
+
+  } else if (updateType === "annual_eps") {
+    // Backfill/refresh the 10Y annual diluted-EPS series for all existing companies.
+    console.log("Fetching annual income statements (10 years)...");
+    const annualIncome = await processSymbolsBatch(symbols, fetchAnnualIncome, "Annual income");
+    console.log(`  Got annual income for ${annualIncome.size} symbols\n`);
+
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const result = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
+      if (!result) continue;
+      const series = buildEpsAnnual(result.statements);
+      if (series) {
+        company.eps_annual = series;
+        updated++;
+      }
+    }
+    console.log(`Updated annual EPS series for ${updated} companies`);
 
   } else if (updateType === "new_symbols") {
     // Find supplemental symbols not already in the dataset
@@ -1240,6 +1298,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       const revenueAnnual = annualResult
         ? buildRevenueAnnual(annualResult.statements, annualResult.reportedCurrency, fxRates)
         : null;
+      const epsAnnual = annualResult ? buildEpsAnnual(annualResult.statements) : null;
 
       // Calculate TTM values from quarterly income statements
       let ttmRevenue: number | null = null;
@@ -1324,6 +1383,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         eps_growth_5y: epsGrowth5Y,
         eps_growth_3y: epsGrowth3Y,
         revenue_annual: revenueAnnual,
+        eps_annual: epsAnnual,
         country: profile?.country || "US",
         last_updated: timestamp,
       };
@@ -1373,7 +1433,7 @@ function parseArgs(): { only?: PartialUpdateType } {
 
   if (onlyIndex !== -1 && args[onlyIndex + 1]) {
     const updateType = args[onlyIndex + 1] as PartialUpdateType;
-    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix", "annual_revenue"];
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix", "annual_revenue", "annual_eps"];
     if (!validTypes.includes(updateType)) {
       console.error(`Error: Invalid update type '${updateType}'`);
       console.error(`Valid types: ${validTypes.join(", ")}`);
