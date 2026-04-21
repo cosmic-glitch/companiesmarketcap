@@ -131,7 +131,7 @@ function RevenueSparkline({ values }: { values: { year: number; revenue: number 
             y={y}
             width={barWidth}
             height={barHeight}
-            fill="rgba(148, 163, 184, 0.6)"
+            fill="#64748b"
           >
             <title>{`${v.year}: ${formatMarketCap(v.revenue)}`}</title>
           </rect>
@@ -182,7 +182,7 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
               y={zeroY - h}
               width={barWidth}
               height={h}
-              fill="rgba(148, 163, 184, 0.6)"
+              fill="#64748b"
             >
               <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
             </rect>
@@ -198,7 +198,7 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
             y={zeroY}
             width={barWidth}
             height={h}
-            fill="rgba(220, 38, 38, 0.65)"
+            fill="rgba(220, 38, 38, 0.9)"
           >
             <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
           </rect>
