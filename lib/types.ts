@@ -31,6 +31,8 @@ export interface Company {
   revenueGrowth3Y: number | null; // 3-year CAGR
   epsGrowth5Y: number | null; // 5-year CAGR
   epsGrowth3Y: number | null; // 3-year CAGR
+  freeCashFlow: number | null; // TTM, USD
+  netDebt: number | null; // latest quarter, USD (negative = net cash)
   country: string;
   lastUpdated: string;
 }
@@ -64,6 +66,10 @@ export interface CompaniesQueryParams {
   maxEPSGrowth3Y?: number;
   minPctTo52WeekHigh?: number;
   maxPctTo52WeekHigh?: number;
+  minFreeCashFlow?: number;
+  maxFreeCashFlow?: number;
+  minNetDebt?: number;
+  maxNetDebt?: number;
   country?: string;
   limit?: number;
   offset?: number;
@@ -102,6 +108,8 @@ export interface DatabaseCompany {
   revenue_growth_3y: number | null;
   eps_growth_5y: number | null;
   eps_growth_3y: number | null;
+  free_cash_flow: number | null;
+  net_debt: number | null;
   country: string;
   last_updated: string;
 }

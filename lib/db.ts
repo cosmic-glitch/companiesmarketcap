@@ -50,6 +50,8 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     revenueGrowth3Y: row.revenue_growth_3y ?? null,
     epsGrowth5Y: row.eps_growth_5y ?? null,
     epsGrowth3Y: row.eps_growth_3y ?? null,
+    freeCashFlow: row.free_cash_flow ?? null,
+    netDebt: row.net_debt ?? null,
     country: row.country,
     lastUpdated: row.last_updated,
   };
@@ -80,6 +82,8 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     revenue_growth_3y: company.revenueGrowth3Y ?? null,
     eps_growth_5y: company.epsGrowth5Y ?? null,
     eps_growth_3y: company.epsGrowth3Y ?? null,
+    free_cash_flow: company.freeCashFlow ?? null,
+    net_debt: company.netDebt ?? null,
     country: company.country || "",
     last_updated: lastUpdated,
   };
@@ -219,6 +223,10 @@ export async function getCompanies(
     maxEPSGrowth3Y,
     minPctTo52WeekHigh,
     maxPctTo52WeekHigh,
+    minFreeCashFlow,
+    maxFreeCashFlow,
+    minNetDebt,
+    maxNetDebt,
     country,
     limit = 100,
     offset = 0,
@@ -267,6 +275,26 @@ export async function getCompanies(
   if (maxRevenue !== undefined) {
     const maxRaw = maxRevenue * 1_000_000_000;
     companies = companies.filter((c) => c.revenue !== null && c.revenue <= maxRaw);
+  }
+
+  // Apply free cash flow filters (TTM, values in billions, stored in raw)
+  if (minFreeCashFlow !== undefined) {
+    const minRaw = minFreeCashFlow * 1_000_000_000;
+    companies = companies.filter((c) => c.freeCashFlow !== null && c.freeCashFlow >= minRaw);
+  }
+  if (maxFreeCashFlow !== undefined) {
+    const maxRaw = maxFreeCashFlow * 1_000_000_000;
+    companies = companies.filter((c) => c.freeCashFlow !== null && c.freeCashFlow <= maxRaw);
+  }
+
+  // Apply net debt filters (values in billions, stored in raw; negative = net cash)
+  if (minNetDebt !== undefined) {
+    const minRaw = minNetDebt * 1_000_000_000;
+    companies = companies.filter((c) => c.netDebt !== null && c.netDebt >= minRaw);
+  }
+  if (maxNetDebt !== undefined) {
+    const maxRaw = maxNetDebt * 1_000_000_000;
+    companies = companies.filter((c) => c.netDebt !== null && c.netDebt <= maxRaw);
   }
 
   // Apply P/E ratio filters

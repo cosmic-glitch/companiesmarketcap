@@ -278,6 +278,22 @@ interface FMPAnalystEstimate {
   epsAvg: number;
 }
 
+interface FMPCashFlowStatement {
+  symbol: string;
+  date: string;
+  period: string;
+  freeCashFlow: number;
+  reportedCurrency: string;
+}
+
+interface FMPBalanceSheet {
+  symbol: string;
+  date: string;
+  period: string;
+  netDebt: number | null;
+  reportedCurrency: string;
+}
+
 // Accumulated company data
 interface CompanyData {
   symbol: string;
@@ -302,6 +318,8 @@ interface CompanyData {
   epsGrowth3Y: number | null;
   revenueAnnual: { year: number; revenue: number }[] | null;
   epsAnnual: { year: number; eps: number }[] | null;
+  freeCashFlow: number | null;
+  netDebt: number | null;
 }
 
 // Convert total 5-year growth to CAGR
@@ -511,6 +529,54 @@ async function fetchAnalystEstimates(symbol: string): Promise<FMPAnalystEstimate
   return null;
 }
 
+// Fetch quarterly cash-flow statements for a symbol (returns last 4 quarters + reportedCurrency)
+async function fetchQuarterlyCashFlow(symbol: string): Promise<{ statements: FMPCashFlowStatement[]; reportedCurrency: string } | null> {
+  const url = `${BASE_URL}/cash-flow-statement?symbol=${symbol}&period=quarter&limit=4&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPCashFlowStatement[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    const reportedCurrency = response.data[0].reportedCurrency || "USD";
+    return { statements: response.data, reportedCurrency };
+  }
+  return null;
+}
+
+// Fetch latest balance sheet for a symbol (single most recent quarter)
+async function fetchLatestBalanceSheet(symbol: string): Promise<{ statement: FMPBalanceSheet; reportedCurrency: string } | null> {
+  const url = `${BASE_URL}/balance-sheet-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPBalanceSheet[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    const statement = response.data[0];
+    const reportedCurrency = statement.reportedCurrency || "USD";
+    return { statement, reportedCurrency };
+  }
+  return null;
+}
+
+// Shared helper: compute TTM FCF (USD) and net debt (USD) from raw FMP responses.
+// Returns { freeCashFlow, netDebt }; either field is null when data is missing.
+function computeCashDebt(
+  cfResult: { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined,
+  bsResult: { statement: FMPBalanceSheet; reportedCurrency: string } | undefined,
+  fxRates: Map<string, number>
+): { freeCashFlow: number | null; netDebt: number | null } {
+  let freeCashFlow: number | null = null;
+  if (cfResult && cfResult.statements.length > 0) {
+    const fcfSum = cfResult.statements.reduce((sum, q) => sum + (q.freeCashFlow || 0), 0);
+    if (fcfSum !== 0) {
+      freeCashFlow = toUSD(fcfSum, cfResult.reportedCurrency, fxRates);
+    }
+  }
+
+  let netDebt: number | null = null;
+  if (bsResult && bsResult.statement.netDebt !== null && bsResult.statement.netDebt !== undefined) {
+    netDebt = toUSD(bsResult.statement.netDebt, bsResult.reportedCurrency, fxRates);
+  }
+
+  return { freeCashFlow, netDebt };
+}
+
 // Check if an error is transient and worth retrying
 function isTransientError(error: any): boolean {
   const status = error.response?.status;
@@ -718,6 +784,14 @@ async function runFMPScraper(): Promise<{
   const estimates = await processSymbolsBatch(dedupedSymbols, fetchAnalystEstimates, "Analyst estimates");
   console.log(`  Got estimates for ${estimates.size} symbols\n`);
 
+  console.log("Fetching quarterly cash-flow statements...");
+  const cashFlows = await processSymbolsBatch(dedupedSymbols, fetchQuarterlyCashFlow, "Cash flow");
+  console.log(`  Got cash flow for ${cashFlows.size} symbols\n`);
+
+  console.log("Fetching latest balance sheets...");
+  const balanceSheets = await processSymbolsBatch(dedupedSymbols, fetchLatestBalanceSheet, "Balance sheet");
+  console.log(`  Got balance sheets for ${balanceSheets.size} symbols\n`);
+
   // Step 6: Build company data
   console.log("Building company data...");
   const companies: CompanyData[] = [];
@@ -730,6 +804,8 @@ async function runFMPScraper(): Promise<{
     const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
     const growthData = growth.get(symbol) as FMPFinancialGrowth | undefined;
     const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
+    const cashFlowResult = cashFlows.get(symbol) as { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined;
+    const balanceSheetResult = balanceSheets.get(symbol) as { statement: FMPBalanceSheet; reportedCurrency: string } | undefined;
 
     if (!quote) continue;
 
@@ -807,6 +883,13 @@ async function runFMPScraper(): Promise<{
     // Build 10-year diluted-EPS series (newest-first, reported currency)
     const epsAnnual = annualResult ? buildEpsAnnual(annualResult.statements) : null;
 
+    // TTM free cash flow (USD) and latest net debt (USD)
+    const { freeCashFlow: ttmFreeCashFlow, netDebt: latestNetDebt } = computeCashDebt(
+      cashFlowResult,
+      balanceSheetResult,
+      fxRates
+    );
+
     companies.push({
       symbol,
       name: profile?.companyName || quote.name || symbol,
@@ -830,6 +913,8 @@ async function runFMPScraper(): Promise<{
       epsGrowth3Y,
       revenueAnnual,
       epsAnnual,
+      freeCashFlow: ttmFreeCashFlow,
+      netDebt: latestNetDebt,
     });
   }
 
@@ -864,6 +949,8 @@ async function runFMPScraper(): Promise<{
     eps_growth_3y: c.epsGrowth3Y,
     revenue_annual: c.revenueAnnual,
     eps_annual: c.epsAnnual,
+    free_cash_flow: c.freeCashFlow,
+    net_debt: c.netDebt,
     country: c.country,
     last_updated: timestamp,
   }));
@@ -884,6 +971,8 @@ async function runFMPScraper(): Promise<{
     withEPSGrowth3Y: dbCompanies.filter((c) => c.eps_growth_3y !== null).length,
     withRevenueAnnual: dbCompanies.filter((c) => c.revenue_annual !== null).length,
     withEpsAnnual: dbCompanies.filter((c) => c.eps_annual !== null).length,
+    withFreeCashFlow: dbCompanies.filter((c) => c.free_cash_flow !== null).length,
+    withNetDebt: dbCompanies.filter((c) => c.net_debt !== null).length,
   };
 
   console.log("\n========================================");
@@ -902,6 +991,8 @@ async function runFMPScraper(): Promise<{
   console.log(`With EPS growth 3Y:     ${stats.withEPSGrowth3Y} (${Math.round((stats.withEPSGrowth3Y / stats.total) * 100)}%)`);
   console.log(`With 10Y revenue trend: ${stats.withRevenueAnnual} (${Math.round((stats.withRevenueAnnual / stats.total) * 100)}%)`);
   console.log(`With 10Y EPS trend:     ${stats.withEpsAnnual} (${Math.round((stats.withEpsAnnual / stats.total) * 100)}%)`);
+  console.log(`With FCF:               ${stats.withFreeCashFlow} (${Math.round((stats.withFreeCashFlow / stats.total) * 100)}%)`);
+  console.log(`With net debt:          ${stats.withNetDebt} (${Math.round((stats.withNetDebt / stats.total) * 100)}%)`);
   console.log(`\nDuration: ${duration} minutes`);
 
   return {
@@ -914,7 +1005,7 @@ async function runFMPScraper(): Promise<{
 export { runFMPScraper };
 
 // Partial update types
-type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix" | "annual_revenue" | "annual_eps";
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix" | "annual_revenue" | "annual_eps" | "cash_debt";
 
 // Run a partial update (only fetch and update specific fields)
 async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
@@ -1237,6 +1328,36 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     }
     console.log(`Updated annual EPS series for ${updated} companies (also revenue for ${revUpdated})`);
 
+  } else if (updateType === "cash_debt") {
+    // Refresh only free_cash_flow (TTM) and net_debt (latest quarter) for all
+    // existing companies. Cheap enough to run independent of the full scrape.
+    const fxRates = await fetchFXRates();
+
+    console.log("Fetching quarterly cash-flow statements...");
+    const cashFlows = await processSymbolsBatch(symbols, fetchQuarterlyCashFlow, "Cash flow");
+    console.log(`  Got cash flow for ${cashFlows.size} symbols\n`);
+
+    console.log("Fetching latest balance sheets...");
+    const balanceSheets = await processSymbolsBatch(symbols, fetchLatestBalanceSheet, "Balance sheet");
+    console.log(`  Got balance sheets for ${balanceSheets.size} symbols\n`);
+
+    let fcfUpdated = 0;
+    let debtUpdated = 0;
+    for (const [symbol, company] of companyMap) {
+      const cf = cashFlows.get(symbol) as { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined;
+      const bs = balanceSheets.get(symbol) as { statement: FMPBalanceSheet; reportedCurrency: string } | undefined;
+      const { freeCashFlow, netDebt } = computeCashDebt(cf, bs, fxRates);
+      if (freeCashFlow !== null) {
+        company.free_cash_flow = freeCashFlow;
+        fcfUpdated++;
+      }
+      if (netDebt !== null) {
+        company.net_debt = netDebt;
+        debtUpdated++;
+      }
+    }
+    console.log(`Updated FCF for ${fcfUpdated} companies, net debt for ${debtUpdated} companies`);
+
   } else if (updateType === "new_symbols") {
     // Find supplemental symbols not already in the dataset
     const existingSymbolSet = new Set(symbols);
@@ -1393,6 +1514,8 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         eps_growth_3y: epsGrowth3Y,
         revenue_annual: revenueAnnual,
         eps_annual: epsAnnual,
+        free_cash_flow: null,
+        net_debt: null,
         country: profile?.country || "US",
         last_updated: timestamp,
       };
@@ -1442,7 +1565,7 @@ function parseArgs(): { only?: PartialUpdateType } {
 
   if (onlyIndex !== -1 && args[onlyIndex + 1]) {
     const updateType = args[onlyIndex + 1] as PartialUpdateType;
-    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix", "annual_revenue", "annual_eps"];
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix", "annual_revenue", "annual_eps", "cash_debt"];
     if (!validTypes.includes(updateType)) {
       console.error(`Error: Invalid update type '${updateType}'`);
       console.error(`Valid types: ${validTypes.join(", ")}`);

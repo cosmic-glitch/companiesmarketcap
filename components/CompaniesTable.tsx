@@ -240,6 +240,10 @@ interface FilterState {
   maxEPSGrowth3Y: string;
   minPctTo52WeekHigh: string;
   maxPctTo52WeekHigh: string;
+  minFreeCashFlow: string;
+  maxFreeCashFlow: string;
+  minNetDebt: string;
+  maxNetDebt: string;
   country: string;
 }
 
@@ -256,6 +260,8 @@ const FILTER_KEYS: (keyof FilterState)[] = [
   "minEPSGrowth", "maxEPSGrowth",
   "minEPSGrowth3Y", "maxEPSGrowth3Y",
   "minPctTo52WeekHigh", "maxPctTo52WeekHigh",
+  "minFreeCashFlow", "maxFreeCashFlow",
+  "minNetDebt", "maxNetDebt",
   "country",
 ];
 
@@ -336,10 +342,12 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
   { key: "earnings", label: "Earnings", defaultVisible: false },
   { key: "revenue", label: "Revenue", defaultVisible: false },
+  { key: "freeCashFlow", label: "FCF", defaultVisible: false },
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
   { key: "dividendPercent", label: "Div %", defaultVisible: false },
   { key: "operatingMargin", label: "Op. Margin %", defaultVisible: false },
+  { key: "netDebt", label: "Net Debt", defaultVisible: false },
   { key: "revenueGrowth5Y", label: "Rev CAGR 5Y", defaultVisible: false },
   { key: "revenueGrowth3Y", label: "Rev CAGR 3Y", defaultVisible: true },
   { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
@@ -499,6 +507,10 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     maxEPSGrowth3Y: searchParams.get("maxEPSGrowth3Y") || "",
     minPctTo52WeekHigh: searchParams.get("minPctTo52WeekHigh") || "",
     maxPctTo52WeekHigh: searchParams.get("maxPctTo52WeekHigh") || "",
+    minFreeCashFlow: searchParams.get("minFreeCashFlow") || "",
+    maxFreeCashFlow: searchParams.get("maxFreeCashFlow") || "",
+    minNetDebt: searchParams.get("minNetDebt") || "",
+    maxNetDebt: searchParams.get("maxNetDebt") || "",
     country: searchParams.get("country") || "",
   }), [searchParams]);
 
@@ -580,6 +592,10 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       maxEPSGrowth3Y: "",
       minPctTo52WeekHigh: "",
       maxPctTo52WeekHigh: "",
+      minFreeCashFlow: "",
+      maxFreeCashFlow: "",
+      minNetDebt: "",
+      maxNetDebt: "",
       country: "",
     };
     setPendingFilters(emptyFilters);
@@ -714,6 +730,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 <FilterGridInput label="Forward P/E" minKey="minForwardPE" maxKey="maxForwardPE" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Earnings TTM ($B)" minKey="minEarnings" maxKey="maxEarnings" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Revenue TTM ($B)" minKey="minRevenue" maxKey="maxRevenue" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="FCF TTM ($B)" minKey="minFreeCashFlow" maxKey="maxFreeCashFlow" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Net Debt ($B)" minKey="minNetDebt" maxKey="maxNetDebt" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Op. Margin (%)" minKey="minOperatingMargin" maxKey="maxOperatingMargin" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Div. Yield (%)" minKey="minDividend" maxKey="maxDividend" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="% to 52W High" minKey="minPctTo52WeekHigh" maxKey="maxPctTo52WeekHigh" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
@@ -899,6 +917,17 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Revenue <SortIndicator columnKey="revenue" />
               </th>
               )}
+              {isColumnVisible("freeCashFlow") && (
+              <th
+                onClick={() => handleSort("freeCashFlow")}
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("freeCashFlow") && "sorted-column-header"
+                )}
+              >
+                FCF <SortIndicator columnKey="freeCashFlow" />
+              </th>
+              )}
               {isColumnVisible("peRatio") && (
               <th
                 onClick={() => handleSort("peRatio")}
@@ -941,6 +970,17 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 )}
               >
                 Op. Margin % <SortIndicator columnKey="operatingMargin" />
+              </th>
+              )}
+              {isColumnVisible("netDebt") && (
+              <th
+                onClick={() => handleSort("netDebt")}
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("netDebt") && "sorted-column-header"
+                )}
+              >
+                Net Debt <SortIndicator columnKey="netDebt" />
               </th>
               )}
               {isColumnVisible("revenueGrowth5Y") && (
@@ -1093,6 +1133,14 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {formatMarketCap(company.revenue)}
                 </td>
                 )}
+                {isColumnVisible("freeCashFlow") && (
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("freeCashFlow") && "sorted-column-cell"
+                )}>
+                  {formatMarketCap(company.freeCashFlow)}
+                </td>
+                )}
                 {isColumnVisible("peRatio") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
@@ -1126,6 +1174,14 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("operatingMargin") && "sorted-column-cell"
                 )}>
                   {formatPercent(company.operatingMargin !== null ? company.operatingMargin * 100 : null)}
+                </td>
+                )}
+                {isColumnVisible("netDebt") && (
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("netDebt") && "sorted-column-cell"
+                )}>
+                  {formatMarketCap(company.netDebt)}
                 </td>
                 )}
                 {isColumnVisible("revenueGrowth5Y") && (

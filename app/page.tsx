@@ -29,6 +29,8 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
     revenueGrowth3Y: "Rev Growth 3Y",
     epsGrowth5Y: "EPS Growth 5Y",
     epsGrowth3Y: "EPS Growth 3Y",
+    freeCashFlow: "FCF",
+    netDebt: "Net Debt",
   };
 
   const filterDescriptions: string[] = [];
@@ -90,6 +92,12 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
   // Revenue
   addFilter('Revenue', params.minRevenue, params.maxRevenue, 'B');
 
+  // Free Cash Flow
+  addFilter('FCF', params.minFreeCashFlow, params.maxFreeCashFlow, 'B');
+
+  // Net Debt
+  addFilter('Net Debt', params.minNetDebt, params.maxNetDebt, 'B');
+
   // Country
   if (params.country) {
     filterDescriptions.push(`Country: ${formatCountry(params.country)}`);
@@ -133,6 +141,10 @@ interface SearchParams {
   maxEPSGrowth3Y?: string;
   minPctTo52WeekHigh?: string;
   maxPctTo52WeekHigh?: string;
+  minFreeCashFlow?: string;
+  maxFreeCashFlow?: string;
+  minNetDebt?: string;
+  maxNetDebt?: string;
   country?: string;
   search?: string;
 }
@@ -193,6 +205,10 @@ export default async function Home({ searchParams }: HomeProps) {
     maxEPSGrowth3Y: parseGrowthPercent(params.maxEPSGrowth3Y),
     minPctTo52WeekHigh: parseNumber(params.minPctTo52WeekHigh),
     maxPctTo52WeekHigh: parseNumber(params.maxPctTo52WeekHigh),
+    minFreeCashFlow: parseNumber(params.minFreeCashFlow),
+    maxFreeCashFlow: parseNumber(params.maxFreeCashFlow),
+    minNetDebt: parseNumber(params.minNetDebt),
+    maxNetDebt: parseNumber(params.maxNetDebt),
     country: params.country,
     search: params.search,
     limit: PER_PAGE,

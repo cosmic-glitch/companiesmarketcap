@@ -27,6 +27,8 @@ const VALID_FIELDS = new Set<keyof Company>([
   "revenueGrowth3Y",
   "epsGrowth5Y",
   "epsGrowth3Y",
+  "freeCashFlow",
+  "netDebt",
   "country",
   "lastUpdated",
 ]);
