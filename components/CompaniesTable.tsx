@@ -44,9 +44,24 @@ const PRESETS: PresetConfig[] = [
   },
 ];
 
+const LOGO_BASE_URL = "https://companiesmarketcap.com/img/company-logos/64";
+const LOGO_SYMBOL_ALIASES: Record<string, string> = {
+  GOOGL: "GOOG",
+  "BRK-A": "BRK-B",
+};
+
+function getLogoSymbol(symbol: string): string {
+  return LOGO_SYMBOL_ALIASES[symbol] ?? symbol;
+}
+
 // Company logo component with fallback
 function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
   const [error, setError] = useState(false);
+  const logoSymbol = getLogoSymbol(symbol);
+
+  useEffect(() => {
+    setError(false);
+  }, [logoSymbol]);
 
   if (error) {
     return (
@@ -58,7 +73,7 @@ function CompanyLogo({ symbol, name }: { symbol: string; name: string }) {
 
   return (
     <Image
-      src={`/logos/${symbol}.webp`}
+      src={`${LOGO_BASE_URL}/${encodeURIComponent(logoSymbol)}.webp`}
       alt={name}
       width={32}
       height={32}
