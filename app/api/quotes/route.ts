@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchQuotes, getOriginalSymbol } from "@/lib/yahoo-finance";
 import { PriceQuote } from "@/lib/types";
 
-export const revalidate = 60; // Cache for 1 minute (quotes are time-sensitive)
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
       quotes[originalSymbol] = {
         price: quote.regularMarketPrice ?? null,
         changePercent: quote.regularMarketChangePercent ?? null,
+        marketCap: quote.marketCap ?? null,
       };
     }
 

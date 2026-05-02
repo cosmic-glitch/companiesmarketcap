@@ -7,7 +7,7 @@ import { formatCountry } from "@/lib/countries";
 import Link from "next/link";
 import Image from "next/image";
 
-export const revalidate = 3600; // Revalidate every hour (data updates daily via scraper)
+export const revalidate = 60; // Quote fields are cached for 1 minute
 
 const PER_PAGE = 100;
 
@@ -23,6 +23,7 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
     revenue: "revenue",
     peRatio: "P/E ratio",
     forwardPE: "Fwd PE",
+    forwardEPSGrowth: "Fwd EPS Growth",
     dividendPercent: "Div Yield",
     operatingMargin: "Op Margin",
     revenueGrowth5Y: "Rev Growth 5Y",
@@ -61,6 +62,9 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
 
   // Forward PE
   addFilter('Fwd PE', params.minForwardPE, params.maxForwardPE);
+
+  // Forward EPS Growth
+  addFilter('Fwd EPS Growth', params.minForwardEPSGrowth, params.maxForwardEPSGrowth, '%');
 
   // P/E Ratio
   addFilter('P/E', params.minPERatio, params.maxPERatio);
@@ -127,6 +131,8 @@ interface SearchParams {
   maxPERatio?: string;
   minForwardPE?: string;
   maxForwardPE?: string;
+  minForwardEPSGrowth?: string;
+  maxForwardEPSGrowth?: string;
   minDividend?: string;
   maxDividend?: string;
   minOperatingMargin?: string;
@@ -191,6 +197,8 @@ export default async function Home({ searchParams }: HomeProps) {
     maxPERatio: parseNumber(params.maxPERatio),
     minForwardPE: parseNumber(params.minForwardPE),
     maxForwardPE: parseNumber(params.maxForwardPE),
+    minForwardEPSGrowth: parseGrowthPercent(params.minForwardEPSGrowth),
+    maxForwardEPSGrowth: parseGrowthPercent(params.maxForwardEPSGrowth),
     minDividend: parseGrowthPercent(params.minDividend),
     maxDividend: parseGrowthPercent(params.maxDividend),
     minOperatingMargin: parseGrowthPercent(params.minOperatingMargin),
@@ -231,7 +239,7 @@ export default async function Home({ searchParams }: HomeProps) {
         {/* Grid pattern overlay */}
         <div className="absolute inset-0 bg-grid-pattern opacity-50" />
 
-        <div className="relative max-w-[1600px] mx-auto">
+        <div className="relative w-[95vw] mx-auto">
           <div className="flex items-center gap-4">
             <Link
               href="/"
@@ -258,7 +266,7 @@ export default async function Home({ searchParams }: HomeProps) {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-0 pt-3 pb-6">
+      <div className="w-[95vw] max-w-none mx-auto px-0 pt-3 pb-6">
         <CompaniesTable
           companies={companies}
           sortBy={sortBy}

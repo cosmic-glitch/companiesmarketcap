@@ -18,6 +18,13 @@ function calculatePctTo52WeekHigh(price: number | null, week52High: number | nul
   return ((week52High - price) / price) * 100;
 }
 
+function calculateForwardEPSGrowth(forwardEPS: number | null, ttmEPS: number | null): number | null {
+  if (forwardEPS === null || ttmEPS === null || forwardEPS <= 0 || ttmEPS <= 0) {
+    return null;
+  }
+  return (forwardEPS / ttmEPS) - 1;
+}
+
 // Cache for blob data to avoid repeated fetches within a request
 let blobDataCache: { data: JsonData; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache (data updates daily via scraper)
@@ -44,6 +51,7 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     forwardPE: row.forward_pe ?? null,
     forwardEPS: row.forward_eps ?? null,
     forwardEPSDate: row.forward_eps_date ?? null,
+    forwardEPSGrowth: calculateForwardEPSGrowth(row.forward_eps ?? null, row.ttm_eps ?? null),
     dividendPercent: row.dividend_percent,
     operatingMargin: row.operating_margin,
     revenueGrowth5Y: row.revenue_growth_5y ?? null,
@@ -55,6 +63,60 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     country: row.country,
     lastUpdated: row.last_updated,
   };
+}
+
+export function mergeLiveQuotes(
+  companies: Company[],
+  quotes: Map<string, PriceQuote>,
+  options: { recomputeRanks?: boolean } = {}
+): Company[] {
+  const merged = companies.map((company) => {
+    const quote = quotes.get(company.symbol);
+    if (!quote) {
+      return { ...company };
+    }
+
+    const livePrice = quote.price ?? company.price;
+
+    // Dynamically calculate forwardPE using live price
+    let dynamicForwardPE = company.forwardPE;
+    if (livePrice && company.forwardEPS && company.forwardEPS > 0) {
+      dynamicForwardPE = livePrice / company.forwardEPS;
+    }
+
+    // Dynamically calculate peRatio using live price
+    let dynamicPERatio = company.peRatio;
+    if (livePrice && company.ttmEPS && company.ttmEPS > 0) {
+      dynamicPERatio = livePrice / company.ttmEPS;
+    }
+
+    return {
+      ...company,
+      // Current dataset symbols are US-listed shares/ADRs, so Yahoo's USD market cap aligns with storage.
+      marketCap: quote.marketCap ?? company.marketCap,
+      price: livePrice,
+      pctTo52WeekHigh: calculatePctTo52WeekHigh(livePrice, company.week52High),
+      dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
+      peRatio: dynamicPERatio,
+      forwardPE: dynamicForwardPE,
+    };
+  });
+
+  if (options.recomputeRanks) {
+    const ranksBySymbol = new Map<string, number>();
+    [...merged]
+      .sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0))
+      .forEach((company, index) => {
+        ranksBySymbol.set(company.symbol, index + 1);
+      });
+
+    return merged.map((company) => ({
+      ...company,
+      rank: ranksBySymbol.get(company.symbol) ?? company.rank,
+    }));
+  }
+
+  return merged;
 }
 
 // Convert Company to JSON storage format
@@ -158,42 +220,16 @@ export async function getCompanies(
 
   let companies = jsonData.companies.map(dbRowToCompany);
 
-  // Exclude sub-$1B market cap companies (matches scraper threshold)
+  // If quotes provided, merge live data before thresholding, filtering, sorting, and display.
+  if (quotes) {
+    companies = mergeLiveQuotes(companies, quotes, { recomputeRanks: true });
+  }
+
+  // Source data only contains scrape-time $1B+ companies, so live quotes can
+  // remove names below $1B but cannot add new entrants until the next scrape.
   companies = companies.filter(
     (c) => c.marketCap !== null && c.marketCap >= 1_000_000_000
   );
-
-  // If quotes provided, merge live data into companies
-  if (quotes) {
-    companies = companies.map((company) => {
-      const quote = quotes.get(company.symbol);
-      if (quote) {
-        const livePrice = quote.price ?? company.price;
-
-        // Dynamically calculate forwardPE using live price
-        let dynamicForwardPE = company.forwardPE;
-        if (livePrice && company.forwardEPS && company.forwardEPS > 0) {
-          dynamicForwardPE = livePrice / company.forwardEPS;
-        }
-
-        // Dynamically calculate peRatio using live price
-        let dynamicPERatio = company.peRatio;
-        if (livePrice && company.ttmEPS && company.ttmEPS > 0) {
-          dynamicPERatio = livePrice / company.ttmEPS;
-        }
-
-        return {
-          ...company,
-          price: livePrice,
-          pctTo52WeekHigh: calculatePctTo52WeekHigh(livePrice, company.week52High),
-          dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
-          peRatio: dynamicPERatio,
-          forwardPE: dynamicForwardPE,
-        };
-      }
-      return company;
-    });
-  }
 
   const {
     search,
@@ -209,6 +245,8 @@ export async function getCompanies(
     maxPERatio,
     minForwardPE,
     maxForwardPE,
+    minForwardEPSGrowth,
+    maxForwardEPSGrowth,
     minDividend,
     maxDividend,
     minOperatingMargin,
@@ -327,6 +365,14 @@ export async function getCompanies(
   }
   if (maxForwardPE !== undefined) {
     companies = companies.filter((c) => c.forwardPE !== null && c.forwardPE <= maxForwardPE);
+  }
+
+  // Apply forward EPS growth filters (values as decimals, e.g., 0.10 = 10%)
+  if (minForwardEPSGrowth !== undefined) {
+    companies = companies.filter((c) => c.forwardEPSGrowth !== null && c.forwardEPSGrowth >= minForwardEPSGrowth);
+  }
+  if (maxForwardEPSGrowth !== undefined) {
+    companies = companies.filter((c) => c.forwardEPSGrowth !== null && c.forwardEPSGrowth <= maxForwardEPSGrowth);
   }
 
   // Apply revenue growth filters (values as decimals, e.g., 0.10 = 10%)

@@ -2,6 +2,7 @@
 export interface PriceQuote {
   price: number | null;
   changePercent: number | null;
+  marketCap: number | null;
 }
 
 // Company data types
@@ -25,6 +26,7 @@ export interface Company {
   forwardPE: number | null;
   forwardEPS: number | null;      // Raw EPS estimate
   forwardEPSDate: string | null;  // Fiscal year end date (e.g., "2026-12-31")
+  forwardEPSGrowth: number | null; // Forward EPS / TTM EPS - 1
   dividendPercent: number | null;
   operatingMargin: number | null;
   revenueGrowth5Y: number | null; // 5-year CAGR
@@ -52,6 +54,8 @@ export interface CompaniesQueryParams {
   maxPERatio?: number;
   minForwardPE?: number;
   maxForwardPE?: number;
+  minForwardEPSGrowth?: number;
+  maxForwardEPSGrowth?: number;
   minDividend?: number;
   maxDividend?: number;
   minOperatingMargin?: number;

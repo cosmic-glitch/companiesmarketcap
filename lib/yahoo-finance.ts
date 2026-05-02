@@ -2,6 +2,7 @@ import YahooFinance from "yahoo-finance2";
 
 // Create Yahoo Finance instance
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+const QUOTE_TIMEOUT_MS = 8_000;
 
 // Symbol mapping for known mismatches between our data and Yahoo Finance
 const SYMBOL_MAP: Record<string, string> = {
@@ -27,6 +28,7 @@ export interface QuoteResult {
   symbol: string;
   regularMarketPrice?: number;
   regularMarketChangePercent?: number;
+  marketCap?: number;
 }
 
 export async function fetchQuotes(symbols: string[]): Promise<QuoteResult[]> {
@@ -36,7 +38,9 @@ export async function fetchQuotes(symbols: string[]): Promise<QuoteResult[]> {
 
   try {
     const results = await yf.quote(mappedSymbols, {
-      fields: ["regularMarketPrice", "regularMarketChangePercent"],
+      fields: ["regularMarketPrice", "regularMarketChangePercent", "marketCap"],
+    }, {
+      fetchOptions: { signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS) },
     });
 
     // Handle both single result and array of results

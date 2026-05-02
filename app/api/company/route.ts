@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { getCompaniesBySymbols, getLastUpdated } from "@/lib/db";
 import { Company } from "@/lib/types";
 
@@ -21,6 +22,7 @@ const VALID_FIELDS = new Set<keyof Company>([
   "forwardPE",
   "forwardEPS",
   "forwardEPSDate",
+  "forwardEPSGrowth",
   "dividendPercent",
   "operatingMargin",
   "revenueGrowth5Y",
@@ -35,9 +37,9 @@ const VALID_FIELDS = new Set<keyof Company>([
 
 const MAX_SYMBOLS = 100;
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const searchParams = new URL(request.url).searchParams;
 
     const symbolsParam = searchParams.get("symbols");
     if (!symbolsParam || symbolsParam.trim() === "") {
@@ -98,6 +100,7 @@ export async function GET(request: NextRequest) {
       lastUpdated: lastUpdated || undefined,
     });
   } catch (error: any) {
+    unstable_rethrow(error);
     console.error("Error fetching companies by symbol:", error);
     return NextResponse.json(
       { error: "Failed to fetch companies", message: error.message },

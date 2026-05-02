@@ -38,6 +38,7 @@ export async function getAllQuotes(symbols: string[]): Promise<QuotesResult> {
     cache.set(originalSymbol, {
       price: quote.regularMarketPrice ?? null,
       changePercent: quote.regularMarketChangePercent ?? null,
+      marketCap: quote.marketCap ?? null,
     });
   }
 

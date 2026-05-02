@@ -226,6 +226,8 @@ interface FilterState {
   maxPERatio: string;
   minForwardPE: string;
   maxForwardPE: string;
+  minForwardEPSGrowth: string;
+  maxForwardEPSGrowth: string;
   minDividend: string;
   maxDividend: string;
   minOperatingMargin: string;
@@ -253,6 +255,7 @@ const FILTER_KEYS: (keyof FilterState)[] = [
   "minRevenue", "maxRevenue",
   "minPERatio", "maxPERatio",
   "minForwardPE", "maxForwardPE",
+  "minForwardEPSGrowth", "maxForwardEPSGrowth",
   "minDividend", "maxDividend",
   "minOperatingMargin", "maxOperatingMargin",
   "minRevenueGrowth", "maxRevenueGrowth",
@@ -345,6 +348,7 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "freeCashFlow", label: "FCF", defaultVisible: false },
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
+  { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: true },
   { key: "dividendPercent", label: "Div %", defaultVisible: false },
   { key: "operatingMargin", label: "Op. Margin %", defaultVisible: false },
   { key: "netDebt", label: "Net Debt", defaultVisible: false },
@@ -493,6 +497,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     maxPERatio: searchParams.get("maxPERatio") || "",
     minForwardPE: searchParams.get("minForwardPE") || "",
     maxForwardPE: searchParams.get("maxForwardPE") || "",
+    minForwardEPSGrowth: searchParams.get("minForwardEPSGrowth") || "",
+    maxForwardEPSGrowth: searchParams.get("maxForwardEPSGrowth") || "",
     minDividend: searchParams.get("minDividend") || "",
     maxDividend: searchParams.get("maxDividend") || "",
     minOperatingMargin: searchParams.get("minOperatingMargin") || "",
@@ -578,6 +584,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       maxPERatio: "",
       minForwardPE: "",
       maxForwardPE: "",
+      minForwardEPSGrowth: "",
+      maxForwardEPSGrowth: "",
       minDividend: "",
       maxDividend: "",
       minOperatingMargin: "",
@@ -728,6 +736,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 <FilterGridInput label="Market Cap ($B)" minKey="minMarketCap" maxKey="maxMarketCap" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="P/E Ratio" minKey="minPERatio" maxKey="maxPERatio" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Forward P/E" minKey="minForwardPE" maxKey="maxForwardPE" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Fwd EPS Growth (%)" minKey="minForwardEPSGrowth" maxKey="maxForwardEPSGrowth" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Earnings TTM ($B)" minKey="minEarnings" maxKey="maxEarnings" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Revenue TTM ($B)" minKey="minRevenue" maxKey="maxRevenue" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="FCF TTM ($B)" minKey="minFreeCashFlow" maxKey="maxFreeCashFlow" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
@@ -816,7 +825,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         className="overflow-auto max-h-[75vh] bg-bg-secondary border border-border-subtle rounded-2xl shadow-lg"
       >
         <table className="min-w-full">
-          <thead className="bg-bg-tertiary sticky top-0 z-10 border-b border-border-subtle">
+          <thead className="bg-bg-tertiary sticky top-0 z-40 border-b border-border-subtle">
             <tr>
               {isColumnVisible("rank") && (
               <th
@@ -833,8 +842,10 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               <th
                 onClick={() => handleSort("name")}
                 className={cn(
-                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors max-w-[242px]",
-                  isSortedColumn("name") && "sorted-column-header"
+                  "sticky left-0 z-50 px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer transition-colors min-w-[242px] max-w-[242px] shadow-[8px_0_12px_-12px_rgba(0,0,0,0.8)]",
+                  isSortedColumn("name")
+                    ? "bg-[#d1fae5] hover:bg-[#bbf7d0]"
+                    : "bg-bg-tertiary hover:bg-bg-hover"
                 )}
               >
                 Name <SortIndicator columnKey="name" />
@@ -950,6 +961,17 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Fwd P/E <SortIndicator columnKey="forwardPE" />
               </th>
               )}
+              {isColumnVisible("forwardEPSGrowth") && (
+              <th
+                onClick={() => handleSort("forwardEPSGrowth")}
+                className={cn(
+                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("forwardEPSGrowth") && "sorted-column-header"
+                )}
+              >
+                Fwd EPS Growth <SortIndicator columnKey="forwardEPSGrowth" />
+              </th>
+              )}
               {isColumnVisible("dividendPercent") && (
               <th
                 onClick={() => handleSort("dividendPercent")}
@@ -1058,8 +1080,12 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 )}
                 {isColumnVisible("name") && (
                 <td className={cn(
-                  "px-4 py-3.5 whitespace-nowrap max-w-[242px]",
-                  isSortedColumn("name") && "sorted-column-cell"
+                  "sticky left-0 z-20 px-4 py-3.5 whitespace-nowrap min-w-[242px] max-w-[242px] shadow-[8px_0_12px_-12px_rgba(0,0,0,0.8)]",
+                  isSortedColumn("name")
+                    ? "bg-[#ecfdf5] group-hover:bg-[#d1fae5]"
+                    : index % 2 === 0
+                      ? "bg-bg-secondary group-hover:bg-bg-hover"
+                      : "bg-[#fcfdfe] group-hover:bg-bg-hover"
                 )}>
                   <div className="flex items-center gap-2">
                     <CompanyLogo symbol={company.symbol} name={company.name} />
@@ -1158,6 +1184,17 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   title={company.forwardEPSDate ? `FY ending ${company.forwardEPSDate}` : undefined}
                 >
                   {formatPERatio(company.forwardPE)}
+                </td>
+                )}
+                {isColumnVisible("forwardEPSGrowth") && (
+                <td
+                  className={cn(
+                    "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                    isSortedColumn("forwardEPSGrowth") && "sorted-column-cell"
+                  )}
+                  title={company.forwardEPSDate ? `FY ending ${company.forwardEPSDate}` : undefined}
+                >
+                  {formatCAGR(company.forwardEPSGrowth)}
                 </td>
                 )}
                 {isColumnVisible("dividendPercent") && (
