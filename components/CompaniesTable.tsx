@@ -363,7 +363,7 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "freeCashFlow", label: "FCF", defaultVisible: false },
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
-  { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: true },
+  { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: false },
   { key: "dividendPercent", label: "Div %", defaultVisible: false },
   { key: "operatingMargin", label: "Op. Margin %", defaultVisible: false },
   { key: "netDebt", label: "Net Debt", defaultVisible: false },
