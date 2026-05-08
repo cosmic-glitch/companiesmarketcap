@@ -381,6 +381,45 @@ const DEFAULT_VISIBLE_COLUMNS = new Set<SortKey>(
   COLUMN_OPTIONS.filter((column) => column.defaultVisible).map((column) => column.key)
 );
 
+// Maps each URL filter key to the column it filters. Used to auto-reveal
+// hidden columns when a shared URL targets them.
+const FILTER_TO_COLUMN: Record<keyof FilterState, SortKey> = {
+  minMarketCap: "marketCap", maxMarketCap: "marketCap",
+  minEarnings: "earnings", maxEarnings: "earnings",
+  minRevenue: "revenue", maxRevenue: "revenue",
+  minPERatio: "peRatio", maxPERatio: "peRatio",
+  minForwardPE: "forwardPE", maxForwardPE: "forwardPE",
+  minForwardEPSGrowth: "forwardEPSGrowth", maxForwardEPSGrowth: "forwardEPSGrowth",
+  minDividend: "dividendPercent", maxDividend: "dividendPercent",
+  minOperatingMargin: "operatingMargin", maxOperatingMargin: "operatingMargin",
+  minRevenueGrowth: "revenueGrowth5Y", maxRevenueGrowth: "revenueGrowth5Y",
+  minRevenueGrowth3Y: "revenueGrowth3Y", maxRevenueGrowth3Y: "revenueGrowth3Y",
+  minEPSGrowth: "epsGrowth5Y", maxEPSGrowth: "epsGrowth5Y",
+  minEPSGrowth3Y: "epsGrowth3Y", maxEPSGrowth3Y: "epsGrowth3Y",
+  minPctTo52WeekHigh: "pctTo52WeekHigh", maxPctTo52WeekHigh: "pctTo52WeekHigh",
+  minFreeCashFlow: "freeCashFlow", maxFreeCashFlow: "freeCashFlow",
+  minNetDebt: "netDebt", maxNetDebt: "netDebt",
+  country: "country",
+};
+
+type ReadOnlyParams = { has(key: string): boolean; get(key: string): string | null };
+
+// Returns columns that the URL filters or sortBy reference, so callers can
+// reveal them. Used both at mount and on URL changes (preset clicks, browser
+// back/forward) — we only ever *add* columns, never remove, so manual user
+// toggles are preserved.
+const getReferencedColumns = (params: ReadOnlyParams): SortKey[] => {
+  const cols: SortKey[] = [];
+  for (const key of FILTER_KEYS) {
+    if (params.has(key)) cols.push(FILTER_TO_COLUMN[key]);
+  }
+  const urlSortBy = params.get('sortBy') as SortKey | null;
+  if (urlSortBy && COLUMN_OPTIONS.some((c) => c.key === urlSortBy)) {
+    cols.push(urlSortBy);
+  }
+  return cols;
+};
+
 export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -389,8 +428,15 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const previousFilterSignatureRef = useRef<string | null>(null);
   const dropdownBarRef = useRef<HTMLDivElement>(null);
 
-  // Column visibility state (resets on every page load)
-  const [visibleColumns, setVisibleColumns] = useState<Set<SortKey>>(() => new Set(DEFAULT_VISIBLE_COLUMNS));
+  // Column visibility state (resets on every page load). On mount and on every
+  // URL change, auto-reveal any hidden columns that URL filters or sortBy
+  // reference, so a shared link or preset click never filters/sorts on an
+  // invisible column. Manual toggles are preserved — we only ever add.
+  const [visibleColumns, setVisibleColumns] = useState<Set<SortKey>>(() => {
+    const initial = new Set(DEFAULT_VISIBLE_COLUMNS);
+    for (const col of getReferencedColumns(searchParams)) initial.add(col);
+    return initial;
+  });
 
   const toggleColumn = (key: SortKey) => {
     setVisibleColumns((prev) => {
@@ -400,6 +446,25 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       return next;
     });
   };
+
+  // Reveal columns that newly-applied URL state references (preset clicks,
+  // browser back/forward). Only adds — never removes — so the user's manual
+  // hide toggles survive URL changes.
+  useEffect(() => {
+    const referenced = getReferencedColumns(searchParams);
+    if (referenced.length === 0) return;
+    setVisibleColumns((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const col of referenced) {
+        if (!next.has(col)) {
+          next.add(col);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [searchParams]);
 
   // Track sort state locally for immediate UI updates, synced with URL
   const [sortBy, setSortBy] = useState<keyof Company>(
