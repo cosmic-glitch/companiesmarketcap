@@ -112,9 +112,9 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
 
   if (filterDescriptions.length > 0) {
     const criteria = filterDescriptions.join(', ');
-    return `${countText} companies (min $1B mkt cap) with ${criteria}; ordered by ${sortLabel}`;
+    return `${countText} companies match ${criteria} — ordered by ${sortLabel}`;
   }
-  return `${countText} companies over $1B market cap, ranked by ${sortLabel}`;
+  return `${countText} companies, ordered by ${sortLabel}`;
 }
 
 interface SearchParams {
@@ -259,6 +259,9 @@ export default async function Home({ searchParams }: HomeProps) {
               </h1>
               <p className="text-base text-text-secondary mt-1">
                 {getSubtitleText(sortBy, total, params)}
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Tracking companies with at least $1B market cap
               </p>
             </div>
           </div>
