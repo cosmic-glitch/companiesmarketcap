@@ -89,6 +89,19 @@ export interface CompaniesResponse {
   lastUpdated?: string;
 }
 
+// Filter/sort preset (used by both hardcoded defaults in CompaniesTable and
+// user-saved entries persisted to the presets blob).
+export interface PresetConfig {
+  id: string;
+  label: string;
+  subtitle?: string;
+  icon: string;
+  filters: Record<string, string>;
+  sort: { sortBy?: string; sortOrder?: "asc" | "desc" };
+  userCreated?: boolean;
+  createdAt?: string;
+}
+
 // Database types (JSON storage format)
 export interface DatabaseCompany {
   symbol: string;

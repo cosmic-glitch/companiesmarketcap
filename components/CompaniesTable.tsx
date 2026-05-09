@@ -3,19 +3,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Company } from "@/lib/types";
+import { Company, PresetConfig } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 import { formatCountry } from "@/lib/countries";
-
-// Preset filter configurations
-interface PresetConfig {
-  id: string;
-  label: string;
-  subtitle: string;
-  icon: string;
-  filters: Record<string, string>;
-  sort: { sortBy?: string; sortOrder?: 'asc' | 'desc' };
-}
+import SavePresetModal from "./SavePresetModal";
 
 const PRESETS: PresetConfig[] = [
   {
@@ -228,6 +219,7 @@ interface CompaniesTableProps {
   sortBy: keyof Company;
   sortOrder: "asc" | "desc";
   countries: string[];
+  userPresets: PresetConfig[];
 }
 
 interface FilterState {
@@ -420,13 +412,18 @@ const getReferencedColumns = (params: ReadOnlyParams): SortKey[] => {
   return cols;
 };
 
-export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries }: CompaniesTableProps) {
+export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries, userPresets }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [savePresetOpen, setSavePresetOpen] = useState(false);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const previousFilterSignatureRef = useRef<string | null>(null);
   const dropdownBarRef = useRef<HTMLDivElement>(null);
+
+  // Hardcoded defaults appear first so a user-saved preset that happens to
+  // duplicate one matches the curated entry and keeps its subtitle.
+  const allPresets = useMemo(() => [...PRESETS, ...userPresets], [userPresets]);
 
   // Column visibility state (resets on every page load). On mount and on every
   // URL change, auto-reveal any hidden columns that URL filters or sortBy
@@ -513,7 +510,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   // Detect which preset is currently active based on URL params
   const activePreset = useMemo(() => {
-    for (const preset of PRESETS) {
+    for (const preset of allPresets) {
       // Check if all preset filters match
       const allFiltersMatch = Object.entries(preset.filters).every(
         ([key, value]) => searchParams.get(key) === value
@@ -534,7 +531,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       }
     }
     return null;
-  }, [searchParams]);
+  }, [searchParams, allPresets]);
 
   // Apply a preset's filters and sort
   const applyPreset = useCallback((preset: PresetConfig) => {
@@ -703,6 +700,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   // Check if any filters are active (in URL)
   const hasActiveFilters = FILTER_KEYS.some((key) => searchParams.has(key));
+  // Anything worth saving — filters or an explicit sort.
+  const hasSavableState = hasActiveFilters || searchParams.has('sortBy');
 
   // Check if pending filters are different from URL filters
   const currentFilters = getInitialFilters();
@@ -742,7 +741,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         {/* Presets Dropdown */}
         <div className="relative">
           <DropdownButton
-            label={activePreset ? `${PRESETS.find(p => p.id === activePreset)?.icon} ${PRESETS.find(p => p.id === activePreset)?.label}` : "Preset Filters"}
+            label={activePreset ? `${allPresets.find(p => p.id === activePreset)?.icon} ${allPresets.find(p => p.id === activePreset)?.label}` : "Preset Filters"}
             isActive={activePreset !== null}
             isOpen={openDropdown === "presets"}
             onClick={() => setOpenDropdown(openDropdown === "presets" ? null : "presets")}
@@ -795,6 +794,62 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
                 </button>
               ))}
+              {userPresets.length > 0 && (
+                <>
+                  <div className="border-t border-border-subtle my-1" />
+                  <div className="px-2.5 pt-1 pb-0.5 text-[10px] font-medium text-text-muted uppercase tracking-wider">
+                    Community
+                  </div>
+                  {userPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => {
+                        if (activePreset === preset.id) {
+                          clearAllFilters();
+                        } else {
+                          applyPreset(preset);
+                        }
+                        setOpenDropdown(null);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors",
+                        activePreset === preset.id
+                          ? "bg-accent/15 text-accent"
+                          : "hover:bg-bg-secondary text-text-primary"
+                      )}
+                    >
+                      <span className="text-base">{preset.icon}</span>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-medium truncate">{preset.label}</div>
+                      </div>
+                      {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+              <div className="border-t border-border-subtle my-1" />
+              <button
+                onClick={() => {
+                  setOpenDropdown(null);
+                  setSavePresetOpen(true);
+                }}
+                disabled={!hasSavableState}
+                className={cn(
+                  "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors",
+                  hasSavableState
+                    ? "hover:bg-bg-secondary text-text-primary"
+                    : "text-text-muted cursor-not-allowed"
+                )}
+                title={hasSavableState ? undefined : "Apply a filter or sort first"}
+              >
+                <span className="text-base">💾</span>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium">Save current view…</div>
+                  <div className="text-[11px] text-text-muted">
+                    {hasSavableState ? "Visible to everyone" : "Apply a filter or sort first"}
+                  </div>
+                </div>
+              </button>
             </div>
           )}
         </div>
@@ -1363,6 +1418,25 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
           <p className="text-sm mt-1">Try adjusting your filters</p>
         </div>
       )}
+
+      <SavePresetModal
+        isOpen={savePresetOpen}
+        onClose={() => setSavePresetOpen(false)}
+        currentFilters={Object.fromEntries(
+          FILTER_KEYS
+            .map((key) => [key, searchParams.get(key)] as const)
+            .filter(([, v]) => v !== null && v !== "")
+        ) as Record<string, string>}
+        currentSort={{
+          sortBy: searchParams.get('sortBy') ?? undefined,
+          sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc' | null) ?? undefined,
+        }}
+        onSaved={() => {
+          // Re-render the server component so the new preset shows up
+          // in the dropdown for everyone (including this tab).
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

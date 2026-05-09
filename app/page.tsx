@@ -1,6 +1,6 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getAllSymbols, getCompanies, getDistinctCountries, getLastUpdated } from "@/lib/db";
+import { getAllSymbols, getCompanies, getDistinctCountries, getLastUpdated, getUserPresets } from "@/lib/db";
 import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 import { formatCountry } from "@/lib/countries";
@@ -231,6 +231,7 @@ export default async function Home({ searchParams }: HomeProps) {
   // Fetch last updated timestamp and distinct countries for filter dropdown
   const lastUpdated = await getLastUpdated();
   const countries = await getDistinctCountries();
+  const userPresets = await getUserPresets();
 
   return (
     <main className="min-h-screen bg-bg-primary">
@@ -272,6 +273,7 @@ export default async function Home({ searchParams }: HomeProps) {
           sortBy={sortBy}
           sortOrder={sortOrder}
           countries={countries}
+          userPresets={userPresets}
         />
 
         <Pagination

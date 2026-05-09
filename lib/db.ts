@@ -1,9 +1,10 @@
 import path from "path";
 import fs from "fs";
-import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote } from "./types";
+import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote, PresetConfig } from "./types";
 import { detectDataQualityIssues } from "./data-quality";
 
 const jsonPath = path.join(process.cwd(), "data", "companies.json");
+const presetsJsonPath = path.join(process.cwd(), "data", "presets.json");
 
 // JSON data structure
 interface JsonData {
@@ -489,4 +490,62 @@ export async function getDistinctCountries(): Promise<string[]> {
   const jsonData = await loadJsonDataAsync();
   const countries = new Set(jsonData.companies.map((c) => c.country).filter(Boolean));
   return Array.from(countries).sort();
+}
+
+// User-created presets are stored in a separate blob (PRESETS_BLOB_URL) in
+// production, falling back to data/presets.json in dev. No in-memory cache —
+// the file is tiny and freshness matters after a save.
+interface PresetsFile {
+  presets: PresetConfig[];
+}
+
+// Resolve the presets blob URL: explicit PRESETS_BLOB_URL wins; otherwise derive
+// from BLOB_URL (same store, swap companies.json → presets.json) so the same
+// blob token bootstraps both files without an extra env var.
+function resolvePresetsBlobUrl(): string | null {
+  if (process.env.PRESETS_BLOB_URL) return process.env.PRESETS_BLOB_URL;
+  const companiesUrl = process.env.BLOB_URL;
+  if (!companiesUrl) return null;
+  return companiesUrl.replace(/companies\.json(?:\?.*)?$/, "presets.json");
+}
+
+export async function getUserPresets(): Promise<PresetConfig[]> {
+  const blobUrl = resolvePresetsBlobUrl();
+  if (blobUrl) {
+    const response = await fetch(blobUrl, { cache: "no-store" });
+    if (response.status === 404) return [];
+    if (!response.ok) {
+      throw new Error(`Failed to fetch presets blob: ${response.status}`);
+    }
+    const data = (await response.json()) as PresetsFile;
+    return data.presets ?? [];
+  }
+  if (!fs.existsSync(presetsJsonPath)) return [];
+  const raw = fs.readFileSync(presetsJsonPath, "utf-8");
+  const data = JSON.parse(raw) as PresetsFile;
+  return data.presets ?? [];
+}
+
+export async function writeUserPresets(presets: PresetConfig[]): Promise<void> {
+  const payload: PresetsFile = { presets };
+  const json = JSON.stringify(payload, null, 2);
+
+  // Only write to blob when we can also read it back — otherwise local dev
+  // (with only the write token set) would silently push test data into the
+  // production blob and never see its own writes.
+  const canReadBlob = resolvePresetsBlobUrl() !== null;
+  if (process.env.BLOB_READ_WRITE_TOKEN && canReadBlob) {
+    const { put } = await import("@vercel/blob");
+    await put("presets.json", json, {
+      access: "public",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    return;
+  }
+
+  const dir = path.dirname(presetsJsonPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(presetsJsonPath, json);
 }
