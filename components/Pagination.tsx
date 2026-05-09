@@ -7,9 +7,10 @@ interface PaginationProps {
   currentPage: number;
   totalItems: number;
   perPage: number;
+  lastUpdated?: string | null;
 }
 
-export default function Pagination({ currentPage, totalItems, perPage }: PaginationProps) {
+export default function Pagination({ currentPage, totalItems, perPage, lastUpdated }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -44,6 +45,13 @@ export default function Pagination({ currentPage, totalItems, perPage }: Paginat
         </span>{" "}
         of{" "}
         <span className="font-semibold text-text-primary">{totalItems.toLocaleString()}</span>
+      </div>
+
+      <div className="flex flex-col items-center text-xs text-text-muted leading-tight">
+        <span>Tracking companies with at least $1B market cap</span>
+        {lastUpdated && (
+          <span>Data last refreshed: {new Date(lastUpdated).toLocaleString()}</span>
+        )}
       </div>
 
       <div className="flex items-center gap-3">

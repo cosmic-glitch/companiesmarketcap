@@ -260,9 +260,6 @@ export default async function Home({ searchParams }: HomeProps) {
               <p className="text-base text-text-secondary mt-1">
                 {getSubtitleText(sortBy, total, params)}
               </p>
-              <p className="text-xs text-text-muted mt-0.5">
-                Tracking companies with at least $1B market cap
-              </p>
             </div>
           </div>
         </div>
@@ -281,13 +278,8 @@ export default async function Home({ searchParams }: HomeProps) {
           currentPage={page}
           totalItems={total}
           perPage={PER_PAGE}
+          lastUpdated={lastUpdated}
         />
-
-        {lastUpdated && (
-          <p className="text-center text-text-secondary text-sm mt-6">
-            Data last refreshed: {new Date(lastUpdated).toLocaleString()}
-          </p>
-        )}
       </div>
     </main>
   );
