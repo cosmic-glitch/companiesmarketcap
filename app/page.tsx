@@ -226,7 +226,7 @@ export default async function Home({ searchParams }: HomeProps) {
   // Fetch live quotes server-side once, then use them for filtering/sorting/display consistently
   const symbols = await getAllSymbols();
   const { quotes } = await getAllQuotes(symbols);
-  const { companies, total } = await getCompanies(queryParams, quotes);
+  const { companies, total, hiddenForQuality } = await getCompanies(queryParams, quotes);
 
   // Fetch last updated timestamp and distinct countries for filter dropdown
   const lastUpdated = await getLastUpdated();
@@ -279,6 +279,7 @@ export default async function Home({ searchParams }: HomeProps) {
           totalItems={total}
           perPage={PER_PAGE}
           lastUpdated={lastUpdated}
+          hiddenForQuality={hiddenForQuality}
         />
       </div>
     </main>

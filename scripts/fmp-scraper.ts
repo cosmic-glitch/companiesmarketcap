@@ -29,6 +29,7 @@ import fs from "fs";
 import path from "path";
 import { put } from "@vercel/blob";
 import { DatabaseCompany } from "../lib/types";
+import { detectDataQualityIssues, DATA_QUALITY_ISSUE_CODES } from "../lib/data-quality";
 
 // Load from .env.local if present
 const envPath = path.join(process.cwd(), ".env.local");
@@ -1591,6 +1592,21 @@ async function main() {
   const { companies, lastUpdated } = args.only
     ? await runPartialUpdate(args.only)
     : await runFMPScraper();
+
+  // Tag every row with detected data-quality issues. Recomputed on every write
+  // (including partial updates) so flags reflect the current stored values.
+  const issueCounts = new Map<string, number>(DATA_QUALITY_ISSUE_CODES.map((c) => [c, 0]));
+  let flaggedRows = 0;
+  for (const company of companies) {
+    const issues = detectDataQualityIssues(company);
+    company.data_quality_issues = issues;
+    if (issues.length > 0) flaggedRows++;
+    for (const code of issues) issueCounts.set(code, (issueCounts.get(code) ?? 0) + 1);
+  }
+  console.log(`\nData quality: ${flaggedRows} of ${companies.length} rows flagged`);
+  for (const [code, count] of issueCounts) {
+    if (count > 0) console.log(`  ${code}: ${count}`);
+  }
 
   // Write to local JSON file
   const jsonPath = path.join(process.cwd(), "data", "companies.json");

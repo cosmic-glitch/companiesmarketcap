@@ -37,6 +37,7 @@ export interface Company {
   netDebt: number | null; // latest quarter, USD (negative = net cash)
   country: string;
   lastUpdated: string;
+  dataQualityIssues: string[]; // empty array = clean; non-empty = hidden from leaderboard
 }
 
 // API query parameters
@@ -116,4 +117,5 @@ export interface DatabaseCompany {
   net_debt: number | null;
   country: string;
   last_updated: string;
+  data_quality_issues?: string[] | null; // optional for backward compat with rows scraped before this field existed
 }

@@ -32,6 +32,7 @@ function company(overrides: Partial<Company> & Pick<Company, "symbol" | "marketC
     netDebt: null,
     country: "US",
     lastUpdated: "2026-04-21T06:22:20.342Z",
+    dataQualityIssues: [],
     ...overrides,
   };
 }

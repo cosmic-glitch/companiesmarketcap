@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { Company, DatabaseCompany, CompaniesQueryParams, PriceQuote } from "./types";
+import { detectDataQualityIssues } from "./data-quality";
 
 const jsonPath = path.join(process.cwd(), "data", "companies.json");
 
@@ -29,10 +30,14 @@ function calculateForwardEPSGrowth(forwardEPS: number | null, ttmEPS: number | n
 let blobDataCache: { data: JsonData; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache (data updates daily via scraper)
 
-// Convert JSON record to Company type
+// Convert JSON record to Company type. Quality issues are computed at scrape
+// time and stored on the row; for legacy rows that predate the field we
+// recompute on the fly so the read path keeps working without re-scraping.
 function dbRowToCompany(row: DatabaseCompany): Company {
   const week52High = row.week_52_high ?? null;
   const price = row.price;
+  const dataQualityIssues =
+    row.data_quality_issues != null ? row.data_quality_issues : detectDataQualityIssues(row);
   return {
     symbol: row.symbol,
     name: row.name,
@@ -62,6 +67,7 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     netDebt: row.net_debt ?? null,
     country: row.country,
     lastUpdated: row.last_updated,
+    dataQualityIssues,
   };
 }
 
@@ -148,6 +154,7 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     net_debt: company.netDebt ?? null,
     country: company.country || "",
     last_updated: lastUpdated,
+    data_quality_issues: company.dataQualityIssues ?? null,
   };
 }
 
@@ -215,7 +222,7 @@ export function writeCompanies(
 export async function getCompanies(
   params: CompaniesQueryParams = {},
   quotes?: Map<string, PriceQuote>
-): Promise<{ companies: Company[]; total: number }> {
+): Promise<{ companies: Company[]; total: number; hiddenForQuality: number }> {
   const jsonData = await loadJsonDataAsync();
 
   let companies = jsonData.companies.map(dbRowToCompany);
@@ -230,6 +237,11 @@ export async function getCompanies(
   companies = companies.filter(
     (c) => c.marketCap !== null && c.marketCap >= 1_000_000_000
   );
+
+  // Universe-level data quality filter, independent of user filters. The hidden
+  // count is reported back to the UI so users see when corruption rates spike.
+  const hiddenForQuality = companies.filter((c) => c.dataQualityIssues.length > 0).length;
+  companies = companies.filter((c) => c.dataQualityIssues.length === 0);
 
   const {
     search,
@@ -437,7 +449,7 @@ export async function getCompanies(
   // Apply pagination
   companies = companies.slice(offset, offset + limit);
 
-  return { companies, total };
+  return { companies, total, hiddenForQuality };
 }
 
 // Get a single company by symbol

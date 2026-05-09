@@ -8,9 +8,10 @@ interface PaginationProps {
   totalItems: number;
   perPage: number;
   lastUpdated?: string | null;
+  hiddenForQuality?: number;
 }
 
-export default function Pagination({ currentPage, totalItems, perPage, lastUpdated }: PaginationProps) {
+export default function Pagination({ currentPage, totalItems, perPage, lastUpdated, hiddenForQuality }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -52,6 +53,9 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
         {lastUpdated && (
           <span>Data last refreshed: {new Date(lastUpdated).toLocaleString()}</span>
         )}
+        {hiddenForQuality && hiddenForQuality > 0 ? (
+          <span>{hiddenForQuality.toLocaleString()} {hiddenForQuality === 1 ? "entry" : "entries"} hidden due to data quality issues</span>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-3">
