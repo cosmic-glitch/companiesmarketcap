@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Company, PresetConfig } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 import { formatCountry } from "@/lib/countries";
-import { formatPresetCriteria } from "@/lib/preset-summary";
+import { formatPresetCriteria, formatPresetName } from "@/lib/preset-summary";
 import SavePresetModal from "./SavePresetModal";
 
 const PRESETS: PresetConfig[] = [
@@ -739,7 +739,12 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         {/* Presets Dropdown */}
         <div className="relative">
           <DropdownButton
-            label={activePreset ? `${allPresets.find(p => p.id === activePreset)?.icon} ${allPresets.find(p => p.id === activePreset)?.label}` : "Preset Filters"}
+            label={(() => {
+              if (!activePreset) return "Preset Filters";
+              const p = allPresets.find(p => p.id === activePreset);
+              if (!p) return "Preset Filters";
+              return `${p.icon} ${formatPresetName(p)}`;
+            })()}
             isActive={activePreset !== null}
             isOpen={openDropdown === "presets"}
             onClick={() => setOpenDropdown(openDropdown === "presets" ? null : "presets")}
@@ -818,7 +823,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                     >
                       <span className="text-base">{preset.icon}</span>
                       <div className="min-w-0">
-                        <div className="text-[13px] font-medium truncate">{preset.label}</div>
+                        <div className="text-[13px] font-medium truncate">{formatPresetName(preset)}</div>
                         <div className="text-[11px] text-text-muted truncate">{formatPresetCriteria(preset.filters)}</div>
                       </div>
                       {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
@@ -935,7 +940,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               onClick={() => setSavePresetOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border bg-accent/15 border-accent/40 text-accent hover:bg-accent/25 transition-colors whitespace-nowrap"
             >
-              💾 Save view
+              💾 Save to Preset Filters
             </button>
           </>
         )}

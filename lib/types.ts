@@ -100,6 +100,7 @@ export interface PresetConfig {
   sort: { sortBy?: string; sortOrder?: "asc" | "desc" };
   userCreated?: boolean;
   createdAt?: string;
+  initials?: string;
 }
 
 // Database types (JSON storage format)

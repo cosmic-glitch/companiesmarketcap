@@ -33,12 +33,14 @@ const ALLOWED_SORT_KEYS = new Set([
 
 const MAX_LABEL_LEN = 60;
 const MAX_ICON_LEN = 8;
+const MAX_INITIALS_LEN = 4;
 const MAX_FILTER_VALUE_LEN = 32;
 const MAX_TOTAL_PRESETS = 200;
 
 interface SavePresetBody {
   label?: unknown;
   icon?: unknown;
+  initials?: unknown;
   filters?: unknown;
   sort?: unknown;
 }
@@ -71,6 +73,18 @@ export async function POST(request: NextRequest) {
   if (icon.length === 0 || icon.length > MAX_ICON_LEN) {
     return NextResponse.json(
       { error: `icon must be 1-${MAX_ICON_LEN} characters` },
+      { status: 400 }
+    );
+  }
+
+  // Validate initials
+  if (typeof body.initials !== "string") {
+    return NextResponse.json({ error: "initials is required" }, { status: 400 });
+  }
+  const initials = body.initials.trim();
+  if (initials.length === 0 || initials.length > MAX_INITIALS_LEN) {
+    return NextResponse.json(
+      { error: `initials must be 1-${MAX_INITIALS_LEN} characters` },
       { status: 400 }
     );
   }
@@ -132,6 +146,7 @@ export async function POST(request: NextRequest) {
       id: randomUUID(),
       label,
       icon,
+      initials,
       filters,
       sort,
       userCreated: true,

@@ -53,6 +53,14 @@ function formatBound(def: FilterDef, min: string | undefined, max: string | unde
   return `${def.label} < ${maxStr}`;
 }
 
+// Renders the display name for a preset. Community presets prefix the label
+// with the author's initials (e.g. "AV: Big & Cheap"); legacy entries
+// without initials and the hardcoded curated presets render the label alone.
+export function formatPresetName(preset: { label: string; initials?: string }): string {
+  const initials = preset.initials?.trim();
+  return initials ? `${initials}: ${preset.label}` : preset.label;
+}
+
 export function formatPresetCriteria(filters: Record<string, string>): string {
   const parts: string[] = [];
   for (const [key, def] of FILTER_DEFS) {

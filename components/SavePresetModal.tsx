@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PresetConfig } from "@/lib/types";
-import { formatPresetCriteria } from "@/lib/preset-summary";
+import { formatPresetCriteria, formatPresetName } from "@/lib/preset-summary";
 
 const ICON_CHOICES = [
   "📈", "📉", "💰", "💎", "🏦", "🚀", "⭐", "🎯",
@@ -13,6 +13,8 @@ const ICON_CHOICES = [
 
 const MAX_LABEL_LEN = 60;
 const MAX_ICON_LEN = 8;
+const MAX_INITIALS_LEN = 4;
+const INITIALS_STORAGE_KEY = "presetAuthorInitials";
 
 interface SavePresetModalProps {
   isOpen: boolean;
@@ -30,22 +32,31 @@ export default function SavePresetModal({
   onSaved,
 }: SavePresetModalProps) {
   const [label, setLabel] = useState("");
+  const [initials, setInitials] = useState("");
   const [icon, setIcon] = useState(ICON_CHOICES[0]);
   const [customIcon, setCustomIcon] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const initialsInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset on open and focus the label
+  // Reset on open. Pre-fill initials from localStorage so a returning author
+  // doesn't retype them; focus initials when empty, name otherwise.
   useEffect(() => {
     if (!isOpen) return;
+    const saved = typeof window !== "undefined"
+      ? window.localStorage.getItem(INITIALS_STORAGE_KEY) ?? ""
+      : "";
     setLabel("");
+    setInitials(saved);
     setIcon(ICON_CHOICES[0]);
     setCustomIcon("");
     setError(null);
     setSubmitting(false);
-    // Focus the label input after the modal mounts
-    const t = setTimeout(() => labelInputRef.current?.focus(), 0);
+    const t = setTimeout(() => {
+      if (saved) labelInputRef.current?.focus();
+      else initialsInputRef.current?.focus();
+    }, 0);
     return () => clearTimeout(t);
   }, [isOpen]);
 
@@ -63,7 +74,12 @@ export default function SavePresetModal({
 
   const finalIcon = customIcon.trim() || icon;
   const trimmedLabel = label.trim();
-  const canSave = trimmedLabel.length > 0 && finalIcon.length > 0 && !submitting;
+  const trimmedInitials = initials.trim();
+  const canSave =
+    trimmedLabel.length > 0 &&
+    trimmedInitials.length > 0 &&
+    finalIcon.length > 0 &&
+    !submitting;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -76,6 +92,7 @@ export default function SavePresetModal({
         body: JSON.stringify({
           label: trimmedLabel,
           icon: finalIcon,
+          initials: trimmedInitials,
           filters: currentFilters,
           sort: currentSort.sortBy ? currentSort : {},
         }),
@@ -83,6 +100,9 @@ export default function SavePresetModal({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error || "Failed to save preset");
+      }
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(INITIALS_STORAGE_KEY, trimmedInitials);
       }
       onSaved(data.preset as PresetConfig);
       onClose();
@@ -93,6 +113,10 @@ export default function SavePresetModal({
   };
 
   const summary = formatPresetCriteria(currentFilters) || "No filters selected";
+  const previewName = formatPresetName({
+    label: trimmedLabel || "(name your preset)",
+    initials: trimmedInitials || undefined,
+  });
 
   return (
     <div
@@ -111,41 +135,44 @@ export default function SavePresetModal({
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {/* Preview */}
-          <div>
-            <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
-              Preview
-            </label>
-            <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-bg-tertiary border border-border-subtle">
-              <span className="text-base">{finalIcon || "·"}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium text-text-primary truncate">
-                  {trimmedLabel || <span className="text-text-muted">(name your preset)</span>}
-                </div>
-                <div className="text-[11px] text-text-muted truncate">{summary}</div>
-              </div>
+          {/* Initials + Name */}
+          <div className="flex gap-2">
+            <div className="w-20 shrink-0">
+              <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                Initials
+              </label>
+              <input
+                ref={initialsInputRef}
+                type="text"
+                value={initials}
+                onChange={(e) => setInitials(e.target.value.slice(0, MAX_INITIALS_LEN))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && canSave) handleSave();
+                }}
+                placeholder="AV"
+                maxLength={MAX_INITIALS_LEN}
+                className="w-full px-3 py-2 text-sm bg-bg-tertiary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
+              />
             </div>
-          </div>
-
-          {/* Label */}
-          <div>
-            <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
-              Name
-            </label>
-            <input
-              ref={labelInputRef}
-              type="text"
-              value={label}
-              onChange={(e) => setLabel(e.target.value.slice(0, MAX_LABEL_LEN))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && canSave) handleSave();
-              }}
-              placeholder="e.g. Cheap quality compounders"
-              maxLength={MAX_LABEL_LEN}
-              className="w-full px-3 py-2 text-sm bg-bg-tertiary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
-            />
-            <div className="text-[10px] text-text-muted mt-1 text-right tabular-nums">
-              {label.length}/{MAX_LABEL_LEN}
+            <div className="flex-1 min-w-0">
+              <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                Name
+              </label>
+              <input
+                ref={labelInputRef}
+                type="text"
+                value={label}
+                onChange={(e) => setLabel(e.target.value.slice(0, MAX_LABEL_LEN))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && canSave) handleSave();
+                }}
+                placeholder="e.g. Cheap quality compounders"
+                maxLength={MAX_LABEL_LEN}
+                className="w-full px-3 py-2 text-sm bg-bg-tertiary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
+              />
+              <div className="text-[10px] text-text-muted mt-1 text-right tabular-nums">
+                {label.length}/{MAX_LABEL_LEN}
+              </div>
             </div>
           </div>
 
@@ -186,6 +213,27 @@ export default function SavePresetModal({
               maxLength={MAX_ICON_LEN}
               className="mt-2 w-full px-3 py-2 text-sm bg-bg-tertiary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
             />
+          </div>
+
+          {/* Preview */}
+          <div>
+            <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
+              Preview
+            </label>
+            <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-bg-tertiary border border-border-subtle">
+              <span className="text-base">{finalIcon || "·"}</span>
+              <div className="min-w-0 flex-1">
+                <div
+                  className={cn(
+                    "text-[13px] font-medium truncate",
+                    trimmedLabel ? "text-text-primary" : "text-text-muted"
+                  )}
+                >
+                  {previewName}
+                </div>
+                <div className="text-[11px] text-text-muted truncate">{summary}</div>
+              </div>
+            </div>
           </div>
 
           {error && (
