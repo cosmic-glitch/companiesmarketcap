@@ -440,11 +440,32 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const filtersRef = useRef<HTMLDivElement>(null);
   const columnsRef = useRef<HTMLDivElement>(null);
 
-  // Mirror userPresets so a newly-saved preset can show up in the dropdown
-  // without waiting for the RSC re-fetch that router.refresh() triggers.
+  // Optimistic-state trackers reconciled against the prop on every re-sync.
+  // The Vercel Blob CDN can serve a stale presets.json for several seconds
+  // after a write, so a naive setLocalUserPresets(userPresets) here would
+  // clobber a just-added preset or resurrect a just-deleted one. We instead
+  // remember locally-pending adds and deletions and merge them with the
+  // server's view until the server catches up.
+  const pendingPresetAddsRef = useRef<Map<string, PresetConfig>>(new Map());
+  const presetTombstonesRef = useRef<Set<string>>(new Set());
+
   const [localUserPresets, setLocalUserPresets] = useState<PresetConfig[]>(userPresets);
   useEffect(() => {
-    setLocalUserPresets(userPresets);
+    const serverIds = new Set(userPresets.map((p) => p.id));
+    // Server has caught up to an optimistic add → stop overriding it locally.
+    for (const id of [...pendingPresetAddsRef.current.keys()]) {
+      if (serverIds.has(id)) pendingPresetAddsRef.current.delete(id);
+    }
+    // Server has dropped a tombstoned preset → tombstone is no longer needed.
+    for (const id of [...presetTombstonesRef.current]) {
+      if (!serverIds.has(id)) presetTombstonesRef.current.delete(id);
+    }
+    const fromServer = userPresets.filter((p) => !presetTombstonesRef.current.has(p.id));
+    const extras: PresetConfig[] = [];
+    for (const [id, preset] of pendingPresetAddsRef.current) {
+      if (!serverIds.has(id)) extras.push(preset);
+    }
+    setLocalUserPresets([...fromServer, ...extras]);
   }, [userPresets]);
 
   // Hardcoded defaults appear first so a user-saved preset that happens to
@@ -629,6 +650,9 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const handleDeletePreset = useCallback(async (preset: PresetConfig) => {
     if (!window.confirm(`Delete preset "${formatPresetName(preset)}"?`)) return;
     const snapshot = localUserPresets;
+    // Tombstone first so a stale RSC re-sync doesn't resurrect this preset.
+    presetTombstonesRef.current.add(preset.id);
+    pendingPresetAddsRef.current.delete(preset.id);
     setLocalUserPresets((prev) => prev.filter((p) => p.id !== preset.id));
     try {
       const res = await fetch(`/api/presets?id=${encodeURIComponent(preset.id)}`, {
@@ -637,6 +661,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       if (!res.ok) throw new Error(`status ${res.status}`);
       router.refresh();
     } catch (err) {
+      presetTombstonesRef.current.delete(preset.id);
       setLocalUserPresets(snapshot);
       window.alert("Failed to delete preset. Please try again.");
       console.error(err);
@@ -1607,7 +1632,10 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         currentColumns={Array.from(visibleColumns)}
         onSaved={(preset) => {
           // Splice the saved preset into local state so the dropdown updates
-          // before the RSC re-fetch lands; router.refresh() reconciles after.
+          // before the RSC re-fetch lands; remember it so a stale RSC re-sync
+          // doesn't drop it. router.refresh() reconciles when the CDN settles.
+          pendingPresetAddsRef.current.set(preset.id, preset);
+          presetTombstonesRef.current.delete(preset.id);
           setLocalUserPresets((prev) => {
             const idx = prev.findIndex((p) => p.id === preset.id);
             if (idx >= 0) return prev.map((p, i) => (i === idx ? preset : p));
