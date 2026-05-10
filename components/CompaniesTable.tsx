@@ -6,13 +6,13 @@ import Image from "next/image";
 import { Company, PresetConfig } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 import { formatCountry } from "@/lib/countries";
+import { formatPresetCriteria } from "@/lib/preset-summary";
 import SavePresetModal from "./SavePresetModal";
 
 const PRESETS: PresetConfig[] = [
   {
     id: 'mega-cap-value',
     label: 'Mega Cap Value',
-    subtitle: '$1T+, Fwd PE < 25',
     icon: '🏦',
     filters: { minMarketCap: '1000', maxForwardPE: '25' },
     sort: { sortBy: 'forwardPE', sortOrder: 'asc' },
@@ -20,7 +20,6 @@ const PRESETS: PresetConfig[] = [
   {
     id: 'garp',
     label: 'Great Price for Reasonable Growth',
-    subtitle: '$100B+, Fwd PE < 15, 20%+ Op Margin, 10%+ Rev Growth 3Y, 10%+ EPS Growth 3Y',
     icon: '📈',
     filters: { minMarketCap: '100', maxForwardPE: '15', minOperatingMargin: '20', minRevenueGrowth3Y: '10', minEPSGrowth3Y: '10' },
     sort: { sortBy: 'forwardPE', sortOrder: 'asc' },
@@ -28,7 +27,6 @@ const PRESETS: PresetConfig[] = [
   {
     id: 'reliable-dividends',
     label: 'Reliable Dividend Generators',
-    subtitle: '$10B+, 6%+ Yield, 5%+ Rev Growth, 5%+ EPS Growth',
     icon: '💰',
     filters: { minMarketCap: '10', minDividend: '6', minRevenueGrowth: '5', minEPSGrowth: '5' },
     sort: { sortBy: 'dividendPercent', sortOrder: 'desc' },
@@ -789,7 +787,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   <span className="text-base">{preset.icon}</span>
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium">{preset.label}</div>
-                    <div className="text-[11px] text-text-muted">{preset.subtitle}</div>
+                    <div className="text-[11px] text-text-muted">{formatPresetCriteria(preset.filters)}</div>
                   </div>
                   {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
                 </button>
@@ -821,35 +819,13 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                       <span className="text-base">{preset.icon}</span>
                       <div className="min-w-0">
                         <div className="text-[13px] font-medium truncate">{preset.label}</div>
+                        <div className="text-[11px] text-text-muted truncate">{formatPresetCriteria(preset.filters)}</div>
                       </div>
                       {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
                     </button>
                   ))}
                 </>
               )}
-              <div className="border-t border-border-subtle my-1" />
-              <button
-                onClick={() => {
-                  setOpenDropdown(null);
-                  setSavePresetOpen(true);
-                }}
-                disabled={!hasSavableState}
-                className={cn(
-                  "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors",
-                  hasSavableState
-                    ? "hover:bg-bg-secondary text-text-primary"
-                    : "text-text-muted cursor-not-allowed"
-                )}
-                title={hasSavableState ? undefined : "Apply a filter or sort first"}
-              >
-                <span className="text-base">💾</span>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-medium">Save current view…</div>
-                  <div className="text-[11px] text-text-muted">
-                    {hasSavableState ? "Visible to everyone" : "Apply a filter or sort first"}
-                  </div>
-                </div>
-              </button>
             </div>
           )}
         </div>
@@ -951,6 +927,18 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             </div>
           )}
         </div>
+
+        {hasSavableState && activePreset === null && (
+          <>
+            <div className="w-px h-5 bg-border-subtle mx-1" />
+            <button
+              onClick={() => setSavePresetOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border bg-accent/15 border-accent/40 text-accent hover:bg-accent/25 transition-colors whitespace-nowrap"
+            >
+              💾 Save view
+            </button>
+          </>
+        )}
       </div>
 
       {/* Table */}

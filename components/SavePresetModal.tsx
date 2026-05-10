@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PresetConfig } from "@/lib/types";
+import { formatPresetCriteria } from "@/lib/preset-summary";
 
 const ICON_CHOICES = [
   "📈", "📉", "💰", "💎", "🏦", "🚀", "⭐", "🎯",
@@ -91,14 +92,7 @@ export default function SavePresetModal({
     }
   };
 
-  const filterCount = Object.keys(currentFilters).length;
-  const summary =
-    [
-      filterCount > 0 ? `${filterCount} filter${filterCount === 1 ? "" : "s"}` : null,
-      currentSort.sortBy ? `sorted by ${currentSort.sortBy} ${currentSort.sortOrder ?? "asc"}` : null,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "No filters or sort selected";
+  const summary = formatPresetCriteria(currentFilters) || "No filters selected";
 
   return (
     <div
