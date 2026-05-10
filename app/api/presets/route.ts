@@ -211,8 +211,10 @@ export async function DELETE(request: NextRequest) {
   try {
     const existing = await getUserPresets();
     const next = existing.filter((p) => p.id !== id);
+    // Idempotent: if the id is already gone (cache lag, double-click), succeed
+    // with a flag so the client can tell whether anything actually changed.
     if (next.length === existing.length) {
-      return NextResponse.json({ error: "preset not found" }, { status: 404 });
+      return NextResponse.json({ ok: true, alreadyDeleted: true });
     }
     await writeUserPresets(next);
     return NextResponse.json({ ok: true });
