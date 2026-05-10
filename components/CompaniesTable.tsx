@@ -626,6 +626,23 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     router.push('/');
   }, [router, sortByProp, sortOrderProp]);
 
+  const handleDeletePreset = useCallback(async (preset: PresetConfig) => {
+    if (!window.confirm(`Delete preset "${formatPresetName(preset)}"?`)) return;
+    const snapshot = localUserPresets;
+    setLocalUserPresets((prev) => prev.filter((p) => p.id !== preset.id));
+    try {
+      const res = await fetch(`/api/presets?id=${encodeURIComponent(preset.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      router.refresh();
+    } catch (err) {
+      setLocalUserPresets(snapshot);
+      window.alert("Failed to delete preset. Please try again.");
+      console.error(err);
+    }
+  }, [localUserPresets, router]);
+
   // Initialize pending filters from URL (alias-aware; back-compat with
   // legacy long-form keys).
   const getInitialFilters = useCallback((): FilterState => {
@@ -875,30 +892,51 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                     Community
                   </div>
                   {localUserPresets.map((preset) => (
-                    <button
+                    <div
                       key={preset.id}
-                      onClick={() => {
-                        if (activePreset === preset.id) {
-                          clearAllFilters();
-                        } else {
-                          applyPreset(preset);
-                        }
-                        setOpenDropdown(null);
-                      }}
                       className={cn(
-                        "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors",
+                        "flex items-center rounded-lg transition-colors",
                         activePreset === preset.id
                           ? "bg-accent/15 text-accent"
                           : "hover:bg-bg-secondary text-text-primary"
                       )}
                     >
-                      <span className="text-base">{preset.icon}</span>
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium truncate">{formatPresetName(preset)}</div>
-                        <div className="text-[11px] text-text-muted truncate">{formatPresetCriteria(preset.filters)}</div>
-                      </div>
-                      {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
-                    </button>
+                      <button
+                        onClick={() => {
+                          if (activePreset === preset.id) {
+                            clearAllFilters();
+                          } else {
+                            applyPreset(preset);
+                          }
+                          setOpenDropdown(null);
+                        }}
+                        className="flex flex-1 min-w-0 items-center gap-2.5 px-2.5 py-2 text-left rounded-l-lg"
+                      >
+                        <span className="text-base">{preset.icon}</span>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-medium truncate">{formatPresetName(preset)}</div>
+                          <div className="text-[11px] text-text-muted truncate">{formatPresetCriteria(preset.filters)}</div>
+                        </div>
+                        {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePreset(preset);
+                        }}
+                        aria-label={`Delete preset ${formatPresetName(preset)}`}
+                        title="Delete preset"
+                        className="shrink-0 mr-1 p-1.5 rounded-md text-text-muted hover:bg-bg-tertiary hover:text-red-400 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                    </div>
                   ))}
                 </>
               )}

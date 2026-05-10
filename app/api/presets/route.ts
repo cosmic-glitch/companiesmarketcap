@@ -201,3 +201,27 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  try {
+    const existing = await getUserPresets();
+    const next = existing.filter((p) => p.id !== id);
+    if (next.length === existing.length) {
+      return NextResponse.json({ error: "preset not found" }, { status: 404 });
+    }
+    await writeUserPresets(next);
+    return NextResponse.json({ ok: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error deleting preset:", error);
+    return NextResponse.json(
+      { error: "Failed to delete preset", message },
+      { status: 500 }
+    );
+  }
+}
