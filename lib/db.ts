@@ -67,6 +67,8 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     freeCashFlow: row.free_cash_flow ?? null,
     netDebt: row.net_debt ?? null,
     country: row.country,
+    sector: row.sector ?? "",
+    industry: row.industry ?? "",
     lastUpdated: row.last_updated,
     dataQualityIssues,
   };
@@ -154,6 +156,8 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     free_cash_flow: company.freeCashFlow ?? null,
     net_debt: company.netDebt ?? null,
     country: company.country || "",
+    sector: company.sector ?? "",
+    industry: company.industry ?? "",
     last_updated: lastUpdated,
     data_quality_issues: company.dataQualityIssues ?? null,
   };
@@ -279,6 +283,8 @@ export async function getCompanies(
     minNetDebt,
     maxNetDebt,
     country,
+    sector,
+    industry,
     limit = 100,
     offset = 0,
   } = params;
@@ -296,6 +302,16 @@ export async function getCompanies(
   // Apply country filter
   if (country) {
     companies = companies.filter((c) => c.country === country);
+  }
+
+  // Apply sector filter
+  if (sector) {
+    companies = companies.filter((c) => c.sector === sector);
+  }
+
+  // Apply industry filter
+  if (industry) {
+    companies = companies.filter((c) => c.industry === industry);
   }
 
   // Apply market cap filters (values in billions, stored in raw)
@@ -490,6 +506,20 @@ export async function getDistinctCountries(): Promise<string[]> {
   const jsonData = await loadJsonDataAsync();
   const countries = new Set(jsonData.companies.map((c) => c.country).filter(Boolean));
   return Array.from(countries).sort();
+}
+
+// Get distinct sector values for the sector filter dropdown
+export async function getDistinctSectors(): Promise<string[]> {
+  const jsonData = await loadJsonDataAsync();
+  const sectors = new Set(jsonData.companies.map((c) => c.sector).filter((s): s is string => !!s));
+  return Array.from(sectors).sort();
+}
+
+// Get distinct industry values for the industry filter dropdown
+export async function getDistinctIndustries(): Promise<string[]> {
+  const jsonData = await loadJsonDataAsync();
+  const industries = new Set(jsonData.companies.map((c) => c.industry).filter((s): s is string => !!s));
+  return Array.from(industries).sort();
 }
 
 // User-created presets are stored in a separate blob (PRESETS_BLOB_URL) in

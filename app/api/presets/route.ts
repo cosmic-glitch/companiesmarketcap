@@ -22,6 +22,8 @@ const ALLOWED_FILTER_KEYS = new Set([
   "minFreeCashFlow", "maxFreeCashFlow",
   "minNetDebt", "maxNetDebt",
   "country",
+  "sector",
+  "industry",
 ]);
 
 const ALLOWED_SORT_KEYS = new Set([
@@ -34,7 +36,7 @@ const ALLOWED_SORT_KEYS = new Set([
 const MAX_LABEL_LEN = 60;
 const MAX_ICON_LEN = 8;
 const MAX_INITIALS_LEN = 4;
-const MAX_FILTER_VALUE_LEN = 32;
+const MAX_FILTER_VALUE_LEN = 64;
 const MAX_TOTAL_PRESETS = 200;
 
 interface SavePresetBody {

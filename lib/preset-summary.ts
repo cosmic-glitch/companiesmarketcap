@@ -70,5 +70,11 @@ export function formatPresetCriteria(filters: Record<string, string>): string {
   if (filters.country) {
     parts.push(`Country: ${formatCountry(filters.country)}`);
   }
+  if (filters.sector) {
+    parts.push(`Sector: ${filters.sector}`);
+  }
+  if (filters.industry) {
+    parts.push(`Industry: ${filters.industry}`);
+  }
   return parts.join(", ");
 }

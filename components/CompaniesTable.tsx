@@ -217,6 +217,8 @@ interface CompaniesTableProps {
   sortBy: keyof Company;
   sortOrder: "asc" | "desc";
   countries: string[];
+  sectors: string[];
+  industries: string[];
   userPresets: PresetConfig[];
 }
 
@@ -252,6 +254,8 @@ interface FilterState {
   minNetDebt: string;
   maxNetDebt: string;
   country: string;
+  sector: string;
+  industry: string;
 }
 
 const FILTER_KEYS: (keyof FilterState)[] = [
@@ -271,6 +275,8 @@ const FILTER_KEYS: (keyof FilterState)[] = [
   "minFreeCashFlow", "maxFreeCashFlow",
   "minNetDebt", "maxNetDebt",
   "country",
+  "sector",
+  "industry",
 ];
 
 type SortKey = keyof Company;
@@ -344,6 +350,8 @@ const FilterGridInput = ({ label, minKey, maxKey, pendingFilters, updateFilter, 
 
 const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "country", label: "Country", defaultVisible: true },
+  { key: "sector", label: "Sector", defaultVisible: false },
+  { key: "industry", label: "Industry", defaultVisible: false },
   { key: "marketCap", label: "Market Cap", defaultVisible: true },
   { key: "price", label: "Price", defaultVisible: true },
   { key: "dailyChangePercent", label: "Today", defaultVisible: true },
@@ -390,6 +398,8 @@ const FILTER_TO_COLUMN: Record<keyof FilterState, SortKey> = {
   minFreeCashFlow: "freeCashFlow", maxFreeCashFlow: "freeCashFlow",
   minNetDebt: "netDebt", maxNetDebt: "netDebt",
   country: "country",
+  sector: "sector",
+  industry: "industry",
 };
 
 type ReadOnlyParams = { has(key: string): boolean; get(key: string): string | null };
@@ -410,7 +420,7 @@ const getReferencedColumns = (params: ReadOnlyParams): SortKey[] => {
   return cols;
 };
 
-export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries, userPresets }: CompaniesTableProps) {
+export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries, sectors, industries, userPresets }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -593,6 +603,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     minNetDebt: searchParams.get("minNetDebt") || "",
     maxNetDebt: searchParams.get("maxNetDebt") || "",
     country: searchParams.get("country") || "",
+    sector: searchParams.get("sector") || "",
+    industry: searchParams.get("industry") || "",
   }), [searchParams]);
 
   const [pendingFilters, setPendingFilters] = useState<FilterState>(getInitialFilters);
@@ -680,6 +692,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       minNetDebt: "",
       maxNetDebt: "",
       country: "",
+      sector: "",
+      industry: "",
     };
     setPendingFilters(emptyFilters);
 
@@ -877,6 +891,32 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Sector</label>
+                  <select
+                    value={pendingFilters.sector}
+                    onChange={(e) => updateFilter("sector", e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs bg-bg-secondary border border-border-subtle rounded-md text-text-primary focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
+                  >
+                    <option value="">All Sectors</option>
+                    {sectors.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Industry</label>
+                  <select
+                    value={pendingFilters.industry}
+                    onChange={(e) => updateFilter("industry", e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs bg-bg-secondary border border-border-subtle rounded-md text-text-primary focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
+                  >
+                    <option value="">All Industries</option>
+                    {industries.map((i) => (
+                      <option key={i} value={i}>{i}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="flex gap-2 justify-end mt-3">
                 {hasActiveFilters && (
@@ -988,6 +1028,28 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 )}
               >
                 Country <SortIndicator columnKey="country" />
+              </th>
+              )}
+              {isColumnVisible("sector") && (
+              <th
+                onClick={() => handleSort("sector")}
+                className={cn(
+                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("sector") && "sorted-column-header"
+                )}
+              >
+                Sector <SortIndicator columnKey="sector" />
+              </th>
+              )}
+              {isColumnVisible("industry") && (
+              <th
+                onClick={() => handleSort("industry")}
+                className={cn(
+                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("industry") && "sorted-column-header"
+                )}
+              >
+                Industry <SortIndicator columnKey="industry" />
               </th>
               )}
               {isColumnVisible("marketCap") && (
@@ -1237,6 +1299,22 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("country") && "sorted-column-cell"
                 )}>
                   {formatCountry(company.country)}
+                </td>
+                )}
+                {isColumnVisible("sector") && (
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-sm text-text-secondary",
+                  isSortedColumn("sector") && "sorted-column-cell"
+                )}>
+                  {company.sector || <span className="text-text-muted">-</span>}
+                </td>
+                )}
+                {isColumnVisible("industry") && (
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-sm text-text-secondary",
+                  isSortedColumn("industry") && "sorted-column-cell"
+                )}>
+                  {company.industry || <span className="text-text-muted">-</span>}
                 </td>
                 )}
                 {isColumnVisible("marketCap") && (

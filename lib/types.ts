@@ -36,6 +36,8 @@ export interface Company {
   freeCashFlow: number | null; // TTM, USD
   netDebt: number | null; // latest quarter, USD (negative = net cash)
   country: string;
+  sector: string;
+  industry: string;
   lastUpdated: string;
   dataQualityIssues: string[]; // empty array = clean; non-empty = hidden from leaderboard
 }
@@ -76,6 +78,8 @@ export interface CompaniesQueryParams {
   minNetDebt?: number;
   maxNetDebt?: number;
   country?: string;
+  sector?: string;
+  industry?: string;
   limit?: number;
   offset?: number;
 }
@@ -130,6 +134,8 @@ export interface DatabaseCompany {
   free_cash_flow: number | null;
   net_debt: number | null;
   country: string;
+  sector?: string | null;
+  industry?: string | null;
   last_updated: string;
   data_quality_issues?: string[] | null; // optional for backward compat with rows scraped before this field existed
 }

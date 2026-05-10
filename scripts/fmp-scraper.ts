@@ -244,6 +244,8 @@ interface FMPProfile {
   symbol: string;
   companyName: string;
   country: string;
+  sector: string;
+  industry: string;
   price: number;
 }
 
@@ -300,6 +302,8 @@ interface CompanyData {
   symbol: string;
   name: string;
   country: string;
+  sector: string;
+  industry: string;
   marketCap: number | null;
   price: number | null;
   week52High: number | null;
@@ -895,6 +899,8 @@ async function runFMPScraper(): Promise<{
       symbol,
       name: profile?.companyName || quote.name || symbol,
       country: profile?.country || "US",
+      sector: profile?.sector || "",
+      industry: profile?.industry || "",
       marketCap: quote.marketCap,
       price: quote.price,
       week52High: quote.yearHigh ?? null,
@@ -953,6 +959,8 @@ async function runFMPScraper(): Promise<{
     free_cash_flow: c.freeCashFlow,
     net_debt: c.netDebt,
     country: c.country,
+    sector: c.sector,
+    industry: c.industry,
     last_updated: timestamp,
   }));
 
@@ -1006,7 +1014,7 @@ async function runFMPScraper(): Promise<{
 export { runFMPScraper };
 
 // Partial update types
-type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix" | "annual_revenue" | "annual_eps" | "cash_debt";
+type PartialUpdateType = "forward_pe" | "quotes" | "financials" | "growth" | "pe_ratio" | "week_52_high" | "new_symbols" | "currency_fix" | "annual_revenue" | "annual_eps" | "cash_debt" | "profile";
 
 // Run a partial update (only fetch and update specific fields)
 async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
@@ -1067,6 +1075,24 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       }
     }
     console.log(`Updated forward_pe for ${updated} companies`);
+
+  } else if (updateType === "profile") {
+    console.log("Fetching profiles (sector, industry, country)...");
+    const profiles = await fetchBatchProfiles(symbols);
+    console.log(`  Got profiles for ${profiles.size} symbols\n`);
+
+    let updated = 0;
+    for (const [symbol, company] of companyMap) {
+      const profile = profiles.get(symbol);
+      if (profile) {
+        company.sector = profile.sector || "";
+        company.industry = profile.industry || "";
+        // Country is sourced from the same profile endpoint; refresh if present.
+        if (profile.country) company.country = profile.country;
+        updated++;
+      }
+    }
+    console.log(`Updated profile fields for ${updated} companies`);
 
   } else if (updateType === "quotes") {
     console.log("Fetching quotes...");
@@ -1518,6 +1544,8 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         free_cash_flow: null,
         net_debt: null,
         country: profile?.country || "US",
+        sector: profile?.sector || "",
+        industry: profile?.industry || "",
         last_updated: timestamp,
       };
 
@@ -1566,7 +1594,7 @@ function parseArgs(): { only?: PartialUpdateType } {
 
   if (onlyIndex !== -1 && args[onlyIndex + 1]) {
     const updateType = args[onlyIndex + 1] as PartialUpdateType;
-    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix", "annual_revenue", "annual_eps", "cash_debt"];
+    const validTypes: PartialUpdateType[] = ["forward_pe", "quotes", "financials", "growth", "pe_ratio", "week_52_high", "new_symbols", "currency_fix", "annual_revenue", "annual_eps", "cash_debt", "profile"];
     if (!validTypes.includes(updateType)) {
       console.error(`Error: Invalid update type '${updateType}'`);
       console.error(`Valid types: ${validTypes.join(", ")}`);

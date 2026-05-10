@@ -1,6 +1,6 @@
 import CompaniesTable from "@/components/CompaniesTable";
 import Pagination from "@/components/Pagination";
-import { getAllSymbols, getCompanies, getDistinctCountries, getLastUpdated, getUserPresets } from "@/lib/db";
+import { getAllSymbols, getCompanies, getDistinctCountries, getDistinctIndustries, getDistinctSectors, getLastUpdated, getUserPresets } from "@/lib/db";
 import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 import { formatCountry } from "@/lib/countries";
@@ -107,6 +107,16 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
     filterDescriptions.push(`Country: ${formatCountry(params.country)}`);
   }
 
+  // Sector
+  if (params.sector) {
+    filterDescriptions.push(`Sector: ${params.sector}`);
+  }
+
+  // Industry
+  if (params.industry) {
+    filterDescriptions.push(`Industry: ${params.industry}`);
+  }
+
   const countText = total.toLocaleString();
   const sortLabel = sortLabels[sortBy] || "market capitalization";
 
@@ -152,6 +162,8 @@ interface SearchParams {
   minNetDebt?: string;
   maxNetDebt?: string;
   country?: string;
+  sector?: string;
+  industry?: string;
   search?: string;
 }
 
@@ -218,6 +230,8 @@ export default async function Home({ searchParams }: HomeProps) {
     minNetDebt: parseNumber(params.minNetDebt),
     maxNetDebt: parseNumber(params.maxNetDebt),
     country: params.country,
+    sector: params.sector,
+    industry: params.industry,
     search: params.search,
     limit: PER_PAGE,
     offset: (page - 1) * PER_PAGE,
@@ -228,9 +242,11 @@ export default async function Home({ searchParams }: HomeProps) {
   const { quotes } = await getAllQuotes(symbols);
   const { companies, total, hiddenForQuality } = await getCompanies(queryParams, quotes);
 
-  // Fetch last updated timestamp and distinct countries for filter dropdown
+  // Fetch last updated timestamp and distinct countries/sectors/industries for filter dropdowns
   const lastUpdated = await getLastUpdated();
   const countries = await getDistinctCountries();
+  const sectors = await getDistinctSectors();
+  const industries = await getDistinctIndustries();
   const userPresets = await getUserPresets();
 
   return (
@@ -273,6 +289,8 @@ export default async function Home({ searchParams }: HomeProps) {
           sortBy={sortBy}
           sortOrder={sortOrder}
           countries={countries}
+          sectors={sectors}
+          industries={industries}
           userPresets={userPresets}
         />
 

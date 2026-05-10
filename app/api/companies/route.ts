@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
     const minForwardEPSGrowth = parseGrowthPercent("minForwardEPSGrowth");
     const maxForwardEPSGrowth = parseGrowthPercent("maxForwardEPSGrowth");
     const country = searchParams.get("country") || undefined;
+    const sector = searchParams.get("sector") || undefined;
+    const industry = searchParams.get("industry") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 100;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : 0;
 
@@ -44,6 +46,8 @@ export async function GET(request: NextRequest) {
       minForwardEPSGrowth,
       maxForwardEPSGrowth,
       country,
+      sector,
+      industry,
       limit,
       offset,
     }, quotes);

@@ -31,6 +31,8 @@ function company(overrides: Partial<Company> & Pick<Company, "symbol" | "marketC
     freeCashFlow: null,
     netDebt: null,
     country: "US",
+    sector: "",
+    industry: "",
     lastUpdated: "2026-04-21T06:22:20.342Z",
     dataQualityIssues: [],
     ...overrides,
