@@ -436,11 +436,20 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   const [savePresetOpen, setSavePresetOpen] = useState(false);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const previousFilterSignatureRef = useRef<string | null>(null);
-  const dropdownBarRef = useRef<HTMLDivElement>(null);
+  const presetsRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+  const columnsRef = useRef<HTMLDivElement>(null);
+
+  // Mirror userPresets so a newly-saved preset can show up in the dropdown
+  // without waiting for the RSC re-fetch that router.refresh() triggers.
+  const [localUserPresets, setLocalUserPresets] = useState<PresetConfig[]>(userPresets);
+  useEffect(() => {
+    setLocalUserPresets(userPresets);
+  }, [userPresets]);
 
   // Hardcoded defaults appear first so a user-saved preset that happens to
   // duplicate one matches the curated entry and keeps its subtitle.
-  const allPresets = useMemo(() => [...PRESETS, ...userPresets], [userPresets]);
+  const allPresets = useMemo(() => [...PRESETS, ...localUserPresets], [localUserPresets]);
 
   // Column visibility seeds from the URL's cols= param (if present) or the
   // defaults. Auto-reveal logic below still adds any columns referenced by
@@ -503,15 +512,24 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     setSortOrder(urlSortOrder);
   }, [searchParams, sortByProp, sortOrderProp]);
 
-  // Close dropdown on outside click
+  // Close any open dropdown when the user interacts outside all three popovers.
+  // Per-popover refs (not a shared bar wrapper) so each dropdown self-detects
+  // even if the surrounding layout changes; touchstart covers mobile taps.
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownBarRef.current && !dropdownBarRef.current.contains(e.target as Node)) {
-        setOpenDropdown(null);
-      }
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      const insideAny =
+        presetsRef.current?.contains(target) ||
+        filtersRef.current?.contains(target) ||
+        columnsRef.current?.contains(target);
+      if (!insideAny) setOpenDropdown(null);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
   }, []);
 
   // Scroll the company list back to the top whenever applied filters change.
@@ -788,9 +806,9 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   return (
     <div className="w-full">
       {/* Dropdown Filter Bar */}
-      <div ref={dropdownBarRef} className="mb-2 flex flex-wrap items-center gap-1.5 pb-1">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5 pb-1">
         {/* Presets Dropdown */}
-        <div className="relative">
+        <div ref={presetsRef} className="relative">
           <DropdownButton
             label={(() => {
               if (!activePreset) return "Preset Filters";
@@ -850,13 +868,13 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
                 </button>
               ))}
-              {userPresets.length > 0 && (
+              {localUserPresets.length > 0 && (
                 <>
                   <div className="border-t border-border-subtle my-1" />
                   <div className="px-2.5 pt-1 pb-0.5 text-[10px] font-medium text-text-muted uppercase tracking-wider">
                     Community
                   </div>
-                  {userPresets.map((preset) => (
+                  {localUserPresets.map((preset) => (
                     <button
                       key={preset.id}
                       onClick={() => {
@@ -891,7 +909,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         <div className="w-px h-5 bg-border-subtle mx-1" />
 
         {/* Single Filters Dropdown */}
-        <div className="relative">
+        <div ref={filtersRef} className="relative">
           <DropdownButton
             label="Custom Filters"
             isActive={hasActiveFilters}
@@ -986,7 +1004,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         <div className="w-px h-5 bg-border-subtle mx-1" />
 
         {/* Columns Dropdown */}
-        <div className="relative">
+        <div ref={columnsRef} className="relative">
           <DropdownButton
             label={`Columns (${visibleColumns.size}/${COLUMN_OPTIONS.length})`}
             isActive={false}
@@ -1549,9 +1567,14 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
           };
         })()}
         currentColumns={Array.from(visibleColumns)}
-        onSaved={() => {
-          // Re-render the server component so the new preset shows up
-          // in the dropdown for everyone (including this tab).
+        onSaved={(preset) => {
+          // Splice the saved preset into local state so the dropdown updates
+          // before the RSC re-fetch lands; router.refresh() reconciles after.
+          setLocalUserPresets((prev) => {
+            const idx = prev.findIndex((p) => p.id === preset.id);
+            if (idx >= 0) return prev.map((p, i) => (i === idx ? preset : p));
+            return [...prev, preset];
+          });
           router.refresh();
         }}
       />
