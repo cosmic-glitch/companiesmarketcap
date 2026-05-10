@@ -4,6 +4,7 @@ import { getAllSymbols, getCompanies, getDistinctCountries, getDistinctIndustrie
 import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
 import { formatCountry } from "@/lib/countries";
+import { colKeyFromAlias, readParam } from "@/lib/url-aliases";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -11,7 +12,13 @@ export const revalidate = 60; // Quote fields are cached for 1 minute
 
 const PER_PAGE = 100;
 
+// Loose because both legacy long-form keys (`minMarketCap`) and new aliases
+// (`mc.min`, `sb`, …) need to read from the same bag without per-key types.
+type SearchParams = Record<string, string | undefined>;
+
 function getSubtitleText(sortBy: keyof Company, total: number, params: SearchParams): string {
+  const get = (key: string) => readParam(params, key);
+
   const sortLabels: Record<string, string> = {
     rank: "market capitalization",
     marketCap: "market capitalization",
@@ -52,69 +59,74 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
     const num = parseFloat(val);
     return num >= 1000 ? `$${num / 1000}T` : `$${num}B`;
   };
-  if (params.minMarketCap && params.maxMarketCap) {
-    filterDescriptions.push(`${formatMktCap(params.minMarketCap)} < Mkt Cap < ${formatMktCap(params.maxMarketCap)}`);
-  } else if (params.minMarketCap) {
-    filterDescriptions.push(`Mkt Cap > ${formatMktCap(params.minMarketCap)}`);
-  } else if (params.maxMarketCap) {
-    filterDescriptions.push(`Mkt Cap < ${formatMktCap(params.maxMarketCap)}`);
+  const minMarketCap = get('minMarketCap');
+  const maxMarketCap = get('maxMarketCap');
+  if (minMarketCap && maxMarketCap) {
+    filterDescriptions.push(`${formatMktCap(minMarketCap)} < Mkt Cap < ${formatMktCap(maxMarketCap)}`);
+  } else if (minMarketCap) {
+    filterDescriptions.push(`Mkt Cap > ${formatMktCap(minMarketCap)}`);
+  } else if (maxMarketCap) {
+    filterDescriptions.push(`Mkt Cap < ${formatMktCap(maxMarketCap)}`);
   }
 
   // Forward PE
-  addFilter('Fwd PE', params.minForwardPE, params.maxForwardPE);
+  addFilter('Fwd PE', get('minForwardPE'), get('maxForwardPE'));
 
   // Forward EPS Growth
-  addFilter('Fwd EPS Growth', params.minForwardEPSGrowth, params.maxForwardEPSGrowth, '%');
+  addFilter('Fwd EPS Growth', get('minForwardEPSGrowth'), get('maxForwardEPSGrowth'), '%');
 
   // P/E Ratio
-  addFilter('P/E', params.minPERatio, params.maxPERatio);
+  addFilter('P/E', get('minPERatio'), get('maxPERatio'));
 
   // Dividend Yield
-  addFilter('Div Yield', params.minDividend, params.maxDividend, '%');
+  addFilter('Div Yield', get('minDividend'), get('maxDividend'), '%');
 
   // Operating Margin
-  addFilter('Op Margin', params.minOperatingMargin, params.maxOperatingMargin, '%');
+  addFilter('Op Margin', get('minOperatingMargin'), get('maxOperatingMargin'), '%');
 
   // Revenue Growth 5Y
-  addFilter('Rev Growth 5Y', params.minRevenueGrowth, params.maxRevenueGrowth, '%');
+  addFilter('Rev Growth 5Y', get('minRevenueGrowth'), get('maxRevenueGrowth'), '%');
 
   // Revenue Growth 3Y
-  addFilter('Rev Growth 3Y', params.minRevenueGrowth3Y, params.maxRevenueGrowth3Y, '%');
+  addFilter('Rev Growth 3Y', get('minRevenueGrowth3Y'), get('maxRevenueGrowth3Y'), '%');
 
   // EPS Growth 5Y
-  addFilter('EPS Growth 5Y', params.minEPSGrowth, params.maxEPSGrowth, '%');
+  addFilter('EPS Growth 5Y', get('minEPSGrowth'), get('maxEPSGrowth'), '%');
 
   // EPS Growth 3Y
-  addFilter('EPS Growth 3Y', params.minEPSGrowth3Y, params.maxEPSGrowth3Y, '%');
+  addFilter('EPS Growth 3Y', get('minEPSGrowth3Y'), get('maxEPSGrowth3Y'), '%');
 
   // % to 52W High
-  addFilter('% to 52W High', params.minPctTo52WeekHigh, params.maxPctTo52WeekHigh, '%');
+  addFilter('% to 52W High', get('minPctTo52WeekHigh'), get('maxPctTo52WeekHigh'), '%');
 
   // Earnings
-  addFilter('Earnings', params.minEarnings, params.maxEarnings, 'B');
+  addFilter('Earnings', get('minEarnings'), get('maxEarnings'), 'B');
 
   // Revenue
-  addFilter('Revenue', params.minRevenue, params.maxRevenue, 'B');
+  addFilter('Revenue', get('minRevenue'), get('maxRevenue'), 'B');
 
   // Free Cash Flow
-  addFilter('FCF', params.minFreeCashFlow, params.maxFreeCashFlow, 'B');
+  addFilter('FCF', get('minFreeCashFlow'), get('maxFreeCashFlow'), 'B');
 
   // Net Debt
-  addFilter('Net Debt', params.minNetDebt, params.maxNetDebt, 'B');
+  addFilter('Net Debt', get('minNetDebt'), get('maxNetDebt'), 'B');
 
   // Country
-  if (params.country) {
-    filterDescriptions.push(`Country: ${formatCountry(params.country)}`);
+  const country = get('country');
+  if (country) {
+    filterDescriptions.push(`Country: ${formatCountry(country)}`);
   }
 
   // Sector
-  if (params.sector) {
-    filterDescriptions.push(`Sector: ${params.sector}`);
+  const sector = get('sector');
+  if (sector) {
+    filterDescriptions.push(`Sector: ${sector}`);
   }
 
   // Industry
-  if (params.industry) {
-    filterDescriptions.push(`Industry: ${params.industry}`);
+  const industry = get('industry');
+  if (industry) {
+    filterDescriptions.push(`Industry: ${industry}`);
   }
 
   const countText = total.toLocaleString();
@@ -127,46 +139,6 @@ function getSubtitleText(sortBy: keyof Company, total: number, params: SearchPar
   return `${countText} companies, ordered by ${sortLabel}`;
 }
 
-interface SearchParams {
-  page?: string;
-  sortBy?: string;
-  sortOrder?: string;
-  minMarketCap?: string;
-  maxMarketCap?: string;
-  minEarnings?: string;
-  maxEarnings?: string;
-  minRevenue?: string;
-  maxRevenue?: string;
-  minPERatio?: string;
-  maxPERatio?: string;
-  minForwardPE?: string;
-  maxForwardPE?: string;
-  minForwardEPSGrowth?: string;
-  maxForwardEPSGrowth?: string;
-  minDividend?: string;
-  maxDividend?: string;
-  minOperatingMargin?: string;
-  maxOperatingMargin?: string;
-  minRevenueGrowth?: string;
-  maxRevenueGrowth?: string;
-  minRevenueGrowth3Y?: string;
-  maxRevenueGrowth3Y?: string;
-  minEPSGrowth?: string;
-  maxEPSGrowth?: string;
-  minEPSGrowth3Y?: string;
-  maxEPSGrowth3Y?: string;
-  minPctTo52WeekHigh?: string;
-  maxPctTo52WeekHigh?: string;
-  minFreeCashFlow?: string;
-  maxFreeCashFlow?: string;
-  minNetDebt?: string;
-  maxNetDebt?: string;
-  country?: string;
-  sector?: string;
-  industry?: string;
-  search?: string;
-}
-
 interface HomeProps {
   searchParams: Promise<SearchParams>;
 }
@@ -174,13 +146,16 @@ interface HomeProps {
 export default async function Home({ searchParams }: HomeProps) {
   // In Next.js 15, searchParams is a Promise
   const params = await searchParams;
+  const get = (key: string) => readParam(params, key);
 
   // Parse page number
-  const page = Math.max(1, parseInt(params.page || "1", 10) || 1);
+  const page = Math.max(1, parseInt(get('page') || "1", 10) || 1);
 
-  // Parse sort parameters
-  const sortBy = (params.sortBy as keyof Company) || "marketCap";
-  const sortOrder = (params.sortOrder === "asc" ? "asc" : "desc") as "asc" | "desc";
+  // Parse sort parameters. URL value may be an alias (`mc`) or long-form
+  // (`marketCap`); colKeyFromAlias normalizes both.
+  const sortByRaw = get('sortBy');
+  const sortBy = (sortByRaw ? colKeyFromAlias(sortByRaw) : "marketCap") as keyof Company;
+  const sortOrder = (get('sortOrder') === "asc" ? "asc" : "desc") as "asc" | "desc";
 
   // Parse filter parameters (values in billions for market cap and earnings)
   const parseNumber = (value: string | undefined): number | undefined => {
@@ -199,40 +174,40 @@ export default async function Home({ searchParams }: HomeProps) {
   const queryParams: CompaniesQueryParams = {
     sortBy,
     sortOrder,
-    minMarketCap: parseNumber(params.minMarketCap),
-    maxMarketCap: parseNumber(params.maxMarketCap),
-    minEarnings: parseNumber(params.minEarnings),
-    maxEarnings: parseNumber(params.maxEarnings),
-    minRevenue: parseNumber(params.minRevenue),
-    maxRevenue: parseNumber(params.maxRevenue),
-    minPERatio: parseNumber(params.minPERatio),
-    maxPERatio: parseNumber(params.maxPERatio),
-    minForwardPE: parseNumber(params.minForwardPE),
-    maxForwardPE: parseNumber(params.maxForwardPE),
-    minForwardEPSGrowth: parseGrowthPercent(params.minForwardEPSGrowth),
-    maxForwardEPSGrowth: parseGrowthPercent(params.maxForwardEPSGrowth),
-    minDividend: parseGrowthPercent(params.minDividend),
-    maxDividend: parseGrowthPercent(params.maxDividend),
-    minOperatingMargin: parseGrowthPercent(params.minOperatingMargin),
-    maxOperatingMargin: parseGrowthPercent(params.maxOperatingMargin),
-    minRevenueGrowth: parseGrowthPercent(params.minRevenueGrowth),
-    maxRevenueGrowth: parseGrowthPercent(params.maxRevenueGrowth),
-    minRevenueGrowth3Y: parseGrowthPercent(params.minRevenueGrowth3Y),
-    maxRevenueGrowth3Y: parseGrowthPercent(params.maxRevenueGrowth3Y),
-    minEPSGrowth: parseGrowthPercent(params.minEPSGrowth),
-    maxEPSGrowth: parseGrowthPercent(params.maxEPSGrowth),
-    minEPSGrowth3Y: parseGrowthPercent(params.minEPSGrowth3Y),
-    maxEPSGrowth3Y: parseGrowthPercent(params.maxEPSGrowth3Y),
-    minPctTo52WeekHigh: parseNumber(params.minPctTo52WeekHigh),
-    maxPctTo52WeekHigh: parseNumber(params.maxPctTo52WeekHigh),
-    minFreeCashFlow: parseNumber(params.minFreeCashFlow),
-    maxFreeCashFlow: parseNumber(params.maxFreeCashFlow),
-    minNetDebt: parseNumber(params.minNetDebt),
-    maxNetDebt: parseNumber(params.maxNetDebt),
-    country: params.country,
-    sector: params.sector,
-    industry: params.industry,
-    search: params.search,
+    minMarketCap: parseNumber(get('minMarketCap')),
+    maxMarketCap: parseNumber(get('maxMarketCap')),
+    minEarnings: parseNumber(get('minEarnings')),
+    maxEarnings: parseNumber(get('maxEarnings')),
+    minRevenue: parseNumber(get('minRevenue')),
+    maxRevenue: parseNumber(get('maxRevenue')),
+    minPERatio: parseNumber(get('minPERatio')),
+    maxPERatio: parseNumber(get('maxPERatio')),
+    minForwardPE: parseNumber(get('minForwardPE')),
+    maxForwardPE: parseNumber(get('maxForwardPE')),
+    minForwardEPSGrowth: parseGrowthPercent(get('minForwardEPSGrowth')),
+    maxForwardEPSGrowth: parseGrowthPercent(get('maxForwardEPSGrowth')),
+    minDividend: parseGrowthPercent(get('minDividend')),
+    maxDividend: parseGrowthPercent(get('maxDividend')),
+    minOperatingMargin: parseGrowthPercent(get('minOperatingMargin')),
+    maxOperatingMargin: parseGrowthPercent(get('maxOperatingMargin')),
+    minRevenueGrowth: parseGrowthPercent(get('minRevenueGrowth')),
+    maxRevenueGrowth: parseGrowthPercent(get('maxRevenueGrowth')),
+    minRevenueGrowth3Y: parseGrowthPercent(get('minRevenueGrowth3Y')),
+    maxRevenueGrowth3Y: parseGrowthPercent(get('maxRevenueGrowth3Y')),
+    minEPSGrowth: parseGrowthPercent(get('minEPSGrowth')),
+    maxEPSGrowth: parseGrowthPercent(get('maxEPSGrowth')),
+    minEPSGrowth3Y: parseGrowthPercent(get('minEPSGrowth3Y')),
+    maxEPSGrowth3Y: parseGrowthPercent(get('maxEPSGrowth3Y')),
+    minPctTo52WeekHigh: parseNumber(get('minPctTo52WeekHigh')),
+    maxPctTo52WeekHigh: parseNumber(get('maxPctTo52WeekHigh')),
+    minFreeCashFlow: parseNumber(get('minFreeCashFlow')),
+    maxFreeCashFlow: parseNumber(get('maxFreeCashFlow')),
+    minNetDebt: parseNumber(get('minNetDebt')),
+    maxNetDebt: parseNumber(get('maxNetDebt')),
+    country: get('country'),
+    sector: get('sector'),
+    industry: get('industry'),
+    search: get('search'),
     limit: PER_PAGE,
     offset: (page - 1) * PER_PAGE,
   };

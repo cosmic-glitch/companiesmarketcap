@@ -21,6 +21,8 @@ interface SavePresetModalProps {
   onClose: () => void;
   currentFilters: Record<string, string>;
   currentSort: { sortBy?: string; sortOrder?: "asc" | "desc" };
+  // Internal column keys (long-form, e.g. "marketCap") visible at save time.
+  currentColumns: string[];
   onSaved: (preset: PresetConfig) => void;
 }
 
@@ -29,6 +31,7 @@ export default function SavePresetModal({
   onClose,
   currentFilters,
   currentSort,
+  currentColumns,
   onSaved,
 }: SavePresetModalProps) {
   const [label, setLabel] = useState("");
@@ -95,6 +98,7 @@ export default function SavePresetModal({
           initials: trimmedInitials,
           filters: currentFilters,
           sort: currentSort.sortBy ? currentSort : {},
+          columns: currentColumns,
         }),
       });
       const data = await res.json();

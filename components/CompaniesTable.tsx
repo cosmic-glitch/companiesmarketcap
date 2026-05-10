@@ -7,6 +7,14 @@ import { Company, PresetConfig } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 import { formatCountry } from "@/lib/countries";
 import { formatPresetCriteria, formatPresetName } from "@/lib/preset-summary";
+import {
+  applyUpdates,
+  colKeyFromAlias,
+  decodeColumns,
+  encodeColumns,
+  hasAliased,
+  readAliased,
+} from "@/lib/url-aliases";
 import SavePresetModal from "./SavePresetModal";
 
 const PRESETS: PresetConfig[] = [
@@ -411,9 +419,10 @@ type ReadOnlyParams = { has(key: string): boolean; get(key: string): string | nu
 const getReferencedColumns = (params: ReadOnlyParams): SortKey[] => {
   const cols: SortKey[] = [];
   for (const key of FILTER_KEYS) {
-    if (params.has(key)) cols.push(FILTER_TO_COLUMN[key]);
+    if (hasAliased(params, key)) cols.push(FILTER_TO_COLUMN[key]);
   }
-  const urlSortBy = params.get('sortBy') as SortKey | null;
+  const sortByRaw = readAliased(params, 'sortBy');
+  const urlSortBy = sortByRaw ? (colKeyFromAlias(sortByRaw) as SortKey) : null;
   if (urlSortBy && COLUMN_OPTIONS.some((c) => c.key === urlSortBy)) {
     cols.push(urlSortBy);
   }
@@ -433,12 +442,12 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   // duplicate one matches the curated entry and keeps its subtitle.
   const allPresets = useMemo(() => [...PRESETS, ...userPresets], [userPresets]);
 
-  // Column visibility state (resets on every page load). On mount and on every
-  // URL change, auto-reveal any hidden columns that URL filters or sortBy
-  // reference, so a shared link or preset click never filters/sorts on an
-  // invisible column. Manual toggles are preserved — we only ever add.
+  // Column visibility seeds from the URL's cols= param (if present) or the
+  // defaults. Auto-reveal logic below still adds any columns referenced by
+  // URL filters/sortBy. Manual toggles are preserved — we only ever add.
   const [visibleColumns, setVisibleColumns] = useState<Set<SortKey>>(() => {
-    const initial = new Set(DEFAULT_VISIBLE_COLUMNS);
+    const fromUrl = decodeColumns(searchParams.get('cols'), DEFAULT_VISIBLE_COLUMNS);
+    const initial = new Set<SortKey>(fromUrl as Set<SortKey>);
     for (const col of getReferencedColumns(searchParams)) initial.add(col);
     return initial;
   });
@@ -448,6 +457,11 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      // Sync to URL via replace so column toggles don't pollute history.
+      const encoded = encodeColumns(next, DEFAULT_VISIBLE_COLUMNS);
+      const params = applyUpdates(searchParams, { cols: encoded ?? undefined });
+      const qs = params.toString();
+      router.replace(qs ? `/?${qs}` : '/');
       return next;
     });
   };
@@ -472,17 +486,19 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   }, [searchParams]);
 
   // Track sort state locally for immediate UI updates, synced with URL
-  const [sortBy, setSortBy] = useState<keyof Company>(
-    (searchParams.get('sortBy') as keyof Company) || sortByProp
-  );
+  const [sortBy, setSortBy] = useState<keyof Company>(() => {
+    const raw = readAliased(searchParams, 'sortBy');
+    return raw ? (colKeyFromAlias(raw) as keyof Company) : sortByProp;
+  });
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
-    (searchParams.get('sortOrder') as 'asc' | 'desc') || sortOrderProp
+    (readAliased(searchParams, 'sortOrder') as 'asc' | 'desc' | null) || sortOrderProp
   );
 
   // Sync local state when URL changes (e.g., browser back/forward, preset clicks)
   useEffect(() => {
-    const urlSortBy = (searchParams.get('sortBy') as keyof Company) || sortByProp;
-    const urlSortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || sortOrderProp;
+    const raw = readAliased(searchParams, 'sortBy');
+    const urlSortBy = raw ? (colKeyFromAlias(raw) as keyof Company) : sortByProp;
+    const urlSortOrder = (readAliased(searchParams, 'sortOrder') as 'asc' | 'desc' | null) || sortOrderProp;
     setSortBy(urlSortBy);
     setSortOrder(urlSortOrder);
   }, [searchParams, sortByProp, sortOrderProp]);
@@ -500,7 +516,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   // Scroll the company list back to the top whenever applied filters change.
   const filterSignature = useMemo(
-    () => FILTER_KEYS.map((key) => `${key}:${searchParams.get(key) ?? ""}`).join("|"),
+    () => FILTER_KEYS.map((key) => `${key}:${readAliased(searchParams, key) ?? ""}`).join("|"),
     [searchParams]
   );
 
@@ -518,19 +534,23 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
   // Detect which preset is currently active based on URL params
   const activePreset = useMemo(() => {
+    const sortByRaw = readAliased(searchParams, 'sortBy');
+    const sortByNormalized = sortByRaw ? colKeyFromAlias(sortByRaw) : null;
+    const sortOrderVal = readAliased(searchParams, 'sortOrder');
+
     for (const preset of allPresets) {
       // Check if all preset filters match
       const allFiltersMatch = Object.entries(preset.filters).every(
-        ([key, value]) => searchParams.get(key) === value
+        ([key, value]) => readAliased(searchParams, key) === value
       );
 
       // Check if sort matches (if preset has sort specified)
       const sortMatches = !preset.sort.sortBy ||
-        (searchParams.get('sortBy') === preset.sort.sortBy &&
-         searchParams.get('sortOrder') === preset.sort.sortOrder);
+        (sortByNormalized === preset.sort.sortBy &&
+         sortOrderVal === preset.sort.sortOrder);
 
       // Also check that there are no extra filters in URL that aren't in preset
-      const activeFilterKeys = FILTER_KEYS.filter((key) => searchParams.has(key));
+      const activeFilterKeys = FILTER_KEYS.filter((key) => hasAliased(searchParams, key));
       const presetFilterKeys = Object.keys(preset.filters);
       const noExtraFilters = activeFilterKeys.length === presetFilterKeys.length;
 
@@ -541,71 +561,93 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     return null;
   }, [searchParams, allPresets]);
 
-  // Apply a preset's filters and sort
+  // Apply a preset's filters and sort. Preset is a *replacement* for current
+  // filters/sort. Columns are replaced only if the preset specifies them
+  // (legacy presets without a `columns` array preserve the current cols).
   const applyPreset = useCallback((preset: PresetConfig) => {
-    const params = new URLSearchParams();
+    const updates: Record<string, string | undefined> = { page: undefined };
 
-    // Apply preset filters
-    Object.entries(preset.filters).forEach(([key, value]) => {
-      params.set(key, value);
-    });
+    // Clear all existing filter keys; preset re-adds only its own.
+    for (const key of FILTER_KEYS) updates[key] = undefined;
+    for (const [key, value] of Object.entries(preset.filters)) updates[key] = value;
 
-    // Apply preset sort if specified
+    // Sort
     if (preset.sort.sortBy) {
-      params.set('sortBy', preset.sort.sortBy);
-      params.set('sortOrder', preset.sort.sortOrder!);
-      // Update local state immediately for instant visual feedback
+      updates.sortBy = preset.sort.sortBy;
+      updates.sortOrder = preset.sort.sortOrder ?? 'desc';
       setSortBy(preset.sort.sortBy as keyof Company);
-      setSortOrder(preset.sort.sortOrder!);
+      setSortOrder(preset.sort.sortOrder ?? 'desc');
+    } else {
+      updates.sortBy = undefined;
+      updates.sortOrder = undefined;
     }
 
-    router.push(`/?${params.toString()}`);
-  }, [router]);
+    // Columns: preset wins if specified; otherwise preserve the current URL
+    // value so legacy presets don't wipe a user's column selection.
+    if (preset.columns && preset.columns.length > 0) {
+      const newCols = new Set<SortKey>(preset.columns as SortKey[]);
+      setVisibleColumns(newCols);
+      const encoded = encodeColumns(newCols, DEFAULT_VISIBLE_COLUMNS);
+      updates.cols = encoded ?? undefined;
+    } else {
+      updates.cols = searchParams.get('cols') ?? undefined;
+    }
+
+    const params = applyUpdates(null, updates);
+    const qs = params.toString();
+    router.push(qs ? `/?${qs}` : '/');
+  }, [router, searchParams]);
 
   // Clear all filters (when clicking active preset)
   const clearAllFilters = useCallback(() => {
-    // Reset to default sort immediately for instant visual feedback
+    // Reset to default sort and column visibility immediately for instant
+    // visual feedback. URL becomes "/", which has no `cols` either.
     setSortBy(sortByProp);
     setSortOrder(sortOrderProp);
+    setVisibleColumns(new Set(DEFAULT_VISIBLE_COLUMNS));
     router.push('/');
   }, [router, sortByProp, sortOrderProp]);
 
-  // Initialize pending filters from URL
-  const getInitialFilters = useCallback((): FilterState => ({
-    minMarketCap: searchParams.get("minMarketCap") || "",
-    maxMarketCap: searchParams.get("maxMarketCap") || "",
-    minEarnings: searchParams.get("minEarnings") || "",
-    maxEarnings: searchParams.get("maxEarnings") || "",
-    minRevenue: searchParams.get("minRevenue") || "",
-    maxRevenue: searchParams.get("maxRevenue") || "",
-    minPERatio: searchParams.get("minPERatio") || "",
-    maxPERatio: searchParams.get("maxPERatio") || "",
-    minForwardPE: searchParams.get("minForwardPE") || "",
-    maxForwardPE: searchParams.get("maxForwardPE") || "",
-    minForwardEPSGrowth: searchParams.get("minForwardEPSGrowth") || "",
-    maxForwardEPSGrowth: searchParams.get("maxForwardEPSGrowth") || "",
-    minDividend: searchParams.get("minDividend") || "",
-    maxDividend: searchParams.get("maxDividend") || "",
-    minOperatingMargin: searchParams.get("minOperatingMargin") || "",
-    maxOperatingMargin: searchParams.get("maxOperatingMargin") || "",
-    minRevenueGrowth: searchParams.get("minRevenueGrowth") || "",
-    maxRevenueGrowth: searchParams.get("maxRevenueGrowth") || "",
-    minRevenueGrowth3Y: searchParams.get("minRevenueGrowth3Y") || "",
-    maxRevenueGrowth3Y: searchParams.get("maxRevenueGrowth3Y") || "",
-    minEPSGrowth: searchParams.get("minEPSGrowth") || "",
-    maxEPSGrowth: searchParams.get("maxEPSGrowth") || "",
-    minEPSGrowth3Y: searchParams.get("minEPSGrowth3Y") || "",
-    maxEPSGrowth3Y: searchParams.get("maxEPSGrowth3Y") || "",
-    minPctTo52WeekHigh: searchParams.get("minPctTo52WeekHigh") || "",
-    maxPctTo52WeekHigh: searchParams.get("maxPctTo52WeekHigh") || "",
-    minFreeCashFlow: searchParams.get("minFreeCashFlow") || "",
-    maxFreeCashFlow: searchParams.get("maxFreeCashFlow") || "",
-    minNetDebt: searchParams.get("minNetDebt") || "",
-    maxNetDebt: searchParams.get("maxNetDebt") || "",
-    country: searchParams.get("country") || "",
-    sector: searchParams.get("sector") || "",
-    industry: searchParams.get("industry") || "",
-  }), [searchParams]);
+  // Initialize pending filters from URL (alias-aware; back-compat with
+  // legacy long-form keys).
+  const getInitialFilters = useCallback((): FilterState => {
+    const get = (key: string) => readAliased(searchParams, key) || "";
+    return {
+      minMarketCap: get("minMarketCap"),
+      maxMarketCap: get("maxMarketCap"),
+      minEarnings: get("minEarnings"),
+      maxEarnings: get("maxEarnings"),
+      minRevenue: get("minRevenue"),
+      maxRevenue: get("maxRevenue"),
+      minPERatio: get("minPERatio"),
+      maxPERatio: get("maxPERatio"),
+      minForwardPE: get("minForwardPE"),
+      maxForwardPE: get("maxForwardPE"),
+      minForwardEPSGrowth: get("minForwardEPSGrowth"),
+      maxForwardEPSGrowth: get("maxForwardEPSGrowth"),
+      minDividend: get("minDividend"),
+      maxDividend: get("maxDividend"),
+      minOperatingMargin: get("minOperatingMargin"),
+      maxOperatingMargin: get("maxOperatingMargin"),
+      minRevenueGrowth: get("minRevenueGrowth"),
+      maxRevenueGrowth: get("maxRevenueGrowth"),
+      minRevenueGrowth3Y: get("minRevenueGrowth3Y"),
+      maxRevenueGrowth3Y: get("maxRevenueGrowth3Y"),
+      minEPSGrowth: get("minEPSGrowth"),
+      maxEPSGrowth: get("maxEPSGrowth"),
+      minEPSGrowth3Y: get("minEPSGrowth3Y"),
+      maxEPSGrowth3Y: get("maxEPSGrowth3Y"),
+      minPctTo52WeekHigh: get("minPctTo52WeekHigh"),
+      maxPctTo52WeekHigh: get("maxPctTo52WeekHigh"),
+      minFreeCashFlow: get("minFreeCashFlow"),
+      maxFreeCashFlow: get("maxFreeCashFlow"),
+      minNetDebt: get("minNetDebt"),
+      maxNetDebt: get("maxNetDebt"),
+      country: get("country"),
+      sector: get("sector"),
+      industry: get("industry"),
+    };
+  }, [searchParams]);
 
   const [pendingFilters, setPendingFilters] = useState<FilterState>(getInitialFilters);
 
@@ -614,19 +656,10 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     setPendingFilters(getInitialFilters());
   }, [searchParams, getInitialFilters]);
 
-  // Build URL with parameters
+  // Build URL with parameters. Translates internal keys → URL aliases and
+  // carries over existing aliased params.
   const buildUrl = useCallback((updates: Record<string, string | undefined>) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    // Apply updates
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === "") {
-        params.delete(key);
-      } else {
-        params.set(key, value);
-      }
-    });
-
+    const params = applyUpdates(searchParams, updates);
     const queryString = params.toString();
     return queryString ? `/?${queryString}` : "/";
   }, [searchParams]);
@@ -658,7 +691,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     router.push(buildUrl(updates));
   };
 
-  // Clear all filters
+  // Clear all filters (preserves sort; drops cols too so the URL is clean).
   const clearFilters = () => {
     const emptyFilters: FilterState = {
       minMarketCap: "",
@@ -697,10 +730,14 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
     };
     setPendingFilters(emptyFilters);
 
-    // Build URL without any filter params
-    const params = new URLSearchParams();
-    if (sortBy !== "rank") params.set("sortBy", sortBy);
-    if (sortOrder !== "asc") params.set("sortOrder", sortOrder);
+    // Build URL preserving only sort. cols= and all filters are dropped.
+    const updates: Record<string, string | undefined> = { page: undefined, cols: undefined };
+    for (const key of FILTER_KEYS) updates[key] = undefined;
+    if (sortBy !== "rank") updates.sortBy = sortBy;
+    else updates.sortBy = undefined;
+    if (sortOrder !== "asc") updates.sortOrder = sortOrder;
+    else updates.sortOrder = undefined;
+    const params = applyUpdates(null, updates);
     const queryString = params.toString();
     router.push(queryString ? `/?${queryString}` : "/");
   };
@@ -711,16 +748,18 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   };
 
   // Check if any filters are active (in URL)
-  const hasActiveFilters = FILTER_KEYS.some((key) => searchParams.has(key));
-  // Anything worth saving — filters or an explicit sort.
-  const hasSavableState = hasActiveFilters || searchParams.has('sortBy');
+  const hasActiveFilters = FILTER_KEYS.some((key) => hasAliased(searchParams, key));
+  // Anything worth saving — filters, an explicit sort, or a non-default
+  // column selection.
+  const hasNonDefaultColumns = encodeColumns(visibleColumns, DEFAULT_VISIBLE_COLUMNS) !== null;
+  const hasSavableState = hasActiveFilters || hasAliased(searchParams, 'sortBy') || hasNonDefaultColumns;
 
   // Check if pending filters are different from URL filters
   const currentFilters = getInitialFilters();
   const hasUnappliedChanges = JSON.stringify(pendingFilters) !== JSON.stringify(currentFilters);
 
   // Count active filters for badge
-  const activeFilterCount = FILTER_KEYS.filter((key) => searchParams.has(key)).length;
+  const activeFilterCount = FILTER_KEYS.filter((key) => hasAliased(searchParams, key)).length;
 
   // Apply filters and close dropdown
   const applyFiltersAndClose = () => {
@@ -980,7 +1019,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
               onClick={() => setSavePresetOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border bg-accent/15 border-accent/40 text-accent hover:bg-accent/25 transition-colors whitespace-nowrap"
             >
-              💾 Save to Preset Filters
+              💾 Save view
             </button>
           </>
         )}
@@ -1495,13 +1534,21 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
         onClose={() => setSavePresetOpen(false)}
         currentFilters={Object.fromEntries(
           FILTER_KEYS
-            .map((key) => [key, searchParams.get(key)] as const)
+            .map((key) => [key, readAliased(searchParams, key)] as const)
             .filter(([, v]) => v !== null && v !== "")
         ) as Record<string, string>}
-        currentSort={{
-          sortBy: searchParams.get('sortBy') ?? undefined,
-          sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc' | null) ?? undefined,
-        }}
+        currentSort={(() => {
+          // Only emit sort if URL explicitly carried one (any aliased form).
+          // Local sortBy state always has a fallback to the prop default;
+          // we don't want to capture that as part of the saved preset.
+          const sortByRaw = readAliased(searchParams, 'sortBy');
+          if (!sortByRaw) return {};
+          return {
+            sortBy: colKeyFromAlias(sortByRaw),
+            sortOrder: (readAliased(searchParams, 'sortOrder') as 'asc' | 'desc' | null) ?? undefined,
+          };
+        })()}
+        currentColumns={Array.from(visibleColumns)}
         onSaved={() => {
           // Re-render the server component so the new preset shows up
           // in the dropdown for everyone (including this tab).

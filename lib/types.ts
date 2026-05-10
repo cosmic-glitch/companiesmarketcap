@@ -102,6 +102,10 @@ export interface PresetConfig {
   icon: string;
   filters: Record<string, string>;
   sort: { sortBy?: string; sortOrder?: "asc" | "desc" };
+  // Visible-column set captured at save time. Stored as internal long-form
+  // column keys (e.g. "marketCap"), not URL aliases. Optional for back-compat
+  // with presets saved before columns were captured.
+  columns?: string[];
   userCreated?: boolean;
   createdAt?: string;
   initials?: string;

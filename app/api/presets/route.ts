@@ -33,10 +33,18 @@ const ALLOWED_SORT_KEYS = new Set([
   "netDebt", "revenueGrowth5Y", "revenueGrowth3Y", "epsGrowth5Y", "epsGrowth3Y",
 ]);
 
+// Visible columns can include non-sortable keys (sector/industry filters
+// without a sort path; the 10Y trend sparklines).
+const ALLOWED_COLUMN_KEYS = new Set([
+  ...ALLOWED_SORT_KEYS,
+  "sector", "industry", "revenueAnnual", "epsAnnual",
+]);
+
 const MAX_LABEL_LEN = 60;
 const MAX_ICON_LEN = 8;
 const MAX_INITIALS_LEN = 4;
 const MAX_FILTER_VALUE_LEN = 64;
+const MAX_COLUMNS = 30;
 const MAX_TOTAL_PRESETS = 200;
 
 interface SavePresetBody {
@@ -45,6 +53,7 @@ interface SavePresetBody {
   initials?: unknown;
   filters?: unknown;
   sort?: unknown;
+  columns?: unknown;
 }
 
 export async function POST(request: NextRequest) {
@@ -127,6 +136,31 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Validate columns (optional)
+  let columns: string[] | undefined;
+  if (body.columns !== undefined) {
+    if (!Array.isArray(body.columns)) {
+      return NextResponse.json({ error: "columns must be an array" }, { status: 400 });
+    }
+    if (body.columns.length > MAX_COLUMNS) {
+      return NextResponse.json(
+        { error: `columns must contain at most ${MAX_COLUMNS} entries` },
+        { status: 400 }
+      );
+    }
+    const seen = new Set<string>();
+    const cols: string[] = [];
+    for (const entry of body.columns) {
+      if (typeof entry !== "string" || !ALLOWED_COLUMN_KEYS.has(entry)) {
+        return NextResponse.json({ error: `unknown column key: ${String(entry)}` }, { status: 400 });
+      }
+      if (seen.has(entry)) continue;
+      seen.add(entry);
+      cols.push(entry);
+    }
+    columns = cols;
+  }
+
   // Reject empty preset (nothing to save)
   if (Object.keys(filters).length === 0 && !sort.sortBy) {
     return NextResponse.json(
@@ -151,6 +185,7 @@ export async function POST(request: NextRequest) {
       initials,
       filters,
       sort,
+      ...(columns !== undefined ? { columns } : {}),
       userCreated: true,
       createdAt: new Date().toISOString(),
     };
