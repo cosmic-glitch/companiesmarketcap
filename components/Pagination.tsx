@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,19 @@ interface PaginationProps {
 export default function Pagination({ currentPage, totalItems, perPage, lastUpdated, hiddenForQuality }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Format on the client so the timestamp reflects the visitor's local timezone.
+  // The stored value is UTC; rendering it during SSR would use the server's
+  // (UTC) timezone, so we defer formatting until after mount.
+  const [localLastUpdated, setLocalLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (lastUpdated) {
+      setLocalLastUpdated(
+        new Date(lastUpdated).toLocaleString(undefined, { timeZoneName: "short" })
+      );
+    }
+  }, [lastUpdated]);
 
   const totalPages = Math.ceil(totalItems / perPage);
   const startItem = (currentPage - 1) * perPage + 1;
@@ -50,11 +64,13 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
 
       <div className="flex flex-col items-center text-xs text-text-muted leading-tight">
         <span>Tracking companies with at least $1B market cap</span>
-        {lastUpdated && (
-          <span>Data last refreshed: {new Date(lastUpdated).toLocaleString()}</span>
+        {localLastUpdated && (
+          <span>Data last refreshed: {localLastUpdated} (your local time)</span>
         )}
         {hiddenForQuality && hiddenForQuality > 0 ? (
-          <span>{hiddenForQuality.toLocaleString()} {hiddenForQuality === 1 ? "entry" : "entries"} hidden due to data quality issues</span>
+          <span>
+            {hiddenForQuality.toLocaleString()} {hiddenForQuality === 1 ? "entry" : "entries"} hidden after failing statistical quality checks (flagged as likely outliers, not confirmed errors)
+          </span>
         ) : null}
       </div>
 
