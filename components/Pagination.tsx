@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Company } from "@/lib/types";
+import HiddenEntriesModal from "./HiddenEntriesModal";
 
 interface PaginationProps {
   currentPage: number;
@@ -9,11 +12,26 @@ interface PaginationProps {
   perPage: number;
   lastUpdated?: string | null;
   hiddenForQuality?: number;
+  hiddenEntries?: Company[];
 }
 
-export default function Pagination({ currentPage, totalItems, perPage, lastUpdated, hiddenForQuality }: PaginationProps) {
+export default function Pagination({ currentPage, totalItems, perPage, lastUpdated, hiddenForQuality, hiddenEntries }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Format on the client so the timestamp reflects the visitor's local timezone.
+  // The stored value is UTC; rendering it during SSR would use the server's
+  // (UTC) timezone, so we defer formatting until after mount.
+  const [localLastUpdated, setLocalLastUpdated] = useState<string | null>(null);
+  const [showHiddenModal, setShowHiddenModal] = useState(false);
+
+  useEffect(() => {
+    if (lastUpdated) {
+      setLocalLastUpdated(
+        new Date(lastUpdated).toLocaleString(undefined, { timeZoneName: "short" })
+      );
+    }
+  }, [lastUpdated]);
 
   const totalPages = Math.ceil(totalItems / perPage);
   const startItem = (currentPage - 1) * perPage + 1;
@@ -38,6 +56,7 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
   }
 
   return (
+    <>
     <div className="flex items-center justify-between py-5 mt-4 border-t border-border-subtle">
       <div className="text-base text-text-secondary">
         Showing{" "}
@@ -50,11 +69,25 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
 
       <div className="flex flex-col items-center text-xs text-text-muted leading-tight">
         <span>Tracking companies with at least $1B market cap</span>
-        {lastUpdated && (
-          <span>Data last refreshed: {new Date(lastUpdated).toLocaleString()}</span>
+        {localLastUpdated && (
+          <span>Data last refreshed: {localLastUpdated} (your local time)</span>
         )}
         {hiddenForQuality && hiddenForQuality > 0 ? (
-          <span>{hiddenForQuality.toLocaleString()} {hiddenForQuality === 1 ? "entry" : "entries"} hidden due to data quality issues</span>
+          <span>
+            {hiddenForQuality.toLocaleString()}{" "}
+            {hiddenEntries && hiddenEntries.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowHiddenModal(true)}
+                className="underline decoration-dotted underline-offset-2 text-text-secondary hover:text-accent transition-colors"
+              >
+                {hiddenForQuality === 1 ? "entry" : "entries"}
+              </button>
+            ) : (
+              <span>{hiddenForQuality === 1 ? "entry" : "entries"}</span>
+            )}{" "}
+            hidden after failing statistical quality checks
+          </span>
         ) : null}
       </div>
 
@@ -118,5 +151,9 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
         </button>
       </div>
     </div>
+    {showHiddenModal && hiddenEntries && hiddenEntries.length > 0 && (
+      <HiddenEntriesModal entries={hiddenEntries} onClose={() => setShowHiddenModal(false)} />
+    )}
+    </>
   );
 }
