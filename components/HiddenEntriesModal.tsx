@@ -47,41 +47,36 @@ export default function HiddenEntriesModal({ entries, onClose }: HiddenEntriesMo
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] flex flex-col bg-bg-secondary border border-border-subtle rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden"
+        className="w-full max-w-3xl max-h-[85vh] flex flex-col bg-bg-secondary border border-border-subtle rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b border-border-subtle">
-          <h2 className="text-base font-semibold text-text-primary">
+        <div className="px-5 py-3 border-b border-border-subtle">
+          <h2 className="text-sm font-semibold text-text-primary">
             {entries.length.toLocaleString()} {entries.length === 1 ? "entry" : "entries"} hidden from the leaderboard
           </h2>
-          <p className="text-[12px] text-text-muted mt-1">
-            These were flagged by automated statistical checks as likely corrupt or
-            non-comparable. The thresholds are heuristics, so some entries may be
+          <p className="text-[11px] leading-snug text-text-muted mt-0.5">
+            Flagged by automated statistical checks as likely corrupt or
+            non-comparable. Thresholds are heuristics, so some entries may be
             legitimate outliers rather than errors.
           </p>
         </div>
 
-        <div className="px-5 py-4 overflow-y-auto space-y-3">
+        <div className="px-4 py-2 overflow-y-auto divide-y divide-border-subtle">
           {entries.map((company) => (
-            <div
-              key={company.symbol}
-              className="rounded-lg bg-bg-tertiary border border-border-subtle px-3.5 py-3"
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="text-sm font-semibold text-text-primary">{company.symbol}</span>
-                  <span className="text-sm text-text-secondary ml-2 truncate">{company.name}</span>
-                </div>
-                <span className="text-xs text-text-muted shrink-0 tabular-nums">
+            <div key={company.symbol} className="py-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[13px] font-semibold text-text-primary shrink-0">{company.symbol}</span>
+                <span className="text-[13px] text-text-secondary min-w-0 truncate">{company.name}</span>
+                <span className="text-[11px] text-text-muted shrink-0 tabular-nums ml-auto whitespace-nowrap">
                   {formatMarketCap(company.marketCap)}
                   {company.country ? ` · ${formatCountry(company.country)}` : ""}
                 </span>
               </div>
-              <ul className="mt-2 space-y-1.5">
+              <ul className="mt-0.5 space-y-0.5">
                 {(company.dataQualityIssues as DataQualityIssueCode[]).map((code) => (
-                  <li key={code} className="text-[12px] leading-snug">
+                  <li key={code} className="text-[11px] leading-snug">
                     <span className="text-negative">{DATA_QUALITY_ISSUE_LABELS[code] ?? code}</span>
-                    <span className="text-text-muted block tabular-nums">{issueDetail(code, company)}</span>
+                    <span className="text-text-muted tabular-nums"> — {issueDetail(code, company)}</span>
                   </li>
                 ))}
               </ul>
@@ -89,7 +84,7 @@ export default function HiddenEntriesModal({ entries, onClose }: HiddenEntriesMo
           ))}
         </div>
 
-        <div className="px-5 py-3 bg-bg-tertiary/40 border-t border-border-subtle flex justify-end">
+        <div className="px-5 py-2.5 bg-bg-tertiary/40 border-t border-border-subtle flex justify-end">
           <button
             type="button"
             onClick={onClose}
