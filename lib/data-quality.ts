@@ -8,6 +8,15 @@ export const DATA_QUALITY_ISSUE_CODES = [
 
 export type DataQualityIssueCode = (typeof DATA_QUALITY_ISSUE_CODES)[number];
 
+// Human-readable explanation of each check, surfaced to users in the
+// "hidden entries" transparency modal.
+export const DATA_QUALITY_ISSUE_LABELS: Record<DataQualityIssueCode, string> = {
+  ttm_annual_rev_divergence: "TTM revenue diverges by more than 10× from the latest annual revenue",
+  earnings_exceeds_mcap: "TTM earnings exceed 3× the market cap",
+  ttm_eps_exceeds_price: "TTM EPS exceeds the share price",
+  fcf_exceeds_mcap: "Free cash flow exceeds 5× the market cap",
+};
+
 // Shape we read from. Subset of DatabaseCompany — kept narrow so this module
 // stays a pure data-quality concern and can run anywhere (scraper, read path,
 // dump scripts) without dragging in other types.

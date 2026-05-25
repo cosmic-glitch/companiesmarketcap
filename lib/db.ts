@@ -227,7 +227,7 @@ export function writeCompanies(
 export async function getCompanies(
   params: CompaniesQueryParams = {},
   quotes?: Map<string, PriceQuote>
-): Promise<{ companies: Company[]; total: number; hiddenForQuality: number }> {
+): Promise<{ companies: Company[]; total: number; hiddenForQuality: number; hiddenEntries: Company[] }> {
   const jsonData = await loadJsonDataAsync();
 
   let companies = jsonData.companies.map(dbRowToCompany);
@@ -245,7 +245,10 @@ export async function getCompanies(
 
   // Universe-level data quality filter, independent of user filters. The hidden
   // count is reported back to the UI so users see when corruption rates spike.
-  const hiddenForQuality = companies.filter((c) => c.dataQualityIssues.length > 0).length;
+  const hiddenEntries = companies
+    .filter((c) => c.dataQualityIssues.length > 0)
+    .sort((a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0));
+  const hiddenForQuality = hiddenEntries.length;
   companies = companies.filter((c) => c.dataQualityIssues.length === 0);
 
   const {
@@ -466,7 +469,7 @@ export async function getCompanies(
   // Apply pagination
   companies = companies.slice(offset, offset + limit);
 
-  return { companies, total, hiddenForQuality };
+  return { companies, total, hiddenForQuality, hiddenEntries };
 }
 
 // Get a single company by symbol
