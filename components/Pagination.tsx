@@ -69,7 +69,7 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
         )}
         {hiddenForQuality && hiddenForQuality > 0 ? (
           <span>
-            {hiddenForQuality.toLocaleString()} {hiddenForQuality === 1 ? "entry" : "entries"} hidden after failing statistical quality checks (flagged as likely outliers, not confirmed errors)
+            {hiddenForQuality.toLocaleString()} {hiddenForQuality === 1 ? "entry" : "entries"} hidden after failing statistical quality checks
           </span>
         ) : null}
       </div>
