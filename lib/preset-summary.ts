@@ -61,6 +61,40 @@ export function formatPresetName(preset: { label: string; initials?: string }): 
   return initials ? `${initials}: ${preset.label}` : preset.label;
 }
 
+// Friendly labels for the sortable Company fields a preset can target. Kept in
+// sync with COLUMN_OPTIONS in CompaniesTable; unknown keys fall back to the raw
+// field name so a new sort target degrades gracefully rather than breaking.
+const SORT_FIELD_LABELS: Record<string, string> = {
+  marketCap: "Market Cap",
+  price: "Price",
+  dailyChangePercent: "Today",
+  pctTo52WeekHigh: "% to 52W High",
+  earnings: "Earnings",
+  revenue: "Revenue",
+  freeCashFlow: "FCF",
+  peRatio: "P/E",
+  forwardPE: "Fwd P/E",
+  forwardEPSGrowth: "Fwd EPS Growth",
+  dividendPercent: "Div %",
+  operatingMargin: "Op. Margin %",
+  netDebt: "Net Debt",
+  revenueGrowth5Y: "Rev CAGR 5Y",
+  revenueGrowth3Y: "Rev CAGR 3Y",
+  epsGrowth5Y: "EPS CAGR 5Y",
+  epsGrowth3Y: "EPS CAGR 3Y",
+  rank: "Rank",
+};
+
+// Describes a preset's sort, e.g. "Fwd P/E ↑" (ascending) or "Div % ↓"
+// (descending). Returns null when the preset specifies no sort, in which case
+// it inherits the default market-cap ranking and nothing is shown.
+export function formatPresetSort(sort: { sortBy?: string; sortOrder?: "asc" | "desc" }): string | null {
+  if (!sort?.sortBy) return null;
+  const label = SORT_FIELD_LABELS[sort.sortBy] ?? sort.sortBy;
+  const arrow = sort.sortOrder === "asc" ? "↑" : "↓";
+  return `${label} ${arrow}`;
+}
+
 export function formatPresetCriteria(filters: Record<string, string>): string {
   const parts: string[] = [];
   for (const [key, def] of FILTER_DEFS) {
