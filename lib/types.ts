@@ -3,6 +3,10 @@ export interface PriceQuote {
   price: number | null;
   changePercent: number | null;
   marketCap: number | null;
+  // Yahoo's running 52-week high — already incorporates today's intraday peak
+  // even after the price recedes. Used to keep `pctTo52WeekHigh` honest
+  // between weekly scraper runs (see mergeLiveQuotes in lib/db.ts).
+  yearHigh: number | null;
 }
 
 // Company data types

@@ -39,6 +39,7 @@ export async function getAllQuotes(symbols: string[]): Promise<QuotesResult> {
       price: quote.regularMarketPrice ?? null,
       changePercent: quote.regularMarketChangePercent ?? null,
       marketCap: quote.marketCap ?? null,
+      yearHigh: quote.fiftyTwoWeekHigh ?? null,
     });
   }
 

@@ -29,6 +29,7 @@ export interface QuoteResult {
   regularMarketPrice?: number;
   regularMarketChangePercent?: number;
   marketCap?: number;
+  fiftyTwoWeekHigh?: number;
 }
 
 export async function fetchQuotes(symbols: string[]): Promise<QuoteResult[]> {
@@ -38,7 +39,7 @@ export async function fetchQuotes(symbols: string[]): Promise<QuoteResult[]> {
 
   try {
     const results = await yf.quote(mappedSymbols, {
-      fields: ["regularMarketPrice", "regularMarketChangePercent", "marketCap"],
+      fields: ["regularMarketPrice", "regularMarketChangePercent", "marketCap", "fiftyTwoWeekHigh"],
     }, {
       fetchOptions: { signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS) },
     });

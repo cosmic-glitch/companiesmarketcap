@@ -99,12 +99,24 @@ export function mergeLiveQuotes(
       dynamicPERatio = livePrice / company.ttmEPS;
     }
 
+    // Prefer Yahoo's running fiftyTwoWeekHigh — it already incorporates
+    // today's intraday peak and persists it after the price recedes, so a
+    // stock that touched a new high earlier still shows a non-zero pct
+    // once it pulls back. Fall back to the stored value (and never go
+    // backwards) in case Yahoo briefly returns null or a stale value.
+    const liveYearHigh = quote.yearHigh ?? null;
+    const effectiveHigh =
+      liveYearHigh !== null && company.week52High !== null
+        ? Math.max(liveYearHigh, company.week52High)
+        : liveYearHigh ?? company.week52High;
+
     return {
       ...company,
       // Current dataset symbols are US-listed shares/ADRs, so Yahoo's USD market cap aligns with storage.
       marketCap: quote.marketCap ?? company.marketCap,
       price: livePrice,
-      pctTo52WeekHigh: calculatePctTo52WeekHigh(livePrice, company.week52High),
+      week52High: effectiveHigh,
+      pctTo52WeekHigh: calculatePctTo52WeekHigh(livePrice, effectiveHigh),
       dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
       peRatio: dynamicPERatio,
       forwardPE: dynamicForwardPE,

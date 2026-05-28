@@ -52,7 +52,7 @@ test.describe("mergeLiveQuotes", () => {
     const merged = mergeLiveQuotes(
       [company({ symbol: "NVDA", rank: 1, marketCap: 4_820_000_000_000 })],
       new Map([
-        ["NVDA", { price: 209.69, changePercent: -1.58, marketCap: 5_096_000_000_000 }],
+        ["NVDA", { price: 209.69, changePercent: -1.58, marketCap: 5_096_000_000_000, yearHigh: null }],
       ])
     );
 
@@ -67,7 +67,7 @@ test.describe("mergeLiveQuotes", () => {
     const merged = mergeLiveQuotes(
       [company({ symbol: "NVDA", rank: 1, marketCap: 4_820_000_000_000 })],
       new Map([
-        ["NVDA", { price: 209.69, changePercent: -1.58, marketCap: null }],
+        ["NVDA", { price: 209.69, changePercent: -1.58, marketCap: null, yearHigh: null }],
       ])
     );
 
@@ -82,7 +82,7 @@ test.describe("mergeLiveQuotes", () => {
         company({ symbol: "NVDA", rank: 3, marketCap: 100 }),
       ],
       new Map([
-        ["NVDA", { price: 209.69, changePercent: -1.58, marketCap: 400 }],
+        ["NVDA", { price: 209.69, changePercent: -1.58, marketCap: 400, yearHigh: null }],
       ]),
       { recomputeRanks: true }
     );
