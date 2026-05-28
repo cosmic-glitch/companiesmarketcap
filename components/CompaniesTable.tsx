@@ -22,7 +22,7 @@ const PRESETS: PresetConfig[] = [
     id: 'mega-cap-value',
     label: 'Mega Cap Value',
     icon: '🏦',
-    filters: { minMarketCap: '1000', maxForwardPE: '25' },
+    filters: { minMarketCap: '500', maxForwardPE: '25' },
     sort: { sortBy: 'forwardPE', sortOrder: 'asc' },
   },
   {
