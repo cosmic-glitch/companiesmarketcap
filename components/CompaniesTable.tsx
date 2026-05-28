@@ -906,9 +906,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium">{preset.label}</div>
                     <div className="text-[11px] text-text-muted">{formatPresetCriteria(preset.filters)}</div>
-                    {formatPresetSort(preset.sort) && (
-                      <div className="text-[11px] text-text-muted/80">Sorted by {formatPresetSort(preset.sort)}</div>
-                    )}
+                    <div className="text-[11px] text-text-muted/80">Sorted by {formatPresetSort(preset.sort)}</div>
                   </div>
                   {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
                 </button>
@@ -944,9 +942,7 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                         <div className="min-w-0">
                           <div className="text-[13px] font-medium truncate">{formatPresetName(preset)}</div>
                           <div className="text-[11px] text-text-muted truncate">{formatPresetCriteria(preset.filters)}</div>
-                          {formatPresetSort(preset.sort) && (
-                            <div className="text-[11px] text-text-muted/80 truncate">Sorted by {formatPresetSort(preset.sort)}</div>
-                          )}
+                          <div className="text-[11px] text-text-muted/80 truncate">Sorted by {formatPresetSort(preset.sort)}</div>
                         </div>
                         {activePreset === preset.id && <span className="ml-auto text-accent">✓</span>}
                       </button>

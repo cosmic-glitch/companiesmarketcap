@@ -86,10 +86,11 @@ const SORT_FIELD_LABELS: Record<string, string> = {
 };
 
 // Describes a preset's sort, e.g. "Fwd P/E ↑" (ascending) or "Div % ↓"
-// (descending). Returns null when the preset specifies no sort, in which case
-// it inherits the default market-cap ranking and nothing is shown.
-export function formatPresetSort(sort: { sortBy?: string; sortOrder?: "asc" | "desc" }): string | null {
-  if (!sort?.sortBy) return null;
+// (descending). Presets that omit `sortBy` inherit the page default
+// (market cap descending), which we surface explicitly so every preset row
+// tells the user how its results will be ordered.
+export function formatPresetSort(sort: { sortBy?: string; sortOrder?: "asc" | "desc" }): string {
+  if (!sort?.sortBy) return "Market Cap ↓";
   const label = SORT_FIELD_LABELS[sort.sortBy] ?? sort.sortBy;
   const arrow = sort.sortOrder === "asc" ? "↑" : "↓";
   return `${label} ${arrow}`;
