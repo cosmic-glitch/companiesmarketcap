@@ -84,7 +84,7 @@ export default function FeedbackWidget() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 z-50 px-3.5 py-2 text-xs font-semibold text-text-secondary bg-bg-tertiary border border-border-subtle rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.4)] hover:bg-bg-hover hover:text-text-primary transition-colors"
+        className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border bg-bg-tertiary border-border-subtle text-text-secondary hover:border-accent/50 hover:text-text-primary transition-colors whitespace-nowrap"
         aria-label="Suggest a feature"
       >
         💡 Suggest a feature

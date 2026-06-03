@@ -1107,6 +1107,9 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
             </button>
           </>
         )}
+
+        {/* Right-aligned via ml-auto on the button itself */}
+        <FeedbackWidget />
       </div>
 
       {/* Table */}
@@ -1647,8 +1650,6 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
           router.refresh();
         }}
       />
-
-      <FeedbackWidget />
     </div>
   );
 }
