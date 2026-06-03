@@ -594,3 +594,82 @@ export async function writeUserPresets(presets: PresetConfig[]): Promise<void> {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(presetsJsonPath, json);
 }
+
+// User-submitted feature suggestions. Unlike presets (a single read-modify-write
+// file), feedback can arrive from many visitors at once, so each submission is
+// stored as its own append-only blob under feedback/ — no lost-update races, no
+// locking. There is no reader UI; submissions are read offline via
+// scripts/read-feedback.ts. In dev (no blob token) they land in data/feedback/.
+export interface FeedbackEntry {
+  id: string;
+  message: string;
+  email: string | null;
+  submittedAt: string;
+  path: string | null;
+  userAgent: string | null;
+  country: string | null;
+}
+
+const FEEDBACK_PREFIX = "feedback/";
+const feedbackDir = path.join(process.cwd(), "data", "feedback");
+
+// Build a chronologically-sortable, collision-free, unguessable object name:
+// "<iso-stamp-with-safe-chars>-<uuid>.json". The UUID keeps the public blob URL
+// from being enumerable even though the store itself is public.
+function feedbackFileName(entry: FeedbackEntry): string {
+  const safeStamp = entry.submittedAt.replace(/[:.]/g, "-");
+  return `${safeStamp}-${entry.id}.json`;
+}
+
+export async function writeFeedback(entry: FeedbackEntry): Promise<void> {
+  const json = JSON.stringify(entry, null, 2);
+  const fileName = feedbackFileName(entry);
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { put } = await import("@vercel/blob");
+    await put(`${FEEDBACK_PREFIX}${fileName}`, json, {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: "application/json",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    return;
+  }
+
+  // Local dev fallback.
+  if (!fs.existsSync(feedbackDir)) fs.mkdirSync(feedbackDir, { recursive: true });
+  fs.writeFileSync(path.join(feedbackDir, fileName), json);
+}
+
+// Read all submissions, newest first. Used only by the offline reader script.
+export async function listFeedback(): Promise<FeedbackEntry[]> {
+  const entries: FeedbackEntry[] = [];
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { list } = await import("@vercel/blob");
+    let cursor: string | undefined;
+    do {
+      const res = await list({
+        prefix: FEEDBACK_PREFIX,
+        cursor,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      for (const blob of res.blobs) {
+        if (!blob.pathname.endsWith(".json")) continue;
+        const r = await fetch(blob.url, { cache: "no-store" });
+        if (!r.ok) continue;
+        entries.push((await r.json()) as FeedbackEntry);
+      }
+      cursor = res.hasMore ? res.cursor : undefined;
+    } while (cursor);
+  } else if (fs.existsSync(feedbackDir)) {
+    for (const name of fs.readdirSync(feedbackDir)) {
+      if (!name.endsWith(".json")) continue;
+      const raw = fs.readFileSync(path.join(feedbackDir, name), "utf-8");
+      entries.push(JSON.parse(raw) as FeedbackEntry);
+    }
+  }
+
+  entries.sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : -1));
+  return entries;
+}

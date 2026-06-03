@@ -16,6 +16,7 @@ import {
   readAliased,
 } from "@/lib/url-aliases";
 import SavePresetModal from "./SavePresetModal";
+import FeedbackWidget from "./FeedbackWidget";
 
 const PRESETS: PresetConfig[] = [
   {
@@ -1646,6 +1647,8 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
           router.refresh();
         }}
       />
+
+      <FeedbackWidget />
     </div>
   );
 }

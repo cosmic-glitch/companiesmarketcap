@@ -49,3 +49,6 @@ next-env.d.ts
 
 # company logos (downloaded via npm run download-icons)
 /public/logos/
+
+# Local-dev feedback submissions (production uses Vercel Blob)
+data/feedback/
