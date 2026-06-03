@@ -1,21 +1,6 @@
 {
   "presets": [
     {
-      "id": "144ae644-ef16-4091-b1f9-a31a7cf05119",
-      "label": "Big & Cheap",
-      "icon": "🚀",
-      "filters": {
-        "minMarketCap": "500",
-        "maxForwardPE": "20"
-      },
-      "sort": {
-        "sortBy": "forwardPE",
-        "sortOrder": "asc"
-      },
-      "userCreated": true,
-      "createdAt": "2026-05-09T23:32:24.837Z"
-    },
-    {
       "id": "03badf13-d461-4ef5-9d73-3e4ca09cddb2",
       "label": "Mid Cap Value",
       "icon": "🎯",
