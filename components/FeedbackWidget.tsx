@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const MAX_MESSAGE_LEN = 2000;
-const EMAIL_STORAGE_KEY = "feedbackEmail";
 
 // Self-contained suggestion box: a floating pill that opens a modal. Submissions
 // POST to /api/feedback, which stores them in Vercel Blob for offline review.
@@ -20,15 +19,11 @@ export default function FeedbackWidget() {
   const [done, setDone] = useState(false);
   const messageRef = useRef<HTMLTextAreaElement>(null);
 
-  // Reset + prefill email (returning suggesters needn't retype it) on open.
+  // Reset all fields to empty on open — nothing is pre-populated.
   useEffect(() => {
     if (!isOpen) return;
-    const savedEmail =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(EMAIL_STORAGE_KEY) ?? ""
-        : "";
     setMessage("");
-    setEmail(savedEmail);
+    setEmail("");
     setWebsite("");
     setError(null);
     setSubmitting(false);
@@ -68,9 +63,6 @@ export default function FeedbackWidget() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error || "Failed to send");
-      }
-      if (typeof window !== "undefined" && email.trim()) {
-        window.localStorage.setItem(EMAIL_STORAGE_KEY, email.trim());
       }
       setDone(true);
     } catch (e) {
