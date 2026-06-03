@@ -364,6 +364,8 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "marketCap", label: "Market Cap", defaultVisible: true },
   { key: "price", label: "Price", defaultVisible: true },
   { key: "dailyChangePercent", label: "Today", defaultVisible: true },
+  { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: true },
+  { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: true },
   { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
   { key: "earnings", label: "Earnings", defaultVisible: false },
   { key: "revenue", label: "Revenue", defaultVisible: false },
@@ -378,8 +380,6 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "revenueGrowth3Y", label: "Rev CAGR 3Y", defaultVisible: true },
   { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
   { key: "epsGrowth3Y", label: "EPS CAGR 3Y", defaultVisible: true },
-  { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: true },
-  { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: true },
 ];
 
 const ALWAYS_VISIBLE_COLUMNS = new Set<SortKey>(["rank", "name"]);
@@ -1211,6 +1211,16 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 Today <SortIndicator columnKey="dailyChangePercent" />
               </th>
               )}
+              {isColumnVisible("revenueAnnual") && (
+              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                10Y Rev Trend
+              </th>
+              )}
+              {isColumnVisible("epsAnnual") && (
+              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                10Y EPS Trend
+              </th>
+              )}
               {isColumnVisible("pctTo52WeekHigh") && (
               <th
                 onClick={() => handleSort("pctTo52WeekHigh")}
@@ -1365,16 +1375,6 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                 EPS CAGR 3Y <SortIndicator columnKey="epsGrowth3Y" />
               </th>
               )}
-              {isColumnVisible("revenueAnnual") && (
-              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
-                10Y Rev Trend
-              </th>
-              )}
-              {isColumnVisible("epsAnnual") && (
-              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
-                10Y EPS Trend
-              </th>
-              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle">
@@ -1465,6 +1465,16 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("dailyChangePercent") && "sorted-column-cell"
                 )}>
                   <DailyChange value={company.dailyChangePercent} />
+                </td>
+                )}
+                {isColumnVisible("revenueAnnual") && (
+                <td className="px-4 py-3.5 whitespace-nowrap text-center">
+                  <RevenueSparkline values={company.revenueAnnual} />
+                </td>
+                )}
+                {isColumnVisible("epsAnnual") && (
+                <td className="px-4 py-3.5 whitespace-nowrap text-center">
+                  <EpsSparkline values={company.epsAnnual} />
                 </td>
                 )}
                 {isColumnVisible("pctTo52WeekHigh") && (
@@ -1583,16 +1593,6 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
                   isSortedColumn("epsGrowth3Y") && "sorted-column-cell"
                 )}>
                   {formatCAGR(company.epsGrowth3Y)}
-                </td>
-                )}
-                {isColumnVisible("revenueAnnual") && (
-                <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                  <RevenueSparkline values={company.revenueAnnual} />
-                </td>
-                )}
-                {isColumnVisible("epsAnnual") && (
-                <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                  <EpsSparkline values={company.epsAnnual} />
                 </td>
                 )}
               </tr>
