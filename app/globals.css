@@ -157,9 +157,19 @@ body {
   }
 }
 
+/* Sticky header cells need their own opaque background. A background set on a
+   sticky <thead> isn't reliably repainted during scroll, so row text bleeds
+   through the column titles. The low specificity (via :where) lets the
+   per-column background utilities below still win. */
+:where(thead.sticky) th {
+  background-color: var(--bg-tertiary);
+}
+
 /* Sorted column highlight */
 .sorted-column-header {
-  background-color: rgba(5, 150, 105, 0.15);
+  /* Opaque equivalent of rgba(5, 150, 105, 0.15) over --bg-tertiary so the
+     sticky header doesn't let row text show through the tint. */
+  background-color: #cee7e3;
 }
 
 .sorted-column-cell {
