@@ -90,6 +90,31 @@ tail -f ~/companiesmarketcap/scripts/refresh.log
 crontab -l | grep companiesmarketcap
 ```
 
+### User Feedback (feature suggestions)
+
+Visitors can submit feature ideas via the "💡 Suggest a feature" button in the
+table toolbar (`components/FeedbackWidget.tsx` → `POST /api/feedback`).
+
+- **Storage**: each submission is an append-only blob under the `feedback/`
+  prefix in the same Vercel Blob store as `companies.json` (one object per
+  submission, so concurrent visitors never clobber each other). In dev (no
+  `BLOB_READ_WRITE_TOKEN`) submissions fall back to `data/feedback/`, which is
+  gitignored. Helpers live in `lib/db.ts` (`writeFeedback` / `listFeedback`).
+- **There is no reader UI by design.** Submissions are reviewed offline only.
+
+**To show the user their submitted suggestions** (when they ask "show me the
+feature suggestions" or similar), run the reader script — it reads live from the
+production Blob using `BLOB_READ_WRITE_TOKEN` in `.env.local`, newest first:
+
+```bash
+npx tsx scripts/read-feedback.ts            # all submissions
+npx tsx scripts/read-feedback.ts --since 7d # recent only (also 24h, 30m)
+npx tsx scripts/read-feedback.ts --json     # raw JSON dump
+```
+
+Then summarize/cluster the results for the user. There is currently no
+delete-feedback script (only `scripts/delete-preset.ts` for presets).
+
 ### Data Fields
 
 Each company includes:
