@@ -119,8 +119,17 @@ npx tsx scripts/read-feedback.ts --since 7d # recent only (also 24h, 30m)
 npx tsx scripts/read-feedback.ts --json     # raw JSON dump
 ```
 
-Then summarize/cluster the results for the user. There is currently no
-delete-feedback script (only `scripts/delete-preset.ts` for presets).
+Then summarize/cluster the results for the user.
+
+**To delete a suggestion** (abuse/test cleanup — there is no in-app delete),
+grab its `id` from the `--json` output above and run:
+
+```bash
+npx tsx scripts/delete-feedback.ts <id> [<id> ...]
+```
+
+It deletes the matching blob(s) (`deleteFeedback` in `lib/db.ts`) and clears the
+public-list cache.
 
 ### Data Fields
 

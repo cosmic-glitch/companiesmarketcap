@@ -752,3 +752,41 @@ export async function listPublicFeedback(): Promise<PublicFeedback[]> {
   publicFeedbackCache = { at: now, data };
   return data;
 }
+
+// Delete a single suggestion by id (the blob/file name embeds it as the trailing
+// "-<id>.json"). Returns true if something was deleted. Invalidates the public
+// cache so the suggestion disappears from the in-app list within the request,
+// not after the TTL. Safety valve for abusive submissions — there is no UI.
+export async function deleteFeedback(id: string): Promise<boolean> {
+  const suffix = `-${id}.json`;
+  let deleted = false;
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { list, del } = await import("@vercel/blob");
+    let cursor: string | undefined;
+    do {
+      const res = await list({
+        prefix: FEEDBACK_PREFIX,
+        cursor,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      for (const blob of res.blobs) {
+        if (blob.pathname.endsWith(suffix)) {
+          await del(blob.url, { token: process.env.BLOB_READ_WRITE_TOKEN });
+          deleted = true;
+        }
+      }
+      cursor = res.hasMore ? res.cursor : undefined;
+    } while (cursor);
+  } else if (fs.existsSync(feedbackDir)) {
+    for (const name of fs.readdirSync(feedbackDir)) {
+      if (name.endsWith(suffix)) {
+        fs.unlinkSync(path.join(feedbackDir, name));
+        deleted = true;
+      }
+    }
+  }
+
+  if (deleted) publicFeedbackCache = null;
+  return deleted;
+}
