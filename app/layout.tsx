@@ -12,7 +12,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Companies Market Cap - Global Stock Rankings",
-  description: "Real-time ranking of companies worldwide by market capitalization, earnings, revenue, and more",
+  description: "Analyze thousands of global companies. Filter by P/E, growth, margins and more. No ads.",
   icons: {
     icon: "/icon.svg",
   },
