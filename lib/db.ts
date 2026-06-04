@@ -598,16 +598,26 @@ export async function writeUserPresets(presets: PresetConfig[]): Promise<void> {
 // User-submitted feature suggestions. Unlike presets (a single read-modify-write
 // file), feedback can arrive from many visitors at once, so each submission is
 // stored as its own append-only blob under feedback/ — no lost-update races, no
-// locking. There is no reader UI; submissions are read offline via
-// scripts/read-feedback.ts. In dev (no blob token) they land in data/feedback/.
+// locking. Public-safe fields are surfaced in-app via listPublicFeedback (the
+// suggestion modal); full entries are read offline via scripts/read-feedback.ts.
+// In dev (no blob token) they land in data/feedback/.
 export interface FeedbackEntry {
   id: string;
   message: string;
+  name: string | null;
   email: string | null;
   submittedAt: string;
   path: string | null;
   userAgent: string | null;
   country: string | null;
+}
+
+// Public-safe projection of a suggestion: only fields we are willing to show to
+// every visitor. Email and request metadata (path/UA/country/ip) are NEVER here.
+export interface PublicFeedback {
+  message: string;
+  name: string | null;
+  submittedAt: string;
 }
 
 const FEEDBACK_PREFIX = "feedback/";
@@ -672,4 +682,73 @@ export async function listFeedback(): Promise<FeedbackEntry[]> {
 
   entries.sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : -1));
   return entries;
+}
+
+// Max suggestions surfaced on the public list. Keeps the payload bounded and,
+// in blob mode, means we only fetch this many object bodies per refresh.
+const PUBLIC_FEEDBACK_LIMIT = 100;
+// Short in-memory cache so the public GET endpoint doesn't re-fetch every blob
+// on each page view. Mirrors the companies-data cache pattern above.
+const PUBLIC_FEEDBACK_TTL_MS = 60 * 1000;
+let publicFeedbackCache: { at: number; data: PublicFeedback[] } | null = null;
+
+// Read the newest suggestions as public-safe projections, newest first. Unlike
+// listFeedback (offline script, reads everything), this caps to the newest N and
+// only fetches those bodies — blob pathnames begin with a chronological stamp,
+// so sorting pathnames descending surfaces the newest without reading content.
+export async function listPublicFeedback(): Promise<PublicFeedback[]> {
+  const now = Date.now();
+  if (publicFeedbackCache && now - publicFeedbackCache.at < PUBLIC_FEEDBACK_TTL_MS) {
+    return publicFeedbackCache.data;
+  }
+
+  const toPublic = (e: FeedbackEntry): PublicFeedback => ({
+    message: e.message,
+    name: e.name ?? null,
+    submittedAt: e.submittedAt,
+  });
+
+  let data: PublicFeedback[] = [];
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { list } = await import("@vercel/blob");
+    const blobs: { pathname: string; url: string }[] = [];
+    let cursor: string | undefined;
+    do {
+      const res = await list({
+        prefix: FEEDBACK_PREFIX,
+        cursor,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      for (const blob of res.blobs) {
+        if (blob.pathname.endsWith(".json")) {
+          blobs.push({ pathname: blob.pathname, url: blob.url });
+        }
+      }
+      cursor = res.hasMore ? res.cursor : undefined;
+    } while (cursor);
+
+    blobs.sort((a, b) => (a.pathname < b.pathname ? 1 : -1));
+    const newest = blobs.slice(0, PUBLIC_FEEDBACK_LIMIT);
+    const fetched = await Promise.all(
+      newest.map(async (b) => {
+        const r = await fetch(b.url, { cache: "no-store" });
+        if (!r.ok) return null;
+        return toPublic((await r.json()) as FeedbackEntry);
+      })
+    );
+    data = fetched.filter((e): e is PublicFeedback => e !== null);
+  } else if (fs.existsSync(feedbackDir)) {
+    const entries: FeedbackEntry[] = [];
+    for (const name of fs.readdirSync(feedbackDir)) {
+      if (!name.endsWith(".json")) continue;
+      const raw = fs.readFileSync(path.join(feedbackDir, name), "utf-8");
+      entries.push(JSON.parse(raw) as FeedbackEntry);
+    }
+    entries.sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : -1));
+    data = entries.slice(0, PUBLIC_FEEDBACK_LIMIT).map(toPublic);
+  }
+
+  publicFeedbackCache = { at: now, data };
+  return data;
 }

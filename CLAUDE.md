@@ -93,14 +93,21 @@ crontab -l | grep companiesmarketcap
 ### User Feedback (feature suggestions)
 
 Visitors can submit feature ideas via the "💡 Suggest a feature" button in the
-table toolbar (`components/FeedbackWidget.tsx` → `POST /api/feedback`).
+table toolbar (`components/FeedbackWidget.tsx` → `POST /api/feedback`). The
+suggestion (message) is required; **name and email are both optional.**
 
 - **Storage**: each submission is an append-only blob under the `feedback/`
   prefix in the same Vercel Blob store as `companies.json` (one object per
   submission, so concurrent visitors never clobber each other). In dev (no
   `BLOB_READ_WRITE_TOKEN`) submissions fall back to `data/feedback/`, which is
-  gitignored. Helpers live in `lib/db.ts` (`writeFeedback` / `listFeedback`).
-- **There is no reader UI by design.** Submissions are reviewed offline only.
+  gitignored. Helpers live in `lib/db.ts` (`writeFeedback` / `listFeedback` /
+  `listPublicFeedback`).
+- **Suggestions are public.** The modal lists recent suggestions, fetched from
+  `GET /api/feedback` (`listPublicFeedback`, 60s in-memory cache, newest ~100).
+  This returns **only public-safe fields** — `message`, `name`, `submittedAt`.
+  Email and request metadata (path/UA/country/IP) are **never** exposed. There
+  is no moderation: anything passing the honeypot/rate-limit/spam filters in the
+  POST handler is public immediately.
 
 **To show the user their submitted suggestions** (when they ask "show me the
 feature suggestions" or similar), run the reader script — it reads live from the

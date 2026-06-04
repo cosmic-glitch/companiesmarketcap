@@ -4,32 +4,79 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const MAX_MESSAGE_LEN = 2000;
+const MAX_NAME_LEN = 80;
+
+interface PublicSuggestion {
+  message: string;
+  name: string | null;
+  submittedAt: string;
+}
+
+// Compact relative time, e.g. "just now", "3h ago", "2d ago".
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diffMs = Date.now() - then;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
 
 // Self-contained suggestion box: a floating pill that opens a modal. Submissions
-// POST to /api/feedback, which stores them in Vercel Blob for offline review.
-// There is no reader UI by design.
+// POST to /api/feedback (stored in Vercel Blob); the modal also lists recent
+// public suggestions (message + name only) fetched from GET /api/feedback.
 export default function FeedbackWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   // Honeypot: bound to a visually-hidden field; real users never touch it.
   const [website, setWebsite] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [suggestions, setSuggestions] = useState<PublicSuggestion[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const messageRef = useRef<HTMLTextAreaElement>(null);
 
-  // Reset all fields to empty on open — nothing is pre-populated.
+  // Reset all fields to empty on open — nothing is pre-populated — and load the
+  // public suggestion list.
   useEffect(() => {
     if (!isOpen) return;
     setMessage("");
+    setName("");
     setEmail("");
     setWebsite("");
     setError(null);
     setSubmitting(false);
     setDone(false);
+
+    let cancelled = false;
+    setLoadingSuggestions(true);
+    fetch("/api/feedback")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => {
+        if (!cancelled) setSuggestions(data.suggestions ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSuggestions(false);
+      });
+
     const t = setTimeout(() => messageRef.current?.focus(), 0);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [isOpen]);
 
   // Close on Escape.
@@ -55,6 +102,7 @@ export default function FeedbackWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: trimmedMessage,
+          name: name.trim(),
           email: email.trim(),
           website, // honeypot
           path: typeof window !== "undefined" ? window.location.pathname : null,
@@ -64,6 +112,16 @@ export default function FeedbackWidget() {
       if (!res.ok) {
         throw new Error(data?.error || "Failed to send");
       }
+      // Optimistically surface the new idea — the server list is cached ~60s, so
+      // a refetch wouldn't show it immediately.
+      setSuggestions((prev) => [
+        {
+          message: trimmedMessage,
+          name: name.trim() || null,
+          submittedAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
       setDone(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -139,17 +197,32 @@ export default function FeedbackWidget() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
-                      Email <span className="normal-case text-text-muted/70">(optional, if you want a reply)</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="w-full px-3 py-2 text-sm bg-bg-tertiary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                        Name <span className="normal-case text-text-muted/70">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value.slice(0, MAX_NAME_LEN))}
+                        maxLength={MAX_NAME_LEN}
+                        placeholder="Shown with your idea"
+                        className="w-full px-3 py-2 text-sm bg-bg-tertiary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                        Email <span className="normal-case text-text-muted/70">(optional)</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Private, for a reply"
+                        className="w-full px-3 py-2 text-sm bg-bg-tertiary border border-border-subtle rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent"
+                      />
+                    </div>
                   </div>
 
                   {/* Honeypot — hidden from humans, tempting to bots. Not tab-reachable. */}
@@ -170,6 +243,34 @@ export default function FeedbackWidget() {
                     <div className="text-[12px] text-negative bg-negative/10 border border-negative/30 rounded-md px-3 py-2">
                       {error}
                     </div>
+                  )}
+                </div>
+
+                {/* Public list of what others have suggested. */}
+                <div className="px-5 pb-4 border-t border-border-subtle pt-4">
+                  <h3 className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-2">
+                    What others have suggested
+                  </h3>
+                  {loadingSuggestions ? (
+                    <p className="text-[12px] text-text-muted py-2">Loading…</p>
+                  ) : suggestions.length === 0 ? (
+                    <p className="text-[12px] text-text-muted py-2">
+                      No suggestions yet — be the first!
+                    </p>
+                  ) : (
+                    <ul className="max-h-48 overflow-y-auto space-y-2.5 pr-1">
+                      {suggestions.map((s, i) => (
+                        <li
+                          key={`${s.submittedAt}-${i}`}
+                          className="text-sm text-text-primary bg-bg-tertiary/40 border border-border-subtle rounded-md px-3 py-2"
+                        >
+                          <p className="whitespace-pre-wrap break-words">{s.message}</p>
+                          <div className="text-[11px] text-text-muted mt-1">
+                            {s.name?.trim() || "Anonymous"} · {relativeTime(s.submittedAt)}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
 

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { writeFeedback, FeedbackEntry } from "@/lib/db";
+import { writeFeedback, listPublicFeedback, FeedbackEntry } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 const MAX_MESSAGE_LEN = 2000;
+const MAX_NAME_LEN = 80;
 const MAX_EMAIL_LEN = 254;
 const MAX_PATH_LEN = 512;
 const MAX_UA_LEN = 512;
@@ -40,6 +41,7 @@ function looksLikeSpam(message: string): boolean {
 
 interface FeedbackBody {
   message?: unknown;
+  name?: unknown;
   email?: unknown;
   path?: unknown;
   // Honeypot: a field hidden from real users via CSS. Bots fill every input,
@@ -90,6 +92,15 @@ export async function POST(request: NextRequest) {
     email = trimmed || null;
   }
 
+  // Validate optional name. Shown publicly, so cap length; no other constraints.
+  let name: string | null = null;
+  if (body.name !== undefined && body.name !== null && body.name !== "") {
+    if (typeof body.name !== "string" || body.name.length > MAX_NAME_LEN) {
+      return NextResponse.json({ error: "invalid name" }, { status: 400 });
+    }
+    name = body.name.trim() || null;
+  }
+
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (isRateLimited(ip)) {
@@ -106,6 +117,7 @@ export async function POST(request: NextRequest) {
   const entry: FeedbackEntry = {
     id: randomUUID(),
     message,
+    name,
     email,
     submittedAt: new Date().toISOString(),
     path: rawPath,
@@ -121,6 +133,21 @@ export async function POST(request: NextRequest) {
     console.error("Error saving feedback:", error);
     return NextResponse.json(
       { error: "Failed to save feedback", message: messageText },
+      { status: 500 }
+    );
+  }
+}
+
+// Public list of recent suggestions. Returns only public-safe fields (message,
+// name, submittedAt) — never email or request metadata. Cached in lib/db.
+export async function GET() {
+  try {
+    const suggestions = await listPublicFeedback();
+    return NextResponse.json({ suggestions });
+  } catch (error: unknown) {
+    console.error("Error loading feedback:", error);
+    return NextResponse.json(
+      { error: "Failed to load suggestions" },
       { status: 500 }
     );
   }

@@ -69,9 +69,10 @@ function parseSince(arg: string | undefined): number | null {
   console.log(`${entries.length} suggestion(s), newest first:\n`);
   for (const e of entries) {
     const when = e.submittedAt;
+    const named = e.name ? ` · ${e.name}` : "";
     const who = e.email ? ` · ${e.email}` : "";
     const where = e.country ? ` · ${e.country}` : "";
-    console.log(`── ${when}${who}${where}`);
+    console.log(`── ${when}${named}${who}${where}`);
     console.log(e.message);
     console.log("");
   }
