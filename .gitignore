@@ -47,6 +47,12 @@ next-env.d.ts
 /data/*.db
 /data/*.db-journal
 
+# Companies dataset — the source of truth is the Vercel Blob, written weekly by
+# the VM scraper. The committed file drifts the moment the next scrape runs, so
+# we don't track it. Local dev reads the Blob via BLOB_URL (.env.local); the
+# untracked file remains only as an offline fallback.
+/data/companies.json
+
 # company logos (downloaded via npm run download-icons)
 /public/logos/
 

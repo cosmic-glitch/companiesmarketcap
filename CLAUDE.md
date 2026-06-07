@@ -39,10 +39,17 @@ This is a Next.js 15 App Router application that displays global company market 
    - Calculates rank by market cap
    - Data is written to `data/companies.json`
 
-2. **Data Storage** (`lib/db.ts`): Hybrid storage with Vercel Blob
-   - **Production**: Fetches from Vercel Blob URL (set via `BLOB_URL` env var)
-   - **Development**: Falls back to local `data/companies.json` file
-   - Includes 1-minute in-memory cache for blob data
+2. **Data Storage** (`lib/db.ts`): Vercel Blob is the source of truth
+   - Reads from the Vercel Blob URL when `BLOB_URL` is set (production **and**
+     local dev — `BLOB_URL` is in `.env.local`, so dev serves the same live data
+     production does).
+   - Falls back to the local `data/companies.json` file only when `BLOB_URL` is
+     unset (offline). That file is **gitignored and untracked**: the scraper
+     overwrites it weekly on the VM and uploads to Blob, so a committed copy
+     drifts immediately and is intentionally not version-controlled.
+   - To refresh the local fallback file, re-run `npm run scrape`, or just rely on
+     `BLOB_URL` (no file needed).
+   - Includes a 1-hour in-memory cache for blob data (`CACHE_TTL_MS`).
 
 3. **API Endpoints**:
    - `app/api/companies/route.ts`: Query endpoint with search, sort, filter, pagination
