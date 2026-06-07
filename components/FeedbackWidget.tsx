@@ -135,9 +135,9 @@ export default function FeedbackWidget() {
         type="button"
         onClick={() => setIsOpen(true)}
         className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border bg-bg-tertiary border-border-subtle text-text-secondary hover:border-accent/50 hover:text-text-primary transition-colors whitespace-nowrap"
-        aria-label="Suggest a feature"
+        aria-label="Suggest an improvement"
       >
-        💡 Suggest a feature
+        💡 Suggest an improvement
       </button>
 
       {isOpen && (
@@ -151,7 +151,7 @@ export default function FeedbackWidget() {
           >
             <div className="px-5 py-4 border-b border-border-subtle">
               <h2 className="text-base font-semibold text-text-primary">
-                {done ? "Thanks for the suggestion!" : "Suggest a feature"}
+                {done ? "Thanks for the suggestion!" : "Suggest an improvement"}
               </h2>
               <p className="text-[12px] text-text-muted mt-1">
                 {done
