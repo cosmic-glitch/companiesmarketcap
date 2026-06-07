@@ -68,7 +68,7 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
       </div>
 
       <div className="flex flex-col items-center text-xs text-text-muted leading-tight">
-        <span>Tracking companies with at least $1B market cap</span>
+        <span>Tracking $1B+ US-listed companies (including ADRs of foreign companies)</span>
         {localLastUpdated && (
           <span>Data last refreshed: {localLastUpdated} (your local time)</span>
         )}

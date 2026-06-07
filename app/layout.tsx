@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Companies Market Cap - Global Stock Rankings",
-  description: "Analyze thousands of global companies. Filter by P/E, growth, margins and more. No ads.",
+  title: "Companies Market Cap - US Stock Rankings",
+  description: "Analyze thousands of US-listed companies, including ADRs of foreign companies. Filter by P/E, growth, margins and more. No ads.",
   icons: {
     icon: "/icon.svg",
   },
