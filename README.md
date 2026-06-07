@@ -5,7 +5,7 @@ A modern, unified web application that displays real-time rankings of US compani
 ## Features
 
 - **Unified Interface**: Single page displaying all US companies with sortable columns
-- **Scheduled Refreshes**: A cron job on the DigitalOcean VM runs the scraper every Thursday at 18:30 UTC and uploads to Vercel Blob
+- **Scheduled Refreshes**: A cron job on the Hetzner VM runs the scraper daily at 23:00 UTC and uploads to Vercel Blob
 - **Sortable Columns**: Click any column header to sort by:
   - Rank
   - Company Name
@@ -71,8 +71,8 @@ npm run dev
 ## Automated Data Refresh
 
 - Wrapper: `scripts/refresh.sh`
-- Host: DigitalOcean VM, triggered by user-level cron
-- Schedule: every Thursday at 18:30 UTC (cron expression `30 18 * * 4`)
+- Host: Hetzner VM, triggered by user-level cron
+- Schedule: daily at 23:00 UTC (cron expression `0 23 * * *`); see `scripts/crontab`
 - Runtime: runs on the VM (not a Vercel Function), so long scrape duration is supported
 - Required secrets in `~/companiesmarketcap/.env.local`:
   - `FMP_API_KEY`
@@ -172,10 +172,10 @@ To deploy to Vercel:
 1. Push code to GitHub
 2. Connect repository to Vercel
 3. Deploy
-4. On the DigitalOcean VM, populate `~/companiesmarketcap/.env.local` with:
+4. On the Hetzner VM, populate `~/companiesmarketcap/.env.local` with:
    - `FMP_API_KEY`
    - `BLOB_READ_WRITE_TOKEN`
-5. Ensure the weekly cron entry is installed (see `crontab -l`); runs `scripts/refresh.sh` at 18:30 UTC every Thursday
+5. Install the daily cron entry with `scripts/install-cron.sh` (canonical schedule lives in `scripts/crontab`); runs `scripts/refresh.sh` at 23:00 UTC daily
 6. In Vercel project settings, set `BLOB_URL` to the Blob URL for `companies.json`
 
 ## License

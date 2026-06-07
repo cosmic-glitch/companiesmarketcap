@@ -45,7 +45,7 @@ This is a Next.js 15 App Router application that displays global company market 
      production does).
    - Falls back to the local `data/companies.json` file only when `BLOB_URL` is
      unset (offline). That file is **gitignored and untracked**: the scraper
-     overwrites it weekly on the VM and uploads to Blob, so a committed copy
+     overwrites it daily on the VM and uploads to Blob, so a committed copy
      drifts immediately and is intentionally not version-controlled.
    - To refresh the local fallback file, re-run `npm run scrape`, or just rely on
      `BLOB_URL` (no file needed).
@@ -62,11 +62,14 @@ This is a Next.js 15 App Router application that displays global company market 
 
 ### Automated Scraping (VM cron)
 
-Primary automation runs on the DigitalOcean VM via cron, invoking `scripts/refresh.sh`.
+Primary automation runs on the Hetzner VM via cron, invoking `scripts/refresh.sh`.
 
 **Schedule:**
-- Every Thursday at 18:30 UTC
-- Single cron entry in user `av`'s crontab (`crontab -l`)
+- Daily at 23:00 UTC (cron `0 23 * * *`)
+- Canonical schedule is committed at `scripts/crontab`; install/update it on the
+  VM with `scripts/install-cron.sh` (merges into the shared crontab without
+  touching other projects' entries). The live crontab (user `av`) is a superset
+  shared with the `foliotracker` project.
 - Runs `npm run scrape` against the working tree at `~/companiesmarketcap`
 
 **Wrapper behavior (`scripts/refresh.sh`):**

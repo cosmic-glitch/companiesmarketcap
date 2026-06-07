@@ -1,5 +1,5 @@
 #!/bin/bash
-# Weekly FMP data refresh, triggered by cron on the DigitalOcean VM.
+# Daily FMP data refresh, triggered by cron on the Hetzner VM.
 #
 # Runs `npm run scrape` which pulls fresh data from the Financial Modeling Prep
 # API, writes `data/companies.json`, and uploads the JSON to Vercel Blob so that

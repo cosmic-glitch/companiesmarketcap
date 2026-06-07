@@ -1,0 +1,14 @@
+# Canonical cron schedule for companiesmarketcap. This is a *fragment*, not the
+# whole crontab: the Hetzner VM's crontab (user `av`) is shared with other
+# projects (e.g. foliotracker). Install/update it with scripts/install-cron.sh,
+# which merges just this managed block in and leaves other entries untouched.
+#
+# Do NOT run `crontab scripts/crontab` directly — that would replace the entire
+# crontab and delete the other projects' jobs.
+#
+# Times are UTC (Ubuntu cron ignores CRON_TZ). $HOME is expanded by /bin/sh when
+# cron runs the command.
+# >>> companiesmarketcap (managed by scripts/install-cron.sh) >>>
+# Daily FMP data refresh at 23:00 UTC.
+0 23 * * * $HOME/companiesmarketcap/scripts/refresh.sh >> $HOME/companiesmarketcap/scripts/refresh.log 2>&1
+# <<< companiesmarketcap (managed by scripts/install-cron.sh) <<<
