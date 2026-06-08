@@ -96,12 +96,20 @@ type ForwardEpsBasis = "reported" | "usd";
 // parity that the distortion is both material and detectable. Anything ambiguous
 // keeps the safe default. We never alter the magnitude — only choose whether to
 // divide by the published FX rate.
+// Sectors where the revenueAvg cross-check is unreliable: banks/insurers report
+// "revenue" as gross interest/premium income while analyst revenueAvg uses a net
+// basis (and REITs report on yet another basis), so the income-statement-vs-
+// estimate ratio is systematically skewed and would mis-trigger detection. We
+// default these to safe conversion rather than risk a wrong unit decision.
+const REVENUE_CROSS_CHECK_UNRELIABLE_SECTORS = new Set(["Financial Services", "Real Estate"]);
+
 function resolveForwardEps(
   epsAvg: number,
   revenueAvg: number | null | undefined,
   reportedCurrency: string,
   localRevenueTTM: number | null,
-  fxRates: Map<string, number>
+  fxRates: Map<string, number>,
+  sector: string | null | undefined
 ): { forwardEPS: number; basis: ForwardEpsBasis } {
   const converted = (): { forwardEPS: number; basis: ForwardEpsBasis } => ({
     forwardEPS: toUSD(epsAvg, reportedCurrency, fxRates),
@@ -112,9 +120,17 @@ function resolveForwardEps(
   const rate = fxRates.get(reportedCurrency);
   if (!rate) return converted(); // toUSD already returns the value unchanged
 
-  // Only attempt detection where the bug is both impactful and distinguishable.
+  // Only attempt detection where the bug is both impactful and distinguishable,
+  // and where "revenue" is a clean, comparable line item.
   const farFromParity = rate >= 3 || rate <= 1 / 3;
-  if (!farFromParity || !revenueAvg || revenueAvg <= 0 || !localRevenueTTM || localRevenueTTM <= 0) {
+  if (
+    !farFromParity ||
+    REVENUE_CROSS_CHECK_UNRELIABLE_SECTORS.has(sector ?? "") ||
+    !revenueAvg ||
+    revenueAvg <= 0 ||
+    !localRevenueTTM ||
+    localRevenueTTM <= 0
+  ) {
     return converted();
   }
 
@@ -924,7 +940,8 @@ async function runFMPScraper(): Promise<{
         estimate.revenueAvg,
         reportedCurrency,
         localRevenueTTM,
-        fxRates
+        fxRates,
+        profile?.sector
       );
       forwardEPS = resolved.forwardEPS;
       forwardEPSBasis = resolved.basis;
@@ -1158,7 +1175,8 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
           estimate.revenueAvg,
           reportedCurrency,
           localRevenueTTM,
-          fxRates
+          fxRates,
+          company.sector
         );
         company.forward_eps = forwardEPS;
         company.forward_eps_date = estimate.date;
@@ -1395,7 +1413,8 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
           estimate.revenueAvg,
           reportedCurrency,
           localRevenueTTM,
-          fxRates
+          fxRates,
+          company.sector
         );
         company.forward_eps = forwardEPS;
         company.forward_eps_date = estimate.date;
