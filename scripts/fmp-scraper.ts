@@ -77,6 +77,64 @@ function toUSD(amount: number, currency: string, fxRates: Map<string, number>): 
   return amount / rate;
 }
 
+// Provenance of the forward-EPS figure: whether we took FMP's estimate as-is
+// (already USD) or applied the FX conversion from the reporting currency.
+type ForwardEpsBasis = "reported" | "usd";
+
+// FMP's analyst-estimates endpoint is denominated inconsistently: for most
+// foreign issuers epsAvg/revenueAvg arrive in the income-statement reporting
+// currency, but for some US-listed ADRs (e.g. TSM) they arrive already in USD —
+// and there is NO currency field on the estimates payload to tell them apart.
+// Blindly applying toUSD() then over-divides the already-USD figure by the FX
+// rate (e.g. TSM forward P/E ~830 instead of ~25).
+//
+// We infer the basis from the estimate's OWN revenueAvg (which shares the
+// record's currency with epsAvg): compare it against trailing revenue in both
+// the reported currency and USD. We override the default (convert) ONLY when the
+// USD interpretation is plausible AND the reported-currency interpretation is
+// impossible — an unambiguous signal, and only for currencies far enough from
+// parity that the distortion is both material and detectable. Anything ambiguous
+// keeps the safe default. We never alter the magnitude — only choose whether to
+// divide by the published FX rate.
+function resolveForwardEps(
+  epsAvg: number,
+  revenueAvg: number | null | undefined,
+  reportedCurrency: string,
+  localRevenueTTM: number | null,
+  fxRates: Map<string, number>
+): { forwardEPS: number; basis: ForwardEpsBasis } {
+  const converted = (): { forwardEPS: number; basis: ForwardEpsBasis } => ({
+    forwardEPS: toUSD(epsAvg, reportedCurrency, fxRates),
+    basis: "reported",
+  });
+
+  if (reportedCurrency === "USD") return converted();
+  const rate = fxRates.get(reportedCurrency);
+  if (!rate) return converted(); // toUSD already returns the value unchanged
+
+  // Only attempt detection where the bug is both impactful and distinguishable.
+  const farFromParity = rate >= 3 || rate <= 1 / 3;
+  if (!farFromParity || !revenueAvg || revenueAvg <= 0 || !localRevenueTTM || localRevenueTTM <= 0) {
+    return converted();
+  }
+
+  const usdRevenueTTM = localRevenueTTM / rate;
+  const ratioIfReported = revenueAvg / localRevenueTTM; // ~0.3–6 if estimate is in reporting ccy
+  const ratioIfUSD = revenueAvg / usdRevenueTTM;        // ~0.3–6 if estimate is already USD
+
+  // Forward revenue vs trailing revenue: a generous band that covers growth and
+  // decline but excludes a whole FX-factor of distortion.
+  const SANE_LO = 0.3;
+  const SANE_HI = 6;
+  const reportedPlausible = ratioIfReported >= SANE_LO && ratioIfReported <= SANE_HI;
+  const usdPlausible = ratioIfUSD >= SANE_LO && ratioIfUSD <= SANE_HI;
+
+  if (usdPlausible && !reportedPlausible) {
+    return { forwardEPS: epsAvg, basis: "usd" };
+  }
+  return converted();
+}
+
 // Process one request at a time (no concurrency)
 const CONCURRENT_REQUESTS = 1;
 
@@ -279,6 +337,9 @@ interface FMPAnalystEstimate {
   symbol: string;
   date: string;
   epsAvg: number;
+  // Same currency as epsAvg within a record; used to infer the estimate's
+  // currency basis (see resolveForwardEps).
+  revenueAvg?: number;
 }
 
 interface FMPCashFlowStatement {
@@ -317,6 +378,7 @@ interface CompanyData {
   forwardPE: number | null;
   forwardEPS: number | null;
   forwardEPSDate: string | null;
+  forwardEPSBasis: ForwardEpsBasis | null;
   revenueGrowth5Y: number | null;
   revenueGrowth3Y: number | null;
   epsGrowth5Y: number | null;
@@ -821,6 +883,9 @@ async function runFMPScraper(): Promise<{
     let ttmRevenue: number | null = null;
     let ttmEarnings: number | null = null;
     let ttmOperatingMargin: number | null = null;
+    // TTM revenue in the reporting currency (pre-conversion) — used to infer the
+    // currency basis of the analyst estimate below.
+    let localRevenueTTM: number | null = null;
 
     if (incomeResult && incomeResult.statements.length > 0) {
       const stmts = incomeResult.statements;
@@ -829,6 +894,7 @@ async function runFMPScraper(): Promise<{
       const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
 
       if (revenue > 0) {
+        localRevenueTTM = revenue;
         ttmRevenue = toUSD(revenue, reportedCurrency, fxRates);
         // Operating margin is a ratio — compute before conversion (same result)
         ttmOperatingMargin = operatingIncome / revenue;
@@ -845,14 +911,23 @@ async function runFMPScraper(): Promise<{
       ttmEPS = quote.price / peRatio;
     }
 
-    // Store raw forward EPS data and calculate forward PE
-    // Analyst estimates are in reporting currency — convert to USD before computing PE
+    // Store raw forward EPS data and calculate forward PE. The estimate's
+    // currency basis is inferred (FMP is inconsistent — see resolveForwardEps).
     let forwardPE: number | null = null;
     let forwardEPS: number | null = null;
     let forwardEPSDate: string | null = null;
+    let forwardEPSBasis: ForwardEpsBasis | null = null;
 
     if (estimate?.epsAvg && estimate.epsAvg > 0) {
-      forwardEPS = toUSD(estimate.epsAvg, reportedCurrency, fxRates);
+      const resolved = resolveForwardEps(
+        estimate.epsAvg,
+        estimate.revenueAvg,
+        reportedCurrency,
+        localRevenueTTM,
+        fxRates
+      );
+      forwardEPS = resolved.forwardEPS;
+      forwardEPSBasis = resolved.basis;
       forwardEPSDate = estimate.date;
       if (quote.price && forwardEPS > 0) {
         forwardPE = quote.price / forwardEPS;
@@ -914,6 +989,7 @@ async function runFMPScraper(): Promise<{
       forwardPE,
       forwardEPS,
       forwardEPSDate,
+      forwardEPSBasis,
       revenueGrowth5Y,
       revenueGrowth3Y,
       epsGrowth5Y,
@@ -948,6 +1024,7 @@ async function runFMPScraper(): Promise<{
     forward_pe: c.forwardPE,
     forward_eps: c.forwardEPS,
     forward_eps_date: c.forwardEPSDate,
+    forward_eps_basis: c.forwardEPSBasis,
     dividend_percent: c.dividendPercent,
     operating_margin: c.operatingMargin,
     revenue_growth_5y: c.revenueGrowth5Y,
@@ -974,6 +1051,7 @@ async function runFMPScraper(): Promise<{
     withDividend: dbCompanies.filter((c) => c.dividend_percent !== null).length,
     withMargin: dbCompanies.filter((c) => c.operating_margin !== null).length,
     withForwardPE: dbCompanies.filter((c) => c.forward_pe !== null).length,
+    usdEstimates: dbCompanies.filter((c) => c.forward_eps_basis === "usd"),
     withRevenueGrowth5Y: dbCompanies.filter((c) => c.revenue_growth_5y !== null).length,
     withRevenueGrowth3Y: dbCompanies.filter((c) => c.revenue_growth_3y !== null).length,
     withEPSGrowth5Y: dbCompanies.filter((c) => c.eps_growth_5y !== null).length,
@@ -994,6 +1072,10 @@ async function runFMPScraper(): Promise<{
   console.log(`With dividend:          ${stats.withDividend} (${Math.round((stats.withDividend / stats.total) * 100)}%)`);
   console.log(`With operating margin:  ${stats.withMargin} (${Math.round((stats.withMargin / stats.total) * 100)}%)`);
   console.log(`With forward PE:        ${stats.withForwardPE} (${Math.round((stats.withForwardPE / stats.total) * 100)}%)`);
+  console.log(`USD-denominated estimates (FX conversion skipped): ${stats.usdEstimates.length}`);
+  if (stats.usdEstimates.length > 0) {
+    console.log(`  ${stats.usdEstimates.map((c) => c.symbol).join(", ")}`);
+  }
   console.log(`With revenue growth 5Y: ${stats.withRevenueGrowth5Y} (${Math.round((stats.withRevenueGrowth5Y / stats.total) * 100)}%)`);
   console.log(`With revenue growth 3Y: ${stats.withRevenueGrowth3Y} (${Math.round((stats.withRevenueGrowth3Y / stats.total) * 100)}%)`);
   console.log(`With EPS growth 5Y:     ${stats.withEPSGrowth5Y} (${Math.round((stats.withEPSGrowth5Y / stats.total) * 100)}%)`);
@@ -1058,23 +1140,39 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     const estimates = await processSymbolsBatch(symbols, fetchAnalystEstimates, "Analyst estimates");
     console.log(`  Got estimates for ${estimates.size} symbols\n`);
 
-    // Update forward_pe and store USD-converted EPS for each company
+    // Update forward_pe and store USD forward EPS for each company. The estimate
+    // currency basis is inferred per symbol (see resolveForwardEps).
     let updated = 0;
+    const usdEstimateSymbols: string[] = [];
     for (const [symbol, company] of companyMap) {
       const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
       if (estimate?.epsAvg && estimate.epsAvg > 0) {
         const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
         const reportedCurrency = incomeResult?.reportedCurrency || "USD";
-        const epsUSD = toUSD(estimate.epsAvg, reportedCurrency, fxRates);
-        company.forward_eps = epsUSD;
+        const localRevenueTTM =
+          incomeResult && incomeResult.statements.length > 0
+            ? incomeResult.statements.reduce((sum, q) => sum + (q.revenue || 0), 0) || null
+            : null;
+        const { forwardEPS, basis } = resolveForwardEps(
+          estimate.epsAvg,
+          estimate.revenueAvg,
+          reportedCurrency,
+          localRevenueTTM,
+          fxRates
+        );
+        company.forward_eps = forwardEPS;
         company.forward_eps_date = estimate.date;
-        if (company.price && epsUSD > 0) {
-          company.forward_pe = company.price / epsUSD;
+        company.forward_eps_basis = basis;
+        if (company.price && forwardEPS > 0) {
+          company.forward_pe = company.price / forwardEPS;
         }
+        if (basis === "usd") usdEstimateSymbols.push(symbol);
         updated++;
       }
     }
     console.log(`Updated forward_pe for ${updated} companies`);
+    console.log(`USD-denominated estimates (FX conversion skipped): ${usdEstimateSymbols.length}`);
+    if (usdEstimateSymbols.length > 0) console.log(`  ${usdEstimateSymbols.join(", ")}`);
 
   } else if (updateType === "profile") {
     console.log("Fetching profiles (sector, industry, country)...");
@@ -1259,6 +1357,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
 
     let updated = 0;
     let skippedUSD = 0;
+    const usdEstimateSymbols: string[] = [];
     for (const [symbol, company] of companyMap) {
       const incomeResult = incomeStatements.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       if (!incomeResult) continue;
@@ -1272,12 +1371,14 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       const stmts = incomeResult.statements;
 
       // Recompute and convert revenue/earnings from income statements
+      let localRevenueTTM: number | null = null;
       if (stmts.length > 0) {
         const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
         const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
         const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
 
         if (revenue > 0) {
+          localRevenueTTM = revenue;
           company.revenue = toUSD(revenue, reportedCurrency, fxRates);
           company.operating_margin = operatingIncome / revenue;
         }
@@ -1286,20 +1387,30 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         }
       }
 
-      // Convert forward EPS and recalculate forward PE
+      // Resolve forward EPS (inferred currency basis) and recalculate forward PE
       const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
       if (estimate?.epsAvg && estimate.epsAvg > 0) {
-        const epsUSD = toUSD(estimate.epsAvg, reportedCurrency, fxRates);
-        company.forward_eps = epsUSD;
+        const { forwardEPS, basis } = resolveForwardEps(
+          estimate.epsAvg,
+          estimate.revenueAvg,
+          reportedCurrency,
+          localRevenueTTM,
+          fxRates
+        );
+        company.forward_eps = forwardEPS;
         company.forward_eps_date = estimate.date;
-        if (company.price && epsUSD > 0) {
-          company.forward_pe = company.price / epsUSD;
+        company.forward_eps_basis = basis;
+        if (company.price && forwardEPS > 0) {
+          company.forward_pe = company.price / forwardEPS;
         }
+        if (basis === "usd") usdEstimateSymbols.push(symbol);
       }
 
       updated++;
     }
     console.log(`Fixed currency for ${updated} non-USD companies (skipped ${skippedUSD} USD companies)`);
+    console.log(`USD-denominated estimates (FX conversion skipped): ${usdEstimateSymbols.length}`);
+    if (usdEstimateSymbols.length > 0) console.log(`  ${usdEstimateSymbols.join(", ")}`);
 
   } else if (updateType === "annual_revenue") {
     // Backfill/refresh the 10Y annual revenue series (and opportunistically EPS)

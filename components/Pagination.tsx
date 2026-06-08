@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Company } from "@/lib/types";
 import HiddenEntriesModal from "./HiddenEntriesModal";
+import UsdEstimateModal from "./UsdEstimateModal";
 
 interface PaginationProps {
   currentPage: number;
@@ -13,9 +14,10 @@ interface PaginationProps {
   lastUpdated?: string | null;
   hiddenForQuality?: number;
   hiddenEntries?: Company[];
+  usdEstimateEntries?: Company[];
 }
 
-export default function Pagination({ currentPage, totalItems, perPage, lastUpdated, hiddenForQuality, hiddenEntries }: PaginationProps) {
+export default function Pagination({ currentPage, totalItems, perPage, lastUpdated, hiddenForQuality, hiddenEntries, usdEstimateEntries }: PaginationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -24,13 +26,17 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
   // (UTC) timezone, so we defer formatting until after mount.
   const [localLastUpdated, setLocalLastUpdated] = useState<string | null>(null);
   const [showHiddenModal, setShowHiddenModal] = useState(false);
+  const [showUsdModal, setShowUsdModal] = useState(false);
   // Which secondary note (if any) is currently expanded. The scope line is the
-  // dominant, always-visible text; refresh time and quality-filter count are
-  // non-critical, so they live behind toggle markers and only one shows at a time.
-  const [activeNote, setActiveNote] = useState<"refresh" | "hidden" | null>(null);
+  // dominant, always-visible text; refresh time, quality-filter count, and the
+  // USD-estimate note are non-critical, so they live behind toggle markers and
+  // only one shows at a time.
+  const [activeNote, setActiveNote] = useState<"refresh" | "hidden" | "usd" | null>(null);
 
   const hasHidden = !!hiddenForQuality && hiddenForQuality > 0;
-  const toggleNote = (note: "refresh" | "hidden") =>
+  const usdCount = usdEstimateEntries?.length ?? 0;
+  const hasUsd = usdCount > 0;
+  const toggleNote = (note: "refresh" | "hidden" | "usd") =>
     setActiveNote((prev) => (prev === note ? null : note));
 
   useEffect(() => {
@@ -80,7 +86,7 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
           <span className="text-sm font-medium text-text-secondary">
             Tracking $1B+ US-listed companies (including ADRs of foreign companies)
           </span>
-          {(localLastUpdated || hasHidden) && (
+          {(localLastUpdated || hasHidden || hasUsd) && (
             <span className="flex items-center gap-1">
               {localLastUpdated && (
                 <button
@@ -123,6 +129,23 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
                   </svg>
                 </button>
               )}
+              {hasUsd && (
+                <button
+                  type="button"
+                  onClick={() => toggleNote("usd")}
+                  aria-pressed={activeNote === "usd"}
+                  aria-label={`Show ${usdCount} ${usdCount === 1 ? "ticker" : "tickers"} with USD-denominated forward estimates`}
+                  title="Forward P/E using USD-denominated estimates"
+                  className={cn(
+                    "inline-flex items-center justify-center w-5 h-5 rounded-full border text-[9px] font-bold transition-colors",
+                    activeNote === "usd"
+                      ? "border-accent/40 text-accent bg-accent/10"
+                      : "border-border-subtle text-text-muted hover:text-accent hover:border-accent/40"
+                  )}
+                >
+                  $
+                </button>
+              )}
             </span>
           )}
         </div>
@@ -147,6 +170,23 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
               <span>{hiddenForQuality === 1 ? "entry" : "entries"}</span>
             )}{" "}
             hidden after failing statistical quality checks
+          </span>
+        )}
+        {activeNote === "usd" && hasUsd && (
+          <span className="text-xs text-text-muted">
+            {usdCount.toLocaleString()}{" "}
+            {usdEstimateEntries && usdEstimateEntries.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowUsdModal(true)}
+                className="underline decoration-dotted underline-offset-2 text-text-secondary hover:text-accent transition-colors"
+              >
+                {usdCount === 1 ? "ticker" : "tickers"}
+              </button>
+            ) : (
+              <span>{usdCount === 1 ? "ticker" : "tickers"}</span>
+            )}{" "}
+            with forward P/E from USD-denominated estimates (no FX conversion applied)
           </span>
         )}
       </div>
@@ -213,6 +253,9 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
     </div>
     {showHiddenModal && hiddenEntries && hiddenEntries.length > 0 && (
       <HiddenEntriesModal entries={hiddenEntries} onClose={() => setShowHiddenModal(false)} />
+    )}
+    {showUsdModal && usdEstimateEntries && usdEstimateEntries.length > 0 && (
+      <UsdEstimateModal entries={usdEstimateEntries} onClose={() => setShowUsdModal(false)} />
     )}
     </>
   );

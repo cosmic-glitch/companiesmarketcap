@@ -30,6 +30,10 @@ export interface Company {
   forwardPE: number | null;
   forwardEPS: number | null;      // Raw EPS estimate
   forwardEPSDate: string | null;  // Fiscal year end date (e.g., "2026-12-31")
+  // Currency basis of the forward EPS figure. "usd" means FMP's estimate was
+  // already USD-denominated so no FX conversion was applied (see resolveForwardEps
+  // in the scraper). Null on rows scraped before this field existed.
+  forwardEPSBasis: "reported" | "usd" | null;
   forwardEPSGrowth: number | null; // Forward EPS / TTM EPS - 1
   dividendPercent: number | null;
   operatingMargin: number | null;
@@ -133,6 +137,7 @@ export interface DatabaseCompany {
   forward_pe: number | null;
   forward_eps: number | null;
   forward_eps_date: string | null;
+  forward_eps_basis?: "reported" | "usd" | null; // optional for backward compat
   dividend_percent: number | null;
   operating_margin: number | null;
   revenue_growth_5y: number | null;

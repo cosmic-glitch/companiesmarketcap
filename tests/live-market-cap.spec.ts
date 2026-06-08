@@ -21,6 +21,7 @@ function company(overrides: Partial<Company> & Pick<Company, "symbol" | "marketC
     forwardPE: null,
     forwardEPS: null,
     forwardEPSDate: null,
+    forwardEPSBasis: null,
     forwardEPSGrowth: null,
     dividendPercent: null,
     operatingMargin: null,

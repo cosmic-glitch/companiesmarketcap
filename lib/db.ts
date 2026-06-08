@@ -57,6 +57,7 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     forwardPE: row.forward_pe ?? null,
     forwardEPS: row.forward_eps ?? null,
     forwardEPSDate: row.forward_eps_date ?? null,
+    forwardEPSBasis: row.forward_eps_basis ?? null,
     forwardEPSGrowth: calculateForwardEPSGrowth(row.forward_eps ?? null, row.ttm_eps ?? null),
     dividendPercent: row.dividend_percent,
     operatingMargin: row.operating_margin,
@@ -159,6 +160,7 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     forward_pe: company.forwardPE ?? null,
     forward_eps: company.forwardEPS ?? null,
     forward_eps_date: company.forwardEPSDate ?? null,
+    forward_eps_basis: company.forwardEPSBasis ?? null,
     dividend_percent: company.dividendPercent ?? null,
     operating_margin: company.operatingMargin ?? null,
     revenue_growth_5y: company.revenueGrowth5Y ?? null,
@@ -239,7 +241,7 @@ export function writeCompanies(
 export async function getCompanies(
   params: CompaniesQueryParams = {},
   quotes?: Map<string, PriceQuote>
-): Promise<{ companies: Company[]; total: number; hiddenForQuality: number; hiddenEntries: Company[] }> {
+): Promise<{ companies: Company[]; total: number; hiddenForQuality: number; hiddenEntries: Company[]; usdEstimateEntries: Company[] }> {
   const jsonData = await loadJsonDataAsync();
 
   let companies = jsonData.companies.map(dbRowToCompany);
@@ -262,6 +264,14 @@ export async function getCompanies(
     .sort((a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0));
   const hiddenForQuality = hiddenEntries.length;
   companies = companies.filter((c) => c.dataQualityIssues.length === 0);
+
+  // Universe-level provenance note (independent of user filters, like the quality
+  // filter above): companies whose forward EPS came from a USD-denominated FMP
+  // estimate, so no FX conversion was applied. Surfaced in the footer for
+  // transparency — these rows are NOT hidden, just flagged.
+  const usdEstimateEntries = companies
+    .filter((c) => c.forwardEPSBasis === "usd")
+    .sort((a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0));
 
   const {
     search,
@@ -481,7 +491,7 @@ export async function getCompanies(
   // Apply pagination
   companies = companies.slice(offset, offset + limit);
 
-  return { companies, total, hiddenForQuality, hiddenEntries };
+  return { companies, total, hiddenForQuality, hiddenEntries, usdEstimateEntries };
 }
 
 // Get a single company by symbol
