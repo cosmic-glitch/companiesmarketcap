@@ -84,7 +84,7 @@ export default function Pagination({ currentPage, totalItems, perPage, lastUpdat
       <div className="flex flex-col items-center gap-1 leading-tight">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-text-secondary">
-            Tracking $1B+ US-listed companies (including ADRs of foreign companies)
+            $1B+ US-listed (incl. ADRs)
           </span>
           {(localLastUpdated || hasHidden || hasUsd) && (
             <span className="flex items-center gap-1">

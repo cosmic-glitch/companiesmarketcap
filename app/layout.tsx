@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Companies Market Cap - US Stock Rankings",
-  description: "Analyze thousands of US-listed companies, including ADRs of foreign companies. Filter by P/E, growth, margins and more. No ads.",
+  // Title and description are provided per-route by generateMetadata in
+  // app/page.tsx so the company count stays in sync with the live dataset.
   icons: {
     icon: "/icon.svg",
   },

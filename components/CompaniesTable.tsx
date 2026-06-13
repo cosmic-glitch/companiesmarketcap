@@ -7,6 +7,7 @@ import { Company, PresetConfig } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 import { formatCountry } from "@/lib/countries";
 import { formatPresetCriteria, formatPresetName, formatPresetSort } from "@/lib/preset-summary";
+import { buildFilterDescriptions, sortLabelFor } from "@/lib/filter-summary";
 import {
   applyUpdates,
   colKeyFromAlias,
@@ -223,6 +224,7 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
 
 interface CompaniesTableProps {
   companies: Company[];
+  total: number;
   sortBy: keyof Company;
   sortOrder: "asc" | "desc";
   countries: string[];
@@ -430,7 +432,7 @@ const getReferencedColumns = (params: ReadOnlyParams): SortKey[] => {
   return cols;
 };
 
-export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrder: sortOrderProp, countries, sectors, industries, userPresets }: CompaniesTableProps) {
+export default function CompaniesTable({ companies, total, sortBy: sortByProp, sortOrder: sortOrderProp, countries, sectors, industries, userPresets }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -822,6 +824,13 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
   // Count active filters for badge
   const activeFilterCount = FILTER_KEYS.filter((key) => hasAliased(searchParams, key)).length;
 
+  // Read-only labels for the applied-filter summary row above the table.
+  // Built from the URL (applied state), alias-aware to match how filters are stored.
+  const activeDescriptions = useMemo(
+    () => buildFilterDescriptions((key) => readAliased(searchParams, key)),
+    [searchParams]
+  );
+
   // Apply filters and close dropdown
   const applyFiltersAndClose = () => {
     applyFilters();
@@ -1110,6 +1119,27 @@ export default function CompaniesTable({ companies, sortBy: sortByProp, sortOrde
 
         {/* Right-aligned via ml-auto on the button itself */}
         <FeedbackWidget />
+      </div>
+
+      {/* Applied-filter / sort summary (read-only) */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px]">
+        {hasActiveFilters && (
+          <span className="font-semibold text-text-primary">
+            {total.toLocaleString()} {total === 1 ? "match" : "matches"}
+          </span>
+        )}
+        {activeDescriptions.map((d) => (
+          <span
+            key={d}
+            className="inline-flex items-center px-2 py-0.5 rounded-md bg-bg-tertiary border border-border-subtle text-text-secondary"
+          >
+            {d}
+          </span>
+        ))}
+        <span className="text-text-muted">
+          {hasActiveFilters && <span className="mr-2">·</span>}
+          Sorted by {sortLabelFor(sortBy)} {sortOrder === "asc" ? "↑" : "↓"}
+        </span>
       </div>
 
       {/* Table */}

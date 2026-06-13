@@ -3,8 +3,8 @@ import Pagination from "@/components/Pagination";
 import { getAllSymbols, getCompanies, getDistinctCountries, getDistinctIndustries, getDistinctSectors, getLastUpdated, getUserPresets } from "@/lib/db";
 import { getAllQuotes } from "@/lib/quotes";
 import { Company, CompaniesQueryParams } from "@/lib/types";
-import { formatCountry } from "@/lib/countries";
 import { colKeyFromAlias, readParam } from "@/lib/url-aliases";
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -16,127 +16,20 @@ const PER_PAGE = 100;
 // (`mc.min`, `sb`, …) need to read from the same bag without per-key types.
 type SearchParams = Record<string, string | undefined>;
 
-function getSubtitleText(sortBy: keyof Company, total: number, params: SearchParams): string {
-  const get = (key: string) => readParam(params, key);
+// Universe size shown in the header and metadata. Rounded down to the nearest
+// 100 so the marketing number stays stable as the dataset drifts day to day.
+function universeCountLabel(n: number): string {
+  const rounded = Math.floor(n / 100) * 100;
+  return `${rounded.toLocaleString()}+`;
+}
 
-  const sortLabels: Record<string, string> = {
-    rank: "market capitalization",
-    marketCap: "market capitalization",
-    name: "name",
-    price: "price",
-    dailyChangePercent: "daily change",
-    pctTo52WeekHigh: "% to 52W High",
-    earnings: "earnings",
-    revenue: "revenue",
-    peRatio: "P/E ratio",
-    forwardPE: "Fwd PE",
-    forwardEPSGrowth: "Fwd EPS Growth",
-    dividendPercent: "Div Yield",
-    operatingMargin: "Op Margin",
-    revenueGrowth5Y: "Rev Growth 5Y",
-    revenueGrowth3Y: "Rev Growth 3Y",
-    epsGrowth5Y: "EPS Growth 5Y",
-    epsGrowth3Y: "EPS Growth 3Y",
-    freeCashFlow: "FCF",
-    netDebt: "Net Debt",
+export async function generateMetadata(): Promise<Metadata> {
+  const symbols = await getAllSymbols();
+  const label = universeCountLabel(symbols.length);
+  return {
+    title: "US Stock Screener — Largest Companies by Market Cap",
+    description: `Screen ${label} US-listed companies (including ADRs) over $1B market cap. Sort and filter by P/E, growth, margins, and dividend yield. No ads.`,
   };
-
-  const filterDescriptions: string[] = [];
-
-  // Helper for range formatting
-  const addFilter = (label: string, min: string | undefined, max: string | undefined, suffix = '') => {
-    if (min && max) {
-      filterDescriptions.push(`${min}${suffix} < ${label} < ${max}${suffix}`);
-    } else if (min) {
-      filterDescriptions.push(`${label} > ${min}${suffix}`);
-    } else if (max) {
-      filterDescriptions.push(`${label} < ${max}${suffix}`);
-    }
-  };
-
-  // Market Cap (special formatting for $B/$T)
-  const formatMktCap = (val: string) => {
-    const num = parseFloat(val);
-    return num >= 1000 ? `$${num / 1000}T` : `$${num}B`;
-  };
-  const minMarketCap = get('minMarketCap');
-  const maxMarketCap = get('maxMarketCap');
-  if (minMarketCap && maxMarketCap) {
-    filterDescriptions.push(`${formatMktCap(minMarketCap)} < Mkt Cap < ${formatMktCap(maxMarketCap)}`);
-  } else if (minMarketCap) {
-    filterDescriptions.push(`Mkt Cap > ${formatMktCap(minMarketCap)}`);
-  } else if (maxMarketCap) {
-    filterDescriptions.push(`Mkt Cap < ${formatMktCap(maxMarketCap)}`);
-  }
-
-  // Forward PE
-  addFilter('Fwd PE', get('minForwardPE'), get('maxForwardPE'));
-
-  // Forward EPS Growth
-  addFilter('Fwd EPS Growth', get('minForwardEPSGrowth'), get('maxForwardEPSGrowth'), '%');
-
-  // P/E Ratio
-  addFilter('P/E', get('minPERatio'), get('maxPERatio'));
-
-  // Dividend Yield
-  addFilter('Div Yield', get('minDividend'), get('maxDividend'), '%');
-
-  // Operating Margin
-  addFilter('Op Margin', get('minOperatingMargin'), get('maxOperatingMargin'), '%');
-
-  // Revenue Growth 5Y
-  addFilter('Rev Growth 5Y', get('minRevenueGrowth'), get('maxRevenueGrowth'), '%');
-
-  // Revenue Growth 3Y
-  addFilter('Rev Growth 3Y', get('minRevenueGrowth3Y'), get('maxRevenueGrowth3Y'), '%');
-
-  // EPS Growth 5Y
-  addFilter('EPS Growth 5Y', get('minEPSGrowth'), get('maxEPSGrowth'), '%');
-
-  // EPS Growth 3Y
-  addFilter('EPS Growth 3Y', get('minEPSGrowth3Y'), get('maxEPSGrowth3Y'), '%');
-
-  // % to 52W High
-  addFilter('% to 52W High', get('minPctTo52WeekHigh'), get('maxPctTo52WeekHigh'), '%');
-
-  // Earnings
-  addFilter('Earnings', get('minEarnings'), get('maxEarnings'), 'B');
-
-  // Revenue
-  addFilter('Revenue', get('minRevenue'), get('maxRevenue'), 'B');
-
-  // Free Cash Flow
-  addFilter('FCF', get('minFreeCashFlow'), get('maxFreeCashFlow'), 'B');
-
-  // Net Debt
-  addFilter('Net Debt', get('minNetDebt'), get('maxNetDebt'), 'B');
-
-  // Country
-  const country = get('country');
-  if (country) {
-    filterDescriptions.push(`Country: ${formatCountry(country)}`);
-  }
-
-  // Sector
-  const sector = get('sector');
-  if (sector) {
-    filterDescriptions.push(`Sector: ${sector}`);
-  }
-
-  // Industry
-  const industry = get('industry');
-  if (industry) {
-    filterDescriptions.push(`Industry: ${industry}`);
-  }
-
-  const countText = total.toLocaleString();
-  const sortLabel = sortLabels[sortBy] || "market capitalization";
-
-  if (filterDescriptions.length > 0) {
-    const criteria = filterDescriptions.join(', ');
-    return `${countText} companies match ${criteria} — ordered by ${sortLabel}`;
-  }
-  return `${countText} companies, ordered by ${sortLabel}`;
 }
 
 interface HomeProps {
@@ -247,10 +140,10 @@ export default async function Home({ searchParams }: HomeProps) {
             </Link>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold gradient-text">
-                Largest Companies by Market Cap
+                US Large-Cap Stock Screener
               </h1>
               <p className="text-base text-text-secondary mt-1">
-                {getSubtitleText(sortBy, total, params)}
+                Screen {universeCountLabel(symbols.length)} US-listed companies (including ADRs) worth over $1B — by P/E, forward P/E, revenue & EPS growth, operating margin, and dividend yield.
               </p>
             </div>
           </div>
@@ -261,6 +154,7 @@ export default async function Home({ searchParams }: HomeProps) {
       <div className="w-[95vw] max-w-none mx-auto px-0 pt-3 pb-6">
         <CompaniesTable
           companies={companies}
+          total={total}
           sortBy={sortBy}
           sortOrder={sortOrder}
           countries={countries}
