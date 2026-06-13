@@ -143,7 +143,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 US Large-Cap Stock Screener
               </h1>
               <p className="text-base text-text-secondary mt-1">
-                Screen {universeCountLabel(symbols.length)} US-listed companies (including ADRs) worth over $1B — by P/E, forward P/E, revenue & EPS growth, operating margin, and dividend yield.
+                Screen US-listed companies worth over $1B — by P/E, forward P/E, revenue & EPS growth, operating margin, and dividend yield.
               </p>
             </div>
           </div>
