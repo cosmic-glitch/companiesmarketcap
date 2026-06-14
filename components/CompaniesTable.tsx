@@ -375,8 +375,9 @@ const FilterGridInput = ({ label, minKey, maxKey, pendingFilters, updateFilter, 
 );
 
 const COLUMN_OPTIONS: readonly ColumnOption[] = [
-  { key: "country", label: "Country", defaultVisible: true },
-  { key: "sector", label: "Sector", defaultVisible: false },
+  // Every column defaults to visible except Country and Industry.
+  { key: "country", label: "Country", defaultVisible: false },
+  { key: "sector", label: "Sector", defaultVisible: true },
   { key: "industry", label: "Industry", defaultVisible: false },
   { key: "marketCap", label: "Market Cap", defaultVisible: true },
   { key: "price", label: "Price", defaultVisible: true },
@@ -384,18 +385,18 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: true },
   { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: true },
   { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
-  { key: "earnings", label: "Earnings", defaultVisible: false },
-  { key: "revenue", label: "Revenue", defaultVisible: false },
-  { key: "freeCashFlow", label: "FCF", defaultVisible: false },
+  { key: "earnings", label: "Earnings", defaultVisible: true },
+  { key: "revenue", label: "Revenue", defaultVisible: true },
+  { key: "freeCashFlow", label: "FCF", defaultVisible: true },
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
-  { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: false },
-  { key: "dividendPercent", label: "Div %", defaultVisible: false },
-  { key: "operatingMargin", label: "Op. Margin %", defaultVisible: false },
-  { key: "netDebt", label: "Net Debt", defaultVisible: false },
-  { key: "revenueGrowth5Y", label: "Rev CAGR 5Y", defaultVisible: false },
+  { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: true },
+  { key: "dividendPercent", label: "Div Yld", defaultVisible: true },
+  { key: "operatingMargin", label: "Op. Margin %", defaultVisible: true },
+  { key: "netDebt", label: "Net Debt", defaultVisible: true },
+  { key: "revenueGrowth5Y", label: "Rev CAGR 5Y", defaultVisible: true },
   { key: "revenueGrowth3Y", label: "Rev CAGR 3Y", defaultVisible: true },
-  { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: false },
+  { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: true },
   { key: "epsGrowth3Y", label: "EPS CAGR 3Y", defaultVisible: true },
 ];
 
@@ -1351,7 +1352,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   isSortedColumn("dividendPercent") && "sorted-column-header"
                 )}
               >
-                Div % <SortIndicator columnKey="dividendPercent" />
+                Div Yld <SortIndicator columnKey="dividendPercent" />
               </th>
               )}
               {isColumnVisible("operatingMargin") && (

@@ -40,14 +40,14 @@ test.describe('Company Table with Pagination', () => {
     await expect(columnToggles).toHaveCount(15);
 
     const marketCapToggle = page.getByRole('checkbox', { name: 'Market Cap' });
-    const dividendToggle = page.getByRole('checkbox', { name: 'Div %' });
+    const countryToggle = page.getByRole('checkbox', { name: 'Country' });
     const epsGrowth3YToggle = page.getByRole('checkbox', { name: 'EPS CAGR 3Y' });
     const rankToggle = page.getByRole('checkbox', { name: 'Rank' });
     const nameToggle = page.getByRole('checkbox', { name: 'Name' });
 
     await expect(marketCapToggle).toBeChecked();
     await expect(epsGrowth3YToggle).toBeChecked();
-    await expect(dividendToggle).not.toBeChecked();
+    await expect(countryToggle).not.toBeChecked();
     await expect(rankToggle).toHaveCount(0);
     await expect(nameToggle).toHaveCount(0);
 

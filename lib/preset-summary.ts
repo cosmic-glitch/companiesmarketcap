@@ -75,7 +75,7 @@ const SORT_FIELD_LABELS: Record<string, string> = {
   peRatio: "P/E",
   forwardPE: "Fwd P/E",
   forwardEPSGrowth: "Fwd EPS Growth",
-  dividendPercent: "Div %",
+  dividendPercent: "Div Yld",
   operatingMargin: "Op. Margin %",
   netDebt: "Net Debt",
   revenueGrowth5Y: "Rev CAGR 5Y",
@@ -85,7 +85,7 @@ const SORT_FIELD_LABELS: Record<string, string> = {
   rank: "Rank",
 };
 
-// Describes a preset's sort, e.g. "Fwd P/E ↑" (ascending) or "Div % ↓"
+// Describes a preset's sort, e.g. "Fwd P/E ↑" (ascending) or "Div Yld ↓"
 // (descending). Presets that omit `sortBy` inherit the page default
 // (market cap descending), which we surface explicitly so every preset row
 // tells the user how its results will be ordered.
