@@ -387,7 +387,7 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
   { key: "earnings", label: "Earnings", defaultVisible: true },
   { key: "revenue", label: "Revenue", defaultVisible: true },
-  { key: "freeCashFlow", label: "FCF", defaultVisible: true },
+  { key: "freeCashFlow", label: "FCF", defaultVisible: false },
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
   { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: true },
