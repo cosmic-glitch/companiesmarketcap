@@ -140,7 +140,7 @@ export default async function Home({ searchParams }: HomeProps) {
             </Link>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold gradient-text">
-                US Large-Cap Stock Screener
+                US Stock Screener
               </h1>
               <p className="text-base text-text-secondary mt-1">
                 Screen US-listed companies worth over $1B — by P/E, forward P/E, revenue & EPS growth, operating margin, and dividend yield.
