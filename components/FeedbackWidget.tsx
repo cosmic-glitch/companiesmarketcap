@@ -10,6 +10,8 @@ interface PublicSuggestion {
   message: string;
   name: string | null;
   submittedAt: string;
+  response: string | null;
+  respondedAt: string | null;
 }
 
 // Compact relative time, e.g. "just now", "3h ago", "2d ago".
@@ -119,6 +121,8 @@ export default function FeedbackWidget() {
           message: trimmedMessage,
           name: name.trim() || null,
           submittedAt: new Date().toISOString(),
+          response: null,
+          respondedAt: null,
         },
         ...prev,
       ]);
@@ -146,7 +150,7 @@ export default function FeedbackWidget() {
           onClick={() => !submitting && setIsOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-bg-secondary border border-border-subtle rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden"
+            className="w-full max-w-2xl bg-bg-secondary border border-border-subtle rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 border-b border-border-subtle">
@@ -246,7 +250,8 @@ export default function FeedbackWidget() {
                   )}
                 </div>
 
-                {/* Public list of what others have suggested. */}
+                {/* Public table of what others have suggested, with the owner's
+                    reply in its own column (written via scripts/respond-feedback.ts). */}
                 <div className="px-5 pb-4 border-t border-border-subtle pt-4">
                   <h3 className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-2">
                     What others have suggested
@@ -258,19 +263,46 @@ export default function FeedbackWidget() {
                       No suggestions yet — be the first!
                     </p>
                   ) : (
-                    <ul className="max-h-48 overflow-y-auto space-y-2.5 pr-1">
-                      {suggestions.map((s, i) => (
-                        <li
-                          key={`${s.submittedAt}-${i}`}
-                          className="text-sm text-text-primary bg-bg-tertiary/40 border border-border-subtle rounded-md px-3 py-2"
-                        >
-                          <p className="whitespace-pre-wrap break-words">{s.message}</p>
-                          <div className="text-[11px] text-text-muted mt-1">
-                            {s.name?.trim() || "Anonymous"} · {relativeTime(s.submittedAt)}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="max-h-64 overflow-y-auto border border-border-subtle rounded-md">
+                      <table className="w-full text-sm border-collapse">
+                        <thead className="sticky top-0 z-10 bg-bg-secondary">
+                          <tr className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider">
+                            <th className="w-1/2 px-3 py-2 font-medium border-b border-border-subtle">
+                              Suggestion
+                            </th>
+                            <th className="w-1/2 px-3 py-2 font-medium border-b border-l border-border-subtle">
+                              Response
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {suggestions.map((s, i) => (
+                            <tr
+                              key={`${s.submittedAt}-${i}`}
+                              className="align-top border-b border-border-subtle last:border-b-0"
+                            >
+                              <td className="px-3 py-2">
+                                <p className="text-text-primary whitespace-pre-wrap break-words">
+                                  {s.message}
+                                </p>
+                                <div className="text-[11px] text-text-muted mt-1">
+                                  {s.name?.trim() || "Anonymous"} · {relativeTime(s.submittedAt)}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 border-l border-border-subtle">
+                                {s.response?.trim() ? (
+                                  <p className="text-text-secondary whitespace-pre-wrap break-words">
+                                    {s.response}
+                                  </p>
+                                ) : (
+                                  <span className="text-text-muted">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
 

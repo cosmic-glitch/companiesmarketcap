@@ -141,6 +141,19 @@ npx tsx scripts/delete-feedback.ts <id> [<id> ...]
 It deletes the matching blob(s) (`deleteFeedback` in `lib/db.ts`) and clears the
 public-list cache.
 
+**To respond to a suggestion** (the owner's public reply, shown in its own
+"Response" column in the suggestion modal — there is no in-app UI for writing
+responses), grab the `id` from the `--json` output and run:
+
+```bash
+npx tsx scripts/respond-feedback.ts <id> "Your response text"
+npx tsx scripts/respond-feedback.ts <id> --clear   # remove a response
+```
+
+It rewrites the entry in place (`setFeedbackResponse` in `lib/db.ts`), adding
+`response`/`respondedAt`, and clears the public-list cache. The reply is
+**public** (surfaced via `listPublicFeedback`).
+
 ### Data Fields
 
 Each company includes:

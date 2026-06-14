@@ -620,14 +620,22 @@ export interface FeedbackEntry {
   path: string | null;
   userAgent: string | null;
   country: string | null;
+  // Owner's public reply to this suggestion, set via scripts/respond-feedback.ts
+  // (there is no in-app UI for writing responses). Absent on entries predating
+  // the field. Shown publicly alongside the suggestion.
+  response?: string | null;
+  respondedAt?: string | null;
 }
 
 // Public-safe projection of a suggestion: only fields we are willing to show to
 // every visitor. Email and request metadata (path/UA/country/ip) are NEVER here.
+// `response` is the owner's public reply (null until one is written).
 export interface PublicFeedback {
   message: string;
   name: string | null;
   submittedAt: string;
+  response: string | null;
+  respondedAt: string | null;
 }
 
 const FEEDBACK_PREFIX = "feedback/";
@@ -716,6 +724,8 @@ export async function listPublicFeedback(): Promise<PublicFeedback[]> {
     message: e.message,
     name: e.name ?? null,
     submittedAt: e.submittedAt,
+    response: e.response ?? null,
+    respondedAt: e.respondedAt ?? null,
   });
 
   let data: PublicFeedback[] = [];
@@ -799,4 +809,63 @@ export async function deleteFeedback(id: string): Promise<boolean> {
 
   if (deleted) publicFeedbackCache = null;
   return deleted;
+}
+
+// Set (or clear) the owner's public response on a suggestion, found by id (the
+// blob/file name embeds it as the trailing "-<id>.json"). Passing null/empty
+// clears the response. Rewrites the entry in place — same pathname, overwrite —
+// so the public projection picks it up, and invalidates the public cache so the
+// reply appears in-app within the request, not after the TTL. Returns true if a
+// matching entry was updated. There is no in-app UI; scripts/respond-feedback.ts
+// is the only writer.
+export async function setFeedbackResponse(
+  id: string,
+  response: string | null
+): Promise<boolean> {
+  const suffix = `-${id}.json`;
+  const trimmed = response?.trim() ? response.trim() : null;
+  const respondedAt = trimmed ? new Date().toISOString() : null;
+  let updated = false;
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { list, put } = await import("@vercel/blob");
+    let cursor: string | undefined;
+    do {
+      const res = await list({
+        prefix: FEEDBACK_PREFIX,
+        cursor,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      for (const blob of res.blobs) {
+        if (!blob.pathname.endsWith(suffix)) continue;
+        const r = await fetch(blob.url, { cache: "no-store" });
+        if (!r.ok) continue;
+        const entry = (await r.json()) as FeedbackEntry;
+        entry.response = trimmed;
+        entry.respondedAt = respondedAt;
+        await put(blob.pathname, JSON.stringify(entry, null, 2), {
+          access: "public",
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: "application/json",
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+        updated = true;
+      }
+      cursor = res.hasMore ? res.cursor : undefined;
+    } while (cursor);
+  } else if (fs.existsSync(feedbackDir)) {
+    for (const name of fs.readdirSync(feedbackDir)) {
+      if (!name.endsWith(suffix)) continue;
+      const filePath = path.join(feedbackDir, name);
+      const entry = JSON.parse(fs.readFileSync(filePath, "utf-8")) as FeedbackEntry;
+      entry.response = trimmed;
+      entry.respondedAt = respondedAt;
+      fs.writeFileSync(filePath, JSON.stringify(entry, null, 2));
+      updated = true;
+    }
+  }
+
+  if (updated) publicFeedbackCache = null;
+  return updated;
 }
