@@ -109,6 +109,21 @@ function DailyChange({ value }: { value: number | null }) {
   );
 }
 
+// Some source rows carry a duplicate fiscal year (e.g. a company that changed
+// its fiscal-year-end reports two periods landing in the same calendar year).
+// That would draw a redundant bar and collide React keys, so keep one entry
+// per year — the first in newest-first storage order.
+function dedupeByYear<T extends { year: number }>(values: T[]): T[] {
+  const seen = new Set<number>();
+  const out: T[] = [];
+  for (const v of values) {
+    if (seen.has(v.year)) continue;
+    seen.add(v.year);
+    out.push(v);
+  }
+  return out;
+}
+
 // Inline SVG bar chart showing annual revenue trend.
 // Storage order is newest-first; render oldest→newest (left→right).
 function RevenueSparkline({ values }: { values: { year: number; revenue: number }[] | null }) {
@@ -116,7 +131,7 @@ function RevenueSparkline({ values }: { values: { year: number; revenue: number 
     return <span className="text-text-muted">-</span>;
   }
 
-  const ordered = [...values].reverse();
+  const ordered = dedupeByYear(values).reverse();
   const width = 104;
   const height = 28;
   const gap = 2;
@@ -164,7 +179,7 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
     return <span className="text-text-muted">-</span>;
   }
 
-  const ordered = [...values].reverse();
+  const ordered = dedupeByYear(values).reverse();
   const width = 104;
   const height = 28;
   const gap = 2;
@@ -311,10 +326,10 @@ const DropdownButton = ({ label, isActive, isOpen, onClick, badge }: DropdownBut
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border transition-colors whitespace-nowrap",
+      "flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-[9px] border transition-colors whitespace-nowrap",
       isActive
         ? "bg-accent/15 border-accent/40 text-accent"
-        : "bg-bg-tertiary border-border-subtle text-text-secondary hover:border-accent/50 hover:text-text-primary"
+        : "bg-bg-tertiary border-border-strong text-text-secondary hover:border-accent/50 hover:text-text-primary"
     )}
   >
     {label}
@@ -863,9 +878,9 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
         <div ref={presetsRef} className="relative">
           <DropdownButton
             label={(() => {
-              if (!activePreset) return "Preset Filters";
+              if (!activePreset) return "⚡ Preset Filters";
               const p = allPresets.find(p => p.id === activePreset);
-              if (!p) return "Preset Filters";
+              if (!p) return "⚡ Preset Filters";
               return `${p.icon} ${formatPresetName(p)}`;
             })()}
             isActive={activePreset !== null}
@@ -873,7 +888,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
             onClick={() => setOpenDropdown(openDropdown === "presets" ? null : "presets")}
           />
           {openDropdown === "presets" && (
-            <div className="absolute top-full left-0 mt-1 min-w-[280px] bg-bg-tertiary border border-border-subtle rounded-xl p-2 z-50 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
+            <div className="absolute top-full left-0 mt-1 min-w-[280px] bg-bg-primary border border-border-subtle rounded-[13px] p-2 z-50 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
               <button
                 onClick={() => {
                   clearAllFilters();
@@ -993,7 +1008,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
             badge={activeFilterCount}
           />
           {openDropdown === "filters" && (
-            <div className="absolute top-full left-0 mt-1 bg-bg-tertiary border border-border-subtle rounded-xl p-4 z-50 shadow-[0_12px_32px_rgba(0,0,0,0.5)] w-[680px]">
+            <div className="absolute top-full left-0 mt-1 bg-bg-primary border border-border-subtle rounded-[13px] p-4 z-50 shadow-[0_12px_32px_rgba(15,23,42,0.12)] w-[680px]">
               <div className="grid grid-cols-4 gap-3">
                 <FilterGridInput label="Market Cap ($B)" minKey="minMarketCap" maxKey="maxMarketCap" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="P/E Ratio" minKey="minPERatio" maxKey="maxPERatio" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
@@ -1081,13 +1096,13 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
         {/* Columns Dropdown */}
         <div ref={columnsRef} className="relative">
           <DropdownButton
-            label={`Columns (${visibleColumns.size}/${COLUMN_OPTIONS.length})`}
+            label={`▦ Columns (${visibleColumns.size}/${COLUMN_OPTIONS.length})`}
             isActive={false}
             isOpen={openDropdown === "columns"}
             onClick={() => setOpenDropdown(openDropdown === "columns" ? null : "columns")}
           />
           {openDropdown === "columns" && (
-            <div className="absolute top-full left-0 mt-1 min-w-[260px] bg-bg-tertiary border border-border-subtle rounded-xl p-2.5 z-50 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
+            <div className="absolute top-full left-0 mt-1 min-w-[260px] bg-bg-primary border border-border-subtle rounded-[13px] p-2.5 z-50 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
               <div className="grid grid-cols-2 gap-0.5">
                 {COLUMN_OPTIONS.map((col) => (
                   <label key={col.key} className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer hover:bg-bg-secondary text-[12px] text-text-secondary select-none">

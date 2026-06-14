@@ -23,6 +23,7 @@ export default {
         positive: "var(--positive)",
         negative: "var(--negative)",
         "border-subtle": "var(--border-subtle)",
+        "border-strong": "var(--border-strong)",
       },
       boxShadow: {
         glow: "0 0 16px rgba(8, 145, 178, 0.3)",
