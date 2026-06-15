@@ -375,9 +375,9 @@ const FilterGridInput = ({ label, minKey, maxKey, pendingFilters, updateFilter, 
 );
 
 const COLUMN_OPTIONS: readonly ColumnOption[] = [
-  // Every column defaults to visible except Country and Industry.
+  // Every column defaults to visible except Country, Sector, and Industry.
   { key: "country", label: "Country", defaultVisible: false },
-  { key: "sector", label: "Sector", defaultVisible: true },
+  { key: "sector", label: "Sector", defaultVisible: false },
   { key: "industry", label: "Industry", defaultVisible: false },
   { key: "marketCap", label: "Market Cap", defaultVisible: true },
   { key: "price", label: "Price", defaultVisible: true },
