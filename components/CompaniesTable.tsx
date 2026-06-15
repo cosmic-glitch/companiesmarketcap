@@ -139,45 +139,88 @@ function sharedYearDomain(
   return [...years].sort((x, y) => x - y);
 }
 
-// Inline SVG bar chart showing annual revenue trend.
-// Bars are positioned by year-slot in a shared x-axis (`years`, oldest→newest)
-// so this chart aligns with the EPS sparkline; height stays self-scaled to this
+const SPARK_WIDTH = 104;
+const SPARK_HEIGHT = 28;
+const SPARK_GAP = 2;
+
+// Shared layout for a company's paired revenue + EPS sparklines so they line up
+// on both axes. `years` is the shared x-axis (see sharedYearDomain). `zeroY` is
+// the shared y of the zero line, and `pxPerUnit` is the pixels per 1.0 of each
+// series' own-max-normalized magnitude — both charts use these so y=0 lands at
+// the same pixel and equal magnitudes draw to equal lengths.
+interface SparkLayout {
+  years: number[];
+  zeroY: number;
+  pxPerUnit: number;
+}
+
+// Revenue is always ≥0, so it claims a full unit of positive (above-zero) space;
+// EPS adds negative (below-zero) space proportional to how deep its losses run
+// relative to its own peak magnitude. The zero line therefore sits at the
+// vertical middle when EPS is all-negative (e.g. SpaceX), at the bottom when EPS
+// never goes negative (the common case — identical to the old single-axis
+// render), and in between otherwise.
+function sparkLayout(
+  revenue: { year: number; revenue: number }[] | null,
+  eps: { year: number; eps: number }[] | null,
+): SparkLayout {
+  const years = sharedYearDomain(revenue, eps);
+  let posUnits = revenue && revenue.length >= 2 ? 1 : 0;
+  let negUnits = 0;
+  if (eps && eps.length >= 2) {
+    const vals = dedupeByYear(eps).map((v) => v.eps);
+    const maxPos = Math.max(0, ...vals);
+    const maxNeg = Math.max(0, ...vals.map((e) => -e));
+    const maxAbs = Math.max(maxPos, maxNeg);
+    if (maxAbs > 0) {
+      posUnits = Math.max(posUnits, maxPos / maxAbs);
+      negUnits = Math.max(negUnits, maxNeg / maxAbs);
+    }
+  }
+  const total = posUnits + negUnits;
+  const pxPerUnit = total > 0 ? SPARK_HEIGHT / total : SPARK_HEIGHT;
+  const zeroY = total > 0 ? posUnits * pxPerUnit : SPARK_HEIGHT;
+  return { years, zeroY, pxPerUnit };
+}
+
+// Inline SVG bar chart showing annual revenue trend. Bars sit in shared
+// year-slots (`layout.years`) and rise from the shared zero line so this chart
+// aligns with the EPS sparkline on both axes; height is self-scaled to this
 // series' own max.
 function RevenueSparkline({
   values,
-  years,
+  layout,
 }: {
   values: { year: number; revenue: number }[] | null;
-  years: number[];
+  layout: SparkLayout;
 }) {
   if (!values || values.length < 2) {
     return <span className="text-text-muted">-</span>;
   }
 
+  const { years, zeroY, pxPerUnit } = layout;
   const byYear = new Map(dedupeByYear(values).map((v) => [v.year, v.revenue]));
-  const width = 104;
-  const height = 28;
-  const gap = 2;
-  const barWidth = (width - gap * (years.length - 1)) / years.length;
+  const barWidth = (SPARK_WIDTH - SPARK_GAP * (years.length - 1)) / years.length;
   const maxRevenue = Math.max(...byYear.values());
   // Floor at 2px so non-zero tiny values stay visible.
   const minBarHeight = 2;
 
   return (
     <svg
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
+      width={SPARK_WIDTH}
+      height={SPARK_HEIGHT}
+      viewBox={`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`}
       className="inline-block align-middle"
       aria-label="10-year revenue trend"
     >
       {years.map((year, i) => {
         const revenue = byYear.get(year);
         if (revenue === undefined) return null;
-        const scaled = maxRevenue > 0 ? (revenue / maxRevenue) * height : 0;
+        // Max revenue reaches the top: at maxRevenue, scaled === zeroY.
+        const scaled = maxRevenue > 0 ? (revenue / maxRevenue) * pxPerUnit : 0;
         const barHeight = Math.max(scaled, minBarHeight);
-        const x = i * (barWidth + gap);
-        const y = height - barHeight;
+        const x = i * (barWidth + SPARK_GAP);
+        const y = zeroY - barHeight;
         return (
           <rect
             key={year}
@@ -195,51 +238,44 @@ function RevenueSparkline({
   );
 }
 
-// Zero-baseline sparkline for annual diluted-EPS. Positive bars above the
-// axis (accent), negative bars below (red). Axis position is proportional
-// to the pos/neg range so both polarities stay visible. Self-scaled per
-// company — no cross-row comparison. Bars are positioned by year-slot in a
-// shared x-axis (`years`, oldest→newest) so this chart aligns with the
-// revenue sparkline.
+// Zero-baseline sparkline for annual diluted-EPS. Positive bars rise above the
+// zero line (accent), negative bars drop below it (red). Both the line position
+// (`layout.zeroY`) and the magnitude scale (`layout.pxPerUnit`) are shared with
+// the revenue sparkline, so y=0 coincides across the pair: positive revenue
+// reads as clearly above zero and negative EPS as clearly below. Bar magnitude
+// is self-scaled to this series' own peak.
 function EpsSparkline({
   values,
-  years,
+  layout,
 }: {
   values: { year: number; eps: number }[] | null;
-  years: number[];
+  layout: SparkLayout;
 }) {
   if (!values || values.length < 2) {
     return <span className="text-text-muted">-</span>;
   }
 
+  const { years, zeroY, pxPerUnit } = layout;
   const byYear = new Map(dedupeByYear(values).map((v) => [v.year, v.eps]));
-  const epsValues = [...byYear.values()];
-  const width = 104;
-  const height = 28;
-  const gap = 2;
-  const barWidth = (width - gap * (years.length - 1)) / years.length;
-  const maxPos = Math.max(0, ...epsValues);
-  const maxNeg = Math.max(0, ...epsValues.map((e) => -e));
-  const range = maxPos + maxNeg;
-  const zeroY = range > 0 ? (maxPos / range) * height : height;
+  const barWidth = (SPARK_WIDTH - SPARK_GAP * (years.length - 1)) / years.length;
+  const maxAbs = Math.max(0, ...[...byYear.values()].map((e) => Math.abs(e)));
   const minBar = 1;
 
   return (
     <svg
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
+      width={SPARK_WIDTH}
+      height={SPARK_HEIGHT}
+      viewBox={`0 0 ${SPARK_WIDTH} ${SPARK_HEIGHT}`}
       className="inline-block align-middle"
       aria-label="10-year EPS trend"
     >
       {years.map((year, i) => {
         const eps = byYear.get(year);
         if (eps === undefined) return null;
-        const x = i * (barWidth + gap);
-        const absEps = Math.abs(eps);
+        const x = i * (barWidth + SPARK_GAP);
+        const mag = maxAbs > 0 ? (Math.abs(eps) / maxAbs) * pxPerUnit : 0;
         if (eps >= 0) {
-          const scaled = maxPos > 0 ? (absEps / maxPos) * zeroY : 0;
-          const h = absEps > 0 ? Math.max(scaled, minBar) : 0;
+          const h = eps > 0 ? Math.max(mag, minBar) : 0;
           return (
             <rect
               key={year}
@@ -253,9 +289,7 @@ function EpsSparkline({
             </rect>
           );
         }
-        const maxDown = height - zeroY;
-        const scaled = maxNeg > 0 ? (absEps / maxNeg) * maxDown : 0;
-        const h = Math.max(scaled, minBar);
+        const h = Math.max(mag, minBar);
         return (
           <rect
             key={year}
@@ -1557,7 +1591,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                 <td className="px-4 py-3.5 whitespace-nowrap text-center">
                   <RevenueSparkline
                     values={company.revenueAnnual}
-                    years={sharedYearDomain(company.revenueAnnual, company.epsAnnual)}
+                    layout={sparkLayout(company.revenueAnnual, company.epsAnnual)}
                   />
                 </td>
                 )}
@@ -1565,7 +1599,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                 <td className="px-4 py-3.5 whitespace-nowrap text-center">
                   <EpsSparkline
                     values={company.epsAnnual}
-                    years={sharedYearDomain(company.revenueAnnual, company.epsAnnual)}
+                    layout={sparkLayout(company.revenueAnnual, company.epsAnnual)}
                   />
                 </td>
                 )}
