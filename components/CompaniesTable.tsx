@@ -1171,7 +1171,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("rank")}
                 className={cn(
-                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-left text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("rank") && "sorted-column-header"
                 )}
               >
@@ -1182,7 +1182,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("name")}
                 className={cn(
-                  "sticky left-0 z-50 px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer transition-colors min-w-[242px] max-w-[242px] shadow-[8px_0_12px_-12px_rgba(0,0,0,0.8)]",
+                  "sticky left-0 z-50 px-4 py-3 text-left text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer transition-colors min-w-[242px] max-w-[242px] shadow-[8px_0_12px_-12px_rgba(0,0,0,0.8)]",
                   isSortedColumn("name")
                     ? "bg-[#d1fae5] hover:bg-[#bbf7d0]"
                     : "bg-bg-tertiary hover:bg-bg-hover"
@@ -1195,7 +1195,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("country")}
                 className={cn(
-                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-left text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("country") && "sorted-column-header"
                 )}
               >
@@ -1206,7 +1206,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("sector")}
                 className={cn(
-                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-left text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("sector") && "sorted-column-header"
                 )}
               >
@@ -1217,7 +1217,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("industry")}
                 className={cn(
-                  "px-4 py-4 text-left text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-left text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("industry") && "sorted-column-header"
                 )}
               >
@@ -1226,20 +1226,21 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("marketCap") && (
               <th
+                title="Market Cap"
                 onClick={() => handleSort("marketCap")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("marketCap") && "sorted-column-header"
                 )}
               >
-                Market Cap <SortIndicator columnKey="marketCap" />
+                Mkt Cap <SortIndicator columnKey="marketCap" />
               </th>
               )}
               {isColumnVisible("price") && (
               <th
                 onClick={() => handleSort("price")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("price") && "sorted-column-header"
                 )}
               >
@@ -1250,7 +1251,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("dailyChangePercent")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("dailyChangePercent") && "sorted-column-header"
                 )}
               >
@@ -1258,31 +1259,32 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               </th>
               )}
               {isColumnVisible("revenueAnnual") && (
-              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
-                10Y Rev Trend
+              <th title="10Y Rev Trend" className="px-4 py-3 text-center text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap">
+                10Y Rev
               </th>
               )}
               {isColumnVisible("epsAnnual") && (
-              <th className="px-4 py-4 text-center text-sm font-semibold text-text-secondary uppercase tracking-wider">
-                10Y EPS Trend
+              <th title="10Y EPS Trend" className="px-4 py-3 text-center text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap">
+                10Y EPS
               </th>
               )}
               {isColumnVisible("pctTo52WeekHigh") && (
               <th
+                title="% to 52W High"
                 onClick={() => handleSort("pctTo52WeekHigh")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("pctTo52WeekHigh") && "sorted-column-header"
                 )}
               >
-                % to 52W High <SortIndicator columnKey="pctTo52WeekHigh" />
+                % 52W Hi <SortIndicator columnKey="pctTo52WeekHigh" />
               </th>
               )}
               {isColumnVisible("earnings") && (
               <th
                 onClick={() => handleSort("earnings")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("earnings") && "sorted-column-header"
                 )}
               >
@@ -1293,7 +1295,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("revenue")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("revenue") && "sorted-column-header"
                 )}
               >
@@ -1304,7 +1306,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("freeCashFlow")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("freeCashFlow") && "sorted-column-header"
                 )}
               >
@@ -1315,7 +1317,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("peRatio")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("peRatio") && "sorted-column-header"
                 )}
               >
@@ -1326,7 +1328,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("forwardPE")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("forwardPE") && "sorted-column-header"
                 )}
               >
@@ -1335,20 +1337,21 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("forwardEPSGrowth") && (
               <th
+                title="Fwd EPS Growth"
                 onClick={() => handleSort("forwardEPSGrowth")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("forwardEPSGrowth") && "sorted-column-header"
                 )}
               >
-                Fwd EPS Growth <SortIndicator columnKey="forwardEPSGrowth" />
+                Fwd EPS Gr <SortIndicator columnKey="forwardEPSGrowth" />
               </th>
               )}
               {isColumnVisible("dividendPercent") && (
               <th
                 onClick={() => handleSort("dividendPercent")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("dividendPercent") && "sorted-column-header"
                 )}
               >
@@ -1357,20 +1360,21 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("operatingMargin") && (
               <th
+                title="Op. Margin %"
                 onClick={() => handleSort("operatingMargin")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("operatingMargin") && "sorted-column-header"
                 )}
               >
-                Op. Margin % <SortIndicator columnKey="operatingMargin" />
+                Op Mgn <SortIndicator columnKey="operatingMargin" />
               </th>
               )}
               {isColumnVisible("netDebt") && (
               <th
                 onClick={() => handleSort("netDebt")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("netDebt") && "sorted-column-header"
                 )}
               >
@@ -1381,7 +1385,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("revenueGrowth5Y")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("revenueGrowth5Y") && "sorted-column-header"
                 )}
               >
@@ -1392,7 +1396,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("revenueGrowth3Y")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("revenueGrowth3Y") && "sorted-column-header"
                 )}
               >
@@ -1403,7 +1407,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("epsGrowth5Y")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("epsGrowth5Y") && "sorted-column-header"
                 )}
               >
@@ -1414,7 +1418,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               <th
                 onClick={() => handleSort("epsGrowth3Y")}
                 className={cn(
-                  "px-4 py-4 text-right text-sm font-semibold text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
                   isSortedColumn("epsGrowth3Y") && "sorted-column-header"
                 )}
               >
