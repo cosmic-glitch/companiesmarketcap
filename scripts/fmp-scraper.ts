@@ -720,6 +720,21 @@ async function fetchQuarterlyCashFlow(symbol: string): Promise<{ statements: FMP
   return null;
 }
 
+// Fetch annual cash-flow statements for a symbol (last 10 fiscal years +
+// reportedCurrency). Used only as a fallback for issuers whose quarterly series
+// isn't a clean TTM (semi-annual reporters, short-history listings) — see
+// computeCashDebt — so it's fetched for just those symbols, not the whole universe.
+async function fetchAnnualCashFlow(symbol: string): Promise<{ statements: FMPCashFlowStatement[]; reportedCurrency: string } | null> {
+  const url = `${BASE_URL}/cash-flow-statement?symbol=${symbol}&period=annual&limit=10&apikey=${FMP_API_KEY}`;
+  const response = await axios.get<FMPCashFlowStatement[]>(url, { timeout: 10000 });
+
+  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+    const reportedCurrency = response.data[0].reportedCurrency || "USD";
+    return { statements: response.data, reportedCurrency };
+  }
+  return null;
+}
+
 // Fetch latest balance sheet for a symbol (single most recent quarter)
 async function fetchLatestBalanceSheet(symbol: string): Promise<{ statement: FMPBalanceSheet; reportedCurrency: string } | null> {
   const url = `${BASE_URL}/balance-sheet-statement?symbol=${symbol}&period=quarter&limit=1&apikey=${FMP_API_KEY}`;
@@ -738,18 +753,32 @@ async function fetchLatestBalanceSheet(symbol: string): Promise<{ statement: FMP
 function computeCashDebt(
   cfResult: { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined,
   bsResult: { statement: FMPBalanceSheet; reportedCurrency: string } | undefined,
-  fxRates: Map<string, number>
+  fxRates: Map<string, number>,
+  annualCfResult?: { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined
 ): { freeCashFlow: number | null; netDebt: number | null } {
-  // Only sum cash-flow quarters that form a valid TTM (same guard as income).
-  // Semi-annual reporters return four half-year statements (≈2× FCF) and newly
-  // listed issuers fewer than four; rather than emit a distorted figure we leave
-  // FCF null (the column shows "—"). No annual cash-flow series is fetched to
-  // fall back to.
+  // Prefer a validated TTM (four consecutive quarters, same guard as income);
+  // otherwise fall back to the most recent full fiscal year — the same basis
+  // computeIncome uses for revenue/earnings. Semi-annual reporters return four
+  // half-year statements (≈2× FCF) and newly listed issuers fewer than four; for
+  // them the annual figure is the only honest number. annualCfResult is fetched
+  // only for symbols that fail the quarterly TTM check (see the callers), so the
+  // fallback adds API calls only where it's actually needed.
   let freeCashFlow: number | null = null;
   if (cfResult && hasValidTtmQuarters(cfResult.statements)) {
     const fcfSum = cfResult.statements.reduce((sum, q) => sum + (q.freeCashFlow || 0), 0);
     if (fcfSum !== 0) {
       freeCashFlow = toUSD(fcfSum, cfResult.reportedCurrency, fxRates);
+    }
+  } else if (annualCfResult && annualCfResult.statements.length > 0) {
+    // Most recent fiscal year with a usable FCF (FCF may legitimately be
+    // negative for cash-burning companies, so we can't filter on > 0 — only
+    // skip zero/missing). Annual statements are newest-first.
+    const latest =
+      annualCfResult.statements.find(
+        (s) => typeof s.freeCashFlow === "number" && Number.isFinite(s.freeCashFlow) && s.freeCashFlow !== 0
+      ) || annualCfResult.statements[0];
+    if (typeof latest.freeCashFlow === "number" && Number.isFinite(latest.freeCashFlow) && latest.freeCashFlow !== 0) {
+      freeCashFlow = toUSD(latest.freeCashFlow, annualCfResult.reportedCurrency, fxRates);
     }
   }
 
@@ -972,6 +1001,17 @@ async function runFMPScraper(): Promise<{
   const cashFlows = await processSymbolsBatch(dedupedSymbols, fetchQuarterlyCashFlow, "Cash flow");
   console.log(`  Got cash flow for ${cashFlows.size} symbols\n`);
 
+  // Annual cash-flow fallback — only for symbols whose quarterly series isn't a
+  // clean TTM (semi-annual reporters, short-history listings). For everyone else
+  // the quarterly sum is correct, so we skip the extra fetch.
+  const symbolsNeedingAnnualCf = dedupedSymbols.filter((symbol) => {
+    const cf = cashFlows.get(symbol) as { statements: FMPCashFlowStatement[] } | undefined;
+    return !cf || !hasValidTtmQuarters(cf.statements);
+  });
+  console.log(`Fetching annual cash-flow statements (FCF fallback for ${symbolsNeedingAnnualCf.length} non-quarterly reporters)...`);
+  const annualCashFlows = await processSymbolsBatch(symbolsNeedingAnnualCf, fetchAnnualCashFlow, "Annual cash flow");
+  console.log(`  Got annual cash flow for ${annualCashFlows.size} symbols\n`);
+
   console.log("Fetching latest balance sheets...");
   const balanceSheets = await processSymbolsBatch(dedupedSymbols, fetchLatestBalanceSheet, "Balance sheet");
   console.log(`  Got balance sheets for ${balanceSheets.size} symbols\n`);
@@ -989,6 +1029,7 @@ async function runFMPScraper(): Promise<{
     const growthData = growth.get(symbol) as FMPFinancialGrowth | undefined;
     const estimate = estimates.get(symbol) as FMPAnalystEstimate | undefined;
     const cashFlowResult = cashFlows.get(symbol) as { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined;
+    const annualCashFlowResult = annualCashFlows.get(symbol) as { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined;
     const balanceSheetResult = balanceSheets.get(symbol) as { statement: FMPBalanceSheet; reportedCurrency: string } | undefined;
 
     if (!quote) continue;
@@ -1063,11 +1104,13 @@ async function runFMPScraper(): Promise<{
     // Build 10-year diluted-EPS series (newest-first, reported currency)
     const epsAnnual = annualResult ? buildEpsAnnual(annualResult.statements) : null;
 
-    // TTM free cash flow (USD) and latest net debt (USD)
+    // TTM free cash flow (USD, annual fallback for non-quarterly reporters) and
+    // latest net debt (USD)
     const { freeCashFlow: ttmFreeCashFlow, netDebt: latestNetDebt } = computeCashDebt(
       cashFlowResult,
       balanceSheetResult,
-      fxRates
+      fxRates,
+      annualCashFlowResult
     );
 
     companies.push({
@@ -1573,6 +1616,16 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     const cashFlows = await processSymbolsBatch(symbols, fetchQuarterlyCashFlow, "Cash flow");
     console.log(`  Got cash flow for ${cashFlows.size} symbols\n`);
 
+    // Annual cash-flow fallback — only for symbols whose quarterly series isn't a
+    // clean TTM (semi-annual reporters, short-history listings); see computeCashDebt.
+    const symbolsNeedingAnnualCf = symbols.filter((symbol) => {
+      const cf = cashFlows.get(symbol) as { statements: FMPCashFlowStatement[] } | undefined;
+      return !cf || !hasValidTtmQuarters(cf.statements);
+    });
+    console.log(`Fetching annual cash-flow statements (FCF fallback for ${symbolsNeedingAnnualCf.length} non-quarterly reporters)...`);
+    const annualCashFlows = await processSymbolsBatch(symbolsNeedingAnnualCf, fetchAnnualCashFlow, "Annual cash flow");
+    console.log(`  Got annual cash flow for ${annualCashFlows.size} symbols\n`);
+
     console.log("Fetching latest balance sheets...");
     const balanceSheets = await processSymbolsBatch(symbols, fetchLatestBalanceSheet, "Balance sheet");
     console.log(`  Got balance sheets for ${balanceSheets.size} symbols\n`);
@@ -1581,8 +1634,9 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     let debtUpdated = 0;
     for (const [symbol, company] of companyMap) {
       const cf = cashFlows.get(symbol) as { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined;
+      const annualCf = annualCashFlows.get(symbol) as { statements: FMPCashFlowStatement[]; reportedCurrency: string } | undefined;
       const bs = balanceSheets.get(symbol) as { statement: FMPBalanceSheet; reportedCurrency: string } | undefined;
-      const { freeCashFlow, netDebt } = computeCashDebt(cf, bs, fxRates);
+      const { freeCashFlow, netDebt } = computeCashDebt(cf, bs, fxRates, annualCf);
       if (freeCashFlow !== null) {
         company.free_cash_flow = freeCashFlow;
         fcfUpdated++;
