@@ -124,19 +124,42 @@ function dedupeByYear<T extends { year: number }>(values: T[]): T[] {
   return out;
 }
 
+// Union of distinct years across two annual series, sorted oldest→newest.
+// Shared between the revenue and EPS sparklines so both use one x-axis: the
+// same calendar year lands in the same slot/width in both charts, even when
+// the two series cover different spans (e.g. SpaceX revenue runs longer than
+// its EPS history). A year missing from a series leaves that slot blank.
+function sharedYearDomain(
+  a: { year: number }[] | null,
+  b: { year: number }[] | null,
+): number[] {
+  const years = new Set<number>();
+  for (const v of a ?? []) years.add(v.year);
+  for (const v of b ?? []) years.add(v.year);
+  return [...years].sort((x, y) => x - y);
+}
+
 // Inline SVG bar chart showing annual revenue trend.
-// Storage order is newest-first; render oldest→newest (left→right).
-function RevenueSparkline({ values }: { values: { year: number; revenue: number }[] | null }) {
+// Bars are positioned by year-slot in a shared x-axis (`years`, oldest→newest)
+// so this chart aligns with the EPS sparkline; height stays self-scaled to this
+// series' own max.
+function RevenueSparkline({
+  values,
+  years,
+}: {
+  values: { year: number; revenue: number }[] | null;
+  years: number[];
+}) {
   if (!values || values.length < 2) {
     return <span className="text-text-muted">-</span>;
   }
 
-  const ordered = dedupeByYear(values).reverse();
+  const byYear = new Map(dedupeByYear(values).map((v) => [v.year, v.revenue]));
   const width = 104;
   const height = 28;
   const gap = 2;
-  const barWidth = (width - gap * (ordered.length - 1)) / ordered.length;
-  const maxRevenue = Math.max(...ordered.map((v) => v.revenue));
+  const barWidth = (width - gap * (years.length - 1)) / years.length;
+  const maxRevenue = Math.max(...byYear.values());
   // Floor at 2px so non-zero tiny values stay visible.
   const minBarHeight = 2;
 
@@ -148,21 +171,23 @@ function RevenueSparkline({ values }: { values: { year: number; revenue: number 
       className="inline-block align-middle"
       aria-label="10-year revenue trend"
     >
-      {ordered.map((v, i) => {
-        const scaled = maxRevenue > 0 ? (v.revenue / maxRevenue) * height : 0;
+      {years.map((year, i) => {
+        const revenue = byYear.get(year);
+        if (revenue === undefined) return null;
+        const scaled = maxRevenue > 0 ? (revenue / maxRevenue) * height : 0;
         const barHeight = Math.max(scaled, minBarHeight);
         const x = i * (barWidth + gap);
         const y = height - barHeight;
         return (
           <rect
-            key={v.year}
+            key={year}
             x={x}
             y={y}
             width={barWidth}
             height={barHeight}
             fill="#64748b"
           >
-            <title>{`${v.year}: ${formatMarketCap(v.revenue)}`}</title>
+            <title>{`${year}: ${formatMarketCap(revenue)}`}</title>
           </rect>
         );
       })}
@@ -173,19 +198,28 @@ function RevenueSparkline({ values }: { values: { year: number; revenue: number 
 // Zero-baseline sparkline for annual diluted-EPS. Positive bars above the
 // axis (accent), negative bars below (red). Axis position is proportional
 // to the pos/neg range so both polarities stay visible. Self-scaled per
-// company — no cross-row comparison.
-function EpsSparkline({ values }: { values: { year: number; eps: number }[] | null }) {
+// company — no cross-row comparison. Bars are positioned by year-slot in a
+// shared x-axis (`years`, oldest→newest) so this chart aligns with the
+// revenue sparkline.
+function EpsSparkline({
+  values,
+  years,
+}: {
+  values: { year: number; eps: number }[] | null;
+  years: number[];
+}) {
   if (!values || values.length < 2) {
     return <span className="text-text-muted">-</span>;
   }
 
-  const ordered = dedupeByYear(values).reverse();
+  const byYear = new Map(dedupeByYear(values).map((v) => [v.year, v.eps]));
+  const epsValues = [...byYear.values()];
   const width = 104;
   const height = 28;
   const gap = 2;
-  const barWidth = (width - gap * (ordered.length - 1)) / ordered.length;
-  const maxPos = Math.max(0, ...ordered.map((v) => v.eps));
-  const maxNeg = Math.max(0, ...ordered.map((v) => -v.eps));
+  const barWidth = (width - gap * (years.length - 1)) / years.length;
+  const maxPos = Math.max(0, ...epsValues);
+  const maxNeg = Math.max(0, ...epsValues.map((e) => -e));
   const range = maxPos + maxNeg;
   const zeroY = range > 0 ? (maxPos / range) * height : height;
   const minBar = 1;
@@ -198,22 +232,24 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
       className="inline-block align-middle"
       aria-label="10-year EPS trend"
     >
-      {ordered.map((v, i) => {
+      {years.map((year, i) => {
+        const eps = byYear.get(year);
+        if (eps === undefined) return null;
         const x = i * (barWidth + gap);
-        const absEps = Math.abs(v.eps);
-        if (v.eps >= 0) {
+        const absEps = Math.abs(eps);
+        if (eps >= 0) {
           const scaled = maxPos > 0 ? (absEps / maxPos) * zeroY : 0;
           const h = absEps > 0 ? Math.max(scaled, minBar) : 0;
           return (
             <rect
-              key={v.year}
+              key={year}
               x={x}
               y={zeroY - h}
               width={barWidth}
               height={h}
               fill="#64748b"
             >
-              <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
+              <title>{`${year}: ${eps.toFixed(2)}`}</title>
             </rect>
           );
         }
@@ -222,14 +258,14 @@ function EpsSparkline({ values }: { values: { year: number; eps: number }[] | nu
         const h = Math.max(scaled, minBar);
         return (
           <rect
-            key={v.year}
+            key={year}
             x={x}
             y={zeroY}
             width={barWidth}
             height={h}
             fill="rgba(220, 38, 38, 0.9)"
           >
-            <title>{`${v.year}: ${v.eps.toFixed(2)}`}</title>
+            <title>{`${year}: ${eps.toFixed(2)}`}</title>
           </rect>
         );
       })}
@@ -1519,12 +1555,18 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                 )}
                 {isColumnVisible("revenueAnnual") && (
                 <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                  <RevenueSparkline values={company.revenueAnnual} />
+                  <RevenueSparkline
+                    values={company.revenueAnnual}
+                    years={sharedYearDomain(company.revenueAnnual, company.epsAnnual)}
+                  />
                 </td>
                 )}
                 {isColumnVisible("epsAnnual") && (
                 <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                  <EpsSparkline values={company.epsAnnual} />
+                  <EpsSparkline
+                    values={company.epsAnnual}
+                    years={sharedYearDomain(company.revenueAnnual, company.epsAnnual)}
+                  />
                 </td>
                 )}
                 {isColumnVisible("pctTo52WeekHigh") && (
