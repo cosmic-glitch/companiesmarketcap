@@ -459,6 +459,102 @@ function buildEpsAnnual(
   return series.length >= 2 ? series : null;
 }
 
+// A genuine trailing-twelve-months aggregate requires four *consecutive*
+// quarterly statements. FMP doesn't always provide them: newly-listed or
+// spun-off issuers may have fewer than four quarters, and many UK/EU/AU/ZA
+// issuers report *semi-annually* — FMP returns four half-year statements that a
+// naive "sum the last four" treats as ~24 months (≈2× revenue/earnings/FCF).
+// We validate the span between the earliest and latest period-end dates: four
+// consecutive quarter-ends span ~273 days; a missing intermediate quarter
+// pushes it to ~365; four semi-annual periods span ~549. Accept only the tight
+// band around three real quarter-gaps.
+const TTM_MIN_SPAN_DAYS = 250;
+const TTM_MAX_SPAN_DAYS = 330;
+
+function hasValidTtmQuarters(statements: { date: string }[]): boolean {
+  if (statements.length !== 4) return false;
+  const times = statements
+    .map((s) => (s.date ? new Date(s.date).getTime() : NaN))
+    .filter((t) => Number.isFinite(t))
+    .sort((a, b) => a - b);
+  if (times.length !== 4) return false;
+  const spanDays = (times[3] - times[0]) / 86_400_000;
+  return spanDays >= TTM_MIN_SPAN_DAYS && spanDays <= TTM_MAX_SPAN_DAYS;
+}
+
+// Revenue / earnings / operating margin in USD, preferring a validated TTM (sum
+// of four consecutive quarters per hasValidTtmQuarters). When the quarterly data
+// isn't a clean TTM, fall back to the most recent *annual* statement — the same
+// full-year figure the revenue sparkline already shows — instead of reporting a
+// partial (understated) or semi-annual (≈2× overstated) "TTM". `localRevenue` is
+// the revenue in `currency` (the reporting currency of the chosen figures), used
+// downstream for the forward-EPS FX-basis heuristic.
+interface IncomeFigures {
+  revenueUSD: number | null;
+  earningsUSD: number | null;
+  operatingMargin: number | null;
+  localRevenue: number | null;
+  currency: string;
+  source: "ttm" | "annual" | null;
+}
+
+function computeIncome(
+  incomeResult: { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined,
+  annualResult: { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined,
+  fxRates: Map<string, number>
+): IncomeFigures {
+  const fromStatements = (
+    revenue: number,
+    netIncome: number,
+    operatingIncome: number,
+    currency: string,
+    source: "ttm" | "annual"
+  ): IncomeFigures => ({
+    revenueUSD: revenue > 0 ? toUSD(revenue, currency, fxRates) : null,
+    earningsUSD: netIncome !== 0 ? toUSD(netIncome, currency, fxRates) : null,
+    operatingMargin: revenue > 0 ? operatingIncome / revenue : null,
+    localRevenue: revenue > 0 ? revenue : null,
+    currency,
+    source,
+  });
+
+  // Preferred: validated trailing-twelve-months from four consecutive quarters.
+  if (incomeResult && hasValidTtmQuarters(incomeResult.statements)) {
+    const stmts = incomeResult.statements;
+    return fromStatements(
+      stmts.reduce((s, q) => s + (q.revenue || 0), 0),
+      stmts.reduce((s, q) => s + (q.netIncome || 0), 0),
+      stmts.reduce((s, q) => s + (q.operatingIncome || 0), 0),
+      incomeResult.reportedCurrency,
+      "ttm"
+    );
+  }
+
+  // Fallback: most recent full fiscal year (matches the revenue sparkline's
+  // first bar). Annual statements are newest-first.
+  if (annualResult && annualResult.statements.length > 0) {
+    const latest =
+      annualResult.statements.find((s) => s.revenue && s.revenue > 0) ||
+      annualResult.statements[0];
+    return fromStatements(
+      latest.revenue || 0,
+      latest.netIncome || 0,
+      latest.operatingIncome || 0,
+      annualResult.reportedCurrency,
+      "annual"
+    );
+  }
+
+  return {
+    revenueUSD: null,
+    earningsUSD: null,
+    operatingMargin: null,
+    localRevenue: null,
+    currency: incomeResult?.reportedCurrency || annualResult?.reportedCurrency || "USD",
+    source: null,
+  };
+}
+
 // Sleep utility
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -644,8 +740,13 @@ function computeCashDebt(
   bsResult: { statement: FMPBalanceSheet; reportedCurrency: string } | undefined,
   fxRates: Map<string, number>
 ): { freeCashFlow: number | null; netDebt: number | null } {
+  // Only sum cash-flow quarters that form a valid TTM (same guard as income).
+  // Semi-annual reporters return four half-year statements (≈2× FCF) and newly
+  // listed issuers fewer than four; rather than emit a distorted figure we leave
+  // FCF null (the column shows "—"). No annual cash-flow series is fetched to
+  // fall back to.
   let freeCashFlow: number | null = null;
-  if (cfResult && cfResult.statements.length > 0) {
+  if (cfResult && hasValidTtmQuarters(cfResult.statements)) {
     const fcfSum = cfResult.statements.reduce((sum, q) => sum + (q.freeCashFlow || 0), 0);
     if (fcfSum !== 0) {
       freeCashFlow = toUSD(fcfSum, cfResult.reportedCurrency, fxRates);
@@ -892,33 +993,15 @@ async function runFMPScraper(): Promise<{
 
     if (!quote) continue;
 
-    // Get reporting currency for this company
-    const reportedCurrency = incomeResult?.reportedCurrency || "USD";
-
-    // Calculate TTM values from quarterly income statements
-    let ttmRevenue: number | null = null;
-    let ttmEarnings: number | null = null;
-    let ttmOperatingMargin: number | null = null;
-    // TTM revenue in the reporting currency (pre-conversion) — used to infer the
-    // currency basis of the analyst estimate below.
-    let localRevenueTTM: number | null = null;
-
-    if (incomeResult && incomeResult.statements.length > 0) {
-      const stmts = incomeResult.statements;
-      const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
-      const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
-      const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
-
-      if (revenue > 0) {
-        localRevenueTTM = revenue;
-        ttmRevenue = toUSD(revenue, reportedCurrency, fxRates);
-        // Operating margin is a ratio — compute before conversion (same result)
-        ttmOperatingMargin = operatingIncome / revenue;
-      }
-      if (netIncome !== 0) {
-        ttmEarnings = toUSD(netIncome, reportedCurrency, fxRates);
-      }
-    }
+    // Revenue / earnings / margin: validated TTM, else most-recent-annual
+    // fallback (see computeIncome). `reportedCurrency` and `localRevenueTTM`
+    // feed the forward-EPS FX-basis heuristic below.
+    const income = computeIncome(incomeResult, annualResult, fxRates);
+    const reportedCurrency = income.currency;
+    const ttmRevenue = income.revenueUSD;
+    const ttmEarnings = income.earningsUSD;
+    const ttmOperatingMargin = income.operatingMargin;
+    const localRevenueTTM = income.localRevenue;
 
     // Derive TTM EPS from FMP's P/E ratio for dynamic calculation later
     let ttmEPS: number | null = null;
@@ -1274,20 +1357,13 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       const annualResult = annualIncome.get(symbol) as { statements: FMPIncomeStatement[]; reportedCurrency: string } | undefined;
       const ratio = ratios.get(symbol) as FMPRatiosTTM | undefined;
 
-      if (incomeResult && incomeResult.statements.length > 0) {
-        const reportedCurrency = incomeResult.reportedCurrency;
-        const stmts = incomeResult.statements;
-        const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
-        const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
-        const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
-
-        if (revenue > 0) {
-          company.revenue = toUSD(revenue, reportedCurrency, fxRates);
-          company.operating_margin = operatingIncome / revenue;
-        }
-        if (netIncome !== 0) {
-          company.earnings = toUSD(netIncome, reportedCurrency, fxRates);
-        }
+      // Validated TTM, else most-recent-annual fallback (see computeIncome).
+      // Guarded writes preserve existing values when a figure is unavailable.
+      const income = computeIncome(incomeResult, annualResult, fxRates);
+      if (income.source !== null) {
+        if (income.revenueUSD !== null) company.revenue = income.revenueUSD;
+        if (income.operatingMargin !== null) company.operating_margin = income.operatingMargin;
+        if (income.earningsUSD !== null) company.earnings = income.earningsUSD;
         updated++;
       }
 
@@ -1388,9 +1464,12 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
 
       const stmts = incomeResult.statements;
 
-      // Recompute and convert revenue/earnings from income statements
+      // Recompute and convert revenue/earnings from income statements. Only when
+      // the quarters form a valid TTM (see hasValidTtmQuarters); otherwise leave
+      // the stored values untouched — this manual FX-fix path fetches no annual
+      // series to fall back to, and the daily full scrape handles such rows.
       let localRevenueTTM: number | null = null;
-      if (stmts.length > 0) {
+      if (hasValidTtmQuarters(stmts)) {
         const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
         const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
         const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
@@ -1587,25 +1666,11 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         : null;
       const epsAnnual = annualResult ? buildEpsAnnual(annualResult.statements) : null;
 
-      // Calculate TTM values from quarterly income statements
-      let ttmRevenue: number | null = null;
-      let ttmEarnings: number | null = null;
-      let ttmOperatingMargin: number | null = null;
-
-      if (incomeResult && incomeResult.statements.length > 0) {
-        const stmts = incomeResult.statements;
-        const revenue = stmts.reduce((sum, q) => sum + (q.revenue || 0), 0);
-        const netIncome = stmts.reduce((sum, q) => sum + (q.netIncome || 0), 0);
-        const operatingIncome = stmts.reduce((sum, q) => sum + (q.operatingIncome || 0), 0);
-
-        if (revenue > 0) {
-          ttmRevenue = toUSD(revenue, reportedCurrency, fxRates);
-          ttmOperatingMargin = operatingIncome / revenue;
-        }
-        if (netIncome !== 0) {
-          ttmEarnings = toUSD(netIncome, reportedCurrency, fxRates);
-        }
-      }
+      // Validated TTM, else most-recent-annual fallback (see computeIncome).
+      const income = computeIncome(incomeResult, annualResult, fxRates);
+      const ttmRevenue = income.revenueUSD;
+      const ttmEarnings = income.earningsUSD;
+      const ttmOperatingMargin = income.operatingMargin;
 
       // Derive TTM EPS from FMP's P/E ratio
       let ttmEPS: number | null = null;
