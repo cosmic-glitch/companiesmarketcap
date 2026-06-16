@@ -1207,23 +1207,27 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
         <FeedbackWidget />
       </div>
 
-      {/* Applied-filter / sort summary (read-only) */}
-      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px]">
+      {/* Applied-filter / sort summary. Read-only prose — these criteria are
+          edited via the Custom Filters dropdown, not here, so they're styled as
+          plain middot-separated text rather than chips that invite a click. */}
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
         {hasActiveFilters && (
           <span className="font-semibold text-text-primary">
             {total.toLocaleString()} {total === 1 ? "match" : "matches"}
           </span>
         )}
-        {activeDescriptions.map((d) => (
-          <span
-            key={d}
-            className="inline-flex items-center px-2 py-0.5 rounded-md bg-bg-tertiary border border-border-subtle text-text-secondary"
-          >
+        {activeDescriptions.map((d, i) => (
+          <span key={d} className="whitespace-nowrap text-text-secondary">
+            {(i > 0 || hasActiveFilters) && (
+              <span aria-hidden className="text-text-muted mr-1.5">·</span>
+            )}
             {d}
           </span>
         ))}
         <span className="text-text-muted">
-          {hasActiveFilters && <span className="mr-2">·</span>}
+          {(hasActiveFilters || activeDescriptions.length > 0) && (
+            <span aria-hidden className="mr-1.5">·</span>
+          )}
           Sorted by {sortLabelFor(sortBy)} {sortOrder === "asc" ? "↑" : "↓"}
         </span>
       </div>
