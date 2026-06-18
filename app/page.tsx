@@ -115,7 +115,14 @@ export default async function Home({ searchParams }: HomeProps) {
   const countries = await getDistinctCountries();
   const sectors = await getDistinctSectors();
   const industries = await getDistinctIndustries();
-  const userPresets = await getUserPresets();
+  // Presets are a non-essential decoration — the page renders fine with just the
+  // built-in defaults. getUserPresets() throws on a transient blob hiccup (kept
+  // strict so the read-modify-write API paths abort rather than clobber), so a
+  // failure here must degrade to "no user presets", never crash the whole page.
+  const userPresets = await getUserPresets().catch((error) => {
+    console.error("Failed to load user presets; rendering with built-ins only", error);
+    return [];
+  });
 
   return (
     <main className="min-h-screen bg-bg-primary">
