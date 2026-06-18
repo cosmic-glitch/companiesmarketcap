@@ -595,6 +595,13 @@ export async function writeUserPresets(presets: PresetConfig[]): Promise<void> {
       access: "public",
       addRandomSuffix: false,
       allowOverwrite: true,
+      // presets.json is overwritten on every save/delete and read on every page
+      // load. The default Blob cache-control lets the CDN edge serve a stale
+      // copy for many seconds after a write, which made just-deleted presets
+      // reappear on a hard refresh (and drove users to delete repeatedly). 0
+      // forces the edge to revalidate so reads reflect writes promptly. A brief
+      // propagation window still exists; the client tombstone covers it.
+      cacheControlMaxAge: 0,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     return;

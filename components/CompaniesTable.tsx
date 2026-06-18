@@ -518,11 +518,83 @@ const getReferencedColumns = (params: ReadOnlyParams): SortKey[] => {
   return cols;
 };
 
+// Persisted tombstones for just-deleted presets. The in-memory tombstone ref in
+// the component hides a deleted preset against a stale RSC re-sync within a
+// session; persisting the ids (with a short TTL) extends that protection across
+// a HARD browser reload, which otherwise re-reads the still-stale presets blob
+// (the Blob CDN serves a stale copy for a few seconds after a write) and
+// resurrects the entry — the bug that made deletes look like no-ops and drove
+// repeat-deletes. Stored as { id -> expiresAtMs }; expired ids are pruned on read.
+const TOMBSTONE_STORAGE_KEY = "presetTombstones";
+const TOMBSTONE_TTL_MS = 60_000;
+
+function readTombstoneMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(TOMBSTONE_STORAGE_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    const now = Date.now();
+    const live: Record<string, number> = {};
+    for (const [id, exp] of Object.entries(map)) {
+      if (typeof exp === "number" && exp > now) live[id] = exp;
+    }
+    return live;
+  } catch {
+    return {};
+  }
+}
+
+function writeTombstoneMap(map: Record<string, number>): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (Object.keys(map).length === 0) {
+      window.localStorage.removeItem(TOMBSTONE_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(TOMBSTONE_STORAGE_KEY, JSON.stringify(map));
+    }
+  } catch {
+    // localStorage may be unavailable (private mode / quota). The in-memory
+    // tombstone still covers soft refreshes; only hard-reload coverage is lost.
+  }
+}
+
+function persistTombstone(id: string): void {
+  const map = readTombstoneMap();
+  map[id] = Date.now() + TOMBSTONE_TTL_MS;
+  writeTombstoneMap(map);
+}
+
+function clearPersistedTombstone(id: string): void {
+  const map = readTombstoneMap();
+  if (id in map) {
+    delete map[id];
+    writeTombstoneMap(map);
+  }
+}
+
 export default function CompaniesTable({ companies, total, sortBy: sortByProp, sortOrder: sortOrderProp, countries, sectors, industries, userPresets }: CompaniesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [savePresetOpen, setSavePresetOpen] = useState(false);
+  // Delete feedback: which preset's delete is in flight, plus a transient toast
+  // so the action isn't silent (the silence is what left users unsure it worked).
+  const [deletingPresetId, setDeletingPresetId] = useState<string | null>(null);
+  const [presetToast, setPresetToast] = useState<{ kind: "pending" | "success" | "error"; text: string } | null>(null);
+  const presetToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showPresetToast = useCallback(
+    (toast: { kind: "pending" | "success" | "error"; text: string }, autoHideMs?: number) => {
+      if (presetToastTimerRef.current) clearTimeout(presetToastTimerRef.current);
+      setPresetToast(toast);
+      if (autoHideMs) {
+        presetToastTimerRef.current = setTimeout(() => setPresetToast(null), autoHideMs);
+      }
+    },
+    [],
+  );
+  useEffect(() => () => {
+    if (presetToastTimerRef.current) clearTimeout(presetToastTimerRef.current);
+  }, []);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const previousFilterSignatureRef = useRef<string | null>(null);
   const presetsRef = useRef<HTMLDivElement>(null);
@@ -537,6 +609,16 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
   // server's view until the server catches up.
   const pendingPresetAddsRef = useRef<Map<string, PresetConfig>>(new Map());
   const presetTombstonesRef = useRef<Set<string>>(new Set());
+  // Seed in-memory tombstones from localStorage once (client only) so a hard
+  // reload during the Blob CDN's post-write stale window keeps just-deleted
+  // presets hidden instead of resurrecting them. Runs during render (before the
+  // re-sync effect below) but doesn't affect render output, so no hydration
+  // mismatch: the visible list seeds from `userPresets` and the effect filters.
+  const tombstonesHydratedRef = useRef(false);
+  if (!tombstonesHydratedRef.current) {
+    tombstonesHydratedRef.current = true;
+    for (const id of Object.keys(readTombstoneMap())) presetTombstonesRef.current.add(id);
+  }
 
   const [localUserPresets, setLocalUserPresets] = useState<PresetConfig[]>(userPresets);
   useEffect(() => {
@@ -545,9 +627,13 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
     for (const id of [...pendingPresetAddsRef.current.keys()]) {
       if (serverIds.has(id)) pendingPresetAddsRef.current.delete(id);
     }
-    // Server has dropped a tombstoned preset → tombstone is no longer needed.
+    // Server has dropped a tombstoned preset → tombstone is no longer needed,
+    // in memory or on disk.
     for (const id of [...presetTombstonesRef.current]) {
-      if (!serverIds.has(id)) presetTombstonesRef.current.delete(id);
+      if (!serverIds.has(id)) {
+        presetTombstonesRef.current.delete(id);
+        clearPersistedTombstone(id);
+      }
     }
     const fromServer = userPresets.filter((p) => !presetTombstonesRef.current.has(p.id));
     const extras: PresetConfig[] = [];
@@ -737,25 +823,37 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
   }, [router, sortByProp, sortOrderProp]);
 
   const handleDeletePreset = useCallback(async (preset: PresetConfig) => {
+    // Ignore re-clicks while a delete is already in flight. The optimistic
+    // removal below also makes the button vanish, but this guards the brief
+    // window and any error-rollback re-render.
+    if (deletingPresetId) return;
     if (!window.confirm(`Delete preset "${formatPresetName(preset)}"?`)) return;
     const snapshot = localUserPresets;
-    // Tombstone first so a stale RSC re-sync doesn't resurrect this preset.
+    // Tombstone first — in memory AND persisted — so neither a stale RSC re-sync
+    // nor a hard refresh during the Blob CDN's stale window resurrects it.
     presetTombstonesRef.current.add(preset.id);
+    persistTombstone(preset.id);
     pendingPresetAddsRef.current.delete(preset.id);
     setLocalUserPresets((prev) => prev.filter((p) => p.id !== preset.id));
+    setDeletingPresetId(preset.id);
+    showPresetToast({ kind: "pending", text: "Deleting preset…" });
     try {
       const res = await fetch(`/api/presets?id=${encodeURIComponent(preset.id)}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
+      showPresetToast({ kind: "success", text: "Preset deleted" }, 2500);
       router.refresh();
     } catch (err) {
       presetTombstonesRef.current.delete(preset.id);
+      clearPersistedTombstone(preset.id);
       setLocalUserPresets(snapshot);
-      window.alert("Failed to delete preset. Please try again.");
+      showPresetToast({ kind: "error", text: "Couldn’t delete preset — please try again" }, 4000);
       console.error(err);
+    } finally {
+      setDeletingPresetId(null);
     }
-  }, [localUserPresets, router]);
+  }, [deletingPresetId, localUserPresets, router, showPresetToast]);
 
   // Initialize pending filters from URL (alias-aware; back-compat with
   // legacy long-form keys).
@@ -1047,9 +1145,10 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                           e.stopPropagation();
                           handleDeletePreset(preset);
                         }}
+                        disabled={deletingPresetId !== null}
                         aria-label={`Delete preset ${formatPresetName(preset)}`}
                         title="Delete preset"
-                        className="shrink-0 mr-1 p-1.5 rounded-md text-text-muted hover:bg-bg-tertiary hover:text-red-400 transition-colors"
+                        className="shrink-0 mr-1 p-1.5 rounded-md text-text-muted hover:bg-bg-tertiary hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-muted"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
                           <polyline points="3 6 5 6 21 6" />
@@ -1780,6 +1879,25 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
           router.refresh();
         }}
       />
+
+      {presetToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={cn(
+            "fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm shadow-lg",
+            presetToast.kind === "success" && "bg-bg-tertiary text-text-primary border border-border-strong",
+            presetToast.kind === "error" && "bg-red-500/10 text-red-300 border border-red-500/30",
+            presetToast.kind === "pending" && "bg-bg-tertiary text-text-secondary border border-border-subtle",
+          )}
+        >
+          {presetToast.kind === "pending" && (
+            <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          )}
+          {presetToast.kind === "success" && <span className="text-accent">✓</span>}
+          {presetToast.text}
+        </div>
+      )}
     </div>
   );
 }
