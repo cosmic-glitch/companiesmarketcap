@@ -1323,9 +1323,9 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
             {d}
           </span>
         ))}
-        <span className="text-text-muted">
+        <span className="text-text-secondary">
           {(hasActiveFilters || activeDescriptions.length > 0) && (
-            <span aria-hidden className="mr-1.5">·</span>
+            <span aria-hidden className="text-text-muted mr-1.5">·</span>
           )}
           Sorted by {sortLabelFor(sortBy)} {sortOrder === "asc" ? "↑" : "↓"}
         </span>
