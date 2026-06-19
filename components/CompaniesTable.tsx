@@ -445,7 +445,8 @@ const FilterGridInput = ({ label, minKey, maxKey, pendingFilters, updateFilter, 
 );
 
 const COLUMN_OPTIONS: readonly ColumnOption[] = [
-  // Every column defaults to visible except Country, Sector, and Industry.
+  // Every column defaults to visible except Country, Sector, Industry, FCF, and
+  // Net Debt.
   { key: "country", label: "Country", defaultVisible: false },
   { key: "sector", label: "Sector", defaultVisible: false },
   { key: "industry", label: "Industry", defaultVisible: false },
@@ -463,7 +464,7 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: true },
   { key: "dividendPercent", label: "Div Yld", defaultVisible: true },
   { key: "operatingMargin", label: "Op. Margin %", defaultVisible: true },
-  { key: "netDebt", label: "Net Debt", defaultVisible: true },
+  { key: "netDebt", label: "Net Debt", defaultVisible: false },
   { key: "revenueGrowth5Y", label: "Rev CAGR 5Y", defaultVisible: true },
   { key: "revenueGrowth3Y", label: "Rev CAGR 3Y", defaultVisible: true },
   { key: "epsGrowth5Y", label: "EPS CAGR 5Y", defaultVisible: true },
