@@ -67,7 +67,7 @@ export default function HiddenEntriesModal({ entries, onClose }: HiddenEntriesMo
             <div key={company.symbol} className="py-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-[13px] font-semibold text-text-primary shrink-0">{company.symbol}</span>
-                <span className="text-[13px] text-text-secondary min-w-0 truncate" title={company.name}>{cleanCompanyName(company.name)}</span>
+                <span className="text-[13px] text-text-secondary min-w-0 truncate" title={company.name}>{cleanCompanyName(company.name, company.symbol)}</span>
                 <span className="text-[11px] text-text-muted shrink-0 tabular-nums ml-auto whitespace-nowrap">
                   {formatMarketCap(company.marketCap)}
                   {company.country ? ` · ${formatCountry(company.country)}` : ""}

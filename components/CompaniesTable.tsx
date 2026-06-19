@@ -1639,7 +1639,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                       : "bg-[#fcfdfe] group-hover:bg-bg-hover"
                 )}>
                   <div className="flex items-center gap-2">
-                    <CompanyLogo symbol={company.symbol} name={cleanCompanyName(company.name)} />
+                    <CompanyLogo symbol={company.symbol} name={cleanCompanyName(company.name, company.symbol)} />
                     <div className="min-w-0 overflow-hidden">
                       <a
                           href={`https://finance.yahoo.com/quote/${company.symbol}`}
@@ -1648,7 +1648,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                           title={company.name}
                           className="text-base font-medium text-text-primary truncate block group-hover:text-accent transition-colors hover:underline"
                         >
-                          {cleanCompanyName(company.name)}
+                          {cleanCompanyName(company.name, company.symbol)}
                         </a>
                       <div className="text-sm text-text-muted">{company.symbol}</div>
                     </div>
