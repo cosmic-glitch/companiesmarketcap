@@ -230,7 +230,7 @@ function RevenueSparkline({
             width={barWidth}
             height={barHeight}
             rx={1.5}
-            fill="#818cf8"
+            fill="#6366f1"
           >
             <title>{`${year}: ${formatMarketCap(revenue)}`}</title>
           </rect>
@@ -1622,11 +1622,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   "px-4 py-3.5 whitespace-nowrap",
                   isSortedColumn("rank") && "sorted-column-cell"
                 )}>
-                  {company.rank >= 1 && company.rank <= 3 ? (
-                    <span className={cn("rank-medal", `rank-medal-${company.rank}`)}>{company.rank}</span>
-                  ) : (
-                    <span className="text-sm text-text-primary tabular-nums">{company.rank}</span>
-                  )}
+                  <span className="text-sm text-text-primary tabular-nums">{company.rank}</span>
                 </td>
                 )}
                 {isColumnVisible("name") && (

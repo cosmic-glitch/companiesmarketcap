@@ -162,32 +162,6 @@ body {
     radial-gradient(520px 280px at 52% -70%, rgba(139, 92, 246, 0.12), transparent 60%);
 }
 
-/* Medal-tinted rank badges for the top 3 companies by market cap. */
-.rank-medal {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 9999px;
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.rank-medal-1 {
-  background: linear-gradient(135deg, #fde68a, #f59e0b);
-  color: #5a3e00;
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35);
-}
-.rank-medal-2 {
-  background: linear-gradient(135deg, #e5e7eb, #9ca3af);
-  color: #1f2937;
-}
-.rank-medal-3 {
-  background: linear-gradient(135deg, #fed7aa, #d97706);
-  color: #3a2400;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
