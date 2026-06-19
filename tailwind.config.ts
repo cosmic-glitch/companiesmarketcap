@@ -26,13 +26,15 @@ export default {
         "border-strong": "var(--border-strong)",
       },
       boxShadow: {
-        glow: "0 0 16px rgba(8, 145, 178, 0.3)",
-        "glow-sm": "0 0 8px rgba(8, 145, 178, 0.2)",
-        "glow-lg": "0 0 24px rgba(8, 145, 178, 0.4)",
+        glow: "0 0 16px rgba(99, 102, 241, 0.3)",
+        "glow-sm": "0 0 8px rgba(99, 102, 241, 0.2)",
+        "glow-lg": "0 0 24px rgba(99, 102, 241, 0.4)",
+        // Soft layered card shadow for the Daylight look.
+        card: "0 1px 2px rgba(16, 24, 40, 0.04), 0 18px 40px rgba(99, 102, 241, 0.10)",
       },
       backgroundImage: {
-        "gradient-accent": "linear-gradient(135deg, #0891b2 0%, #7c3aed 100%)",
-        "gradient-accent-hover": "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)",
+        "gradient-accent": "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+        "gradient-accent-hover": "linear-gradient(135deg, #818cf8 0%, #a78bfa 100%)",
       },
     },
   },

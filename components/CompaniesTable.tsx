@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Company, PresetConfig } from "@/lib/types";
 import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
 import { formatCountry } from "@/lib/countries";
+import { cleanCompanyName } from "@/lib/company-name";
 import { formatPresetCriteria, formatPresetName, formatPresetSort } from "@/lib/preset-summary";
 import { buildFilterDescriptions, sortLabelFor } from "@/lib/filter-summary";
 import {
@@ -96,7 +97,7 @@ function DailyChange({ value }: { value: number | null }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium",
+        "inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold",
         isPositive && "bg-positive/10 text-positive",
         isNegative && "bg-negative/10 text-negative",
         !isPositive && !isNegative && "bg-bg-tertiary text-text-muted"
@@ -228,7 +229,8 @@ function RevenueSparkline({
             y={y}
             width={barWidth}
             height={barHeight}
-            fill="#64748b"
+            rx={1.5}
+            fill="#818cf8"
           >
             <title>{`${year}: ${formatMarketCap(revenue)}`}</title>
           </rect>
@@ -283,7 +285,8 @@ function EpsSparkline({
               y={zeroY - h}
               width={barWidth}
               height={h}
-              fill="#64748b"
+              rx={1.5}
+              fill="#6366f1"
             >
               <title>{`${year}: ${eps.toFixed(2)}`}</title>
             </rect>
@@ -297,7 +300,8 @@ function EpsSparkline({
             y={zeroY}
             width={barWidth}
             height={h}
-            fill="rgba(220, 38, 38, 0.9)"
+            rx={1.5}
+            fill="#e11d48"
           >
             <title>{`${year}: ${eps.toFixed(2)}`}</title>
           </rect>
@@ -396,15 +400,18 @@ const DropdownButton = ({ label, isActive, isOpen, onClick, badge }: DropdownBut
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-[9px] border transition-colors whitespace-nowrap",
+      "flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold rounded-full border transition-all whitespace-nowrap",
       isActive
-        ? "bg-accent/15 border-accent/40 text-accent"
-        : "bg-bg-tertiary border-border-strong text-text-secondary hover:border-accent/50 hover:text-text-primary"
+        ? "bg-accent border-accent text-white shadow-[0_4px_14px_rgba(99,102,241,0.32)]"
+        : "bg-bg-secondary border-border-strong text-text-secondary shadow-sm hover:border-accent/50 hover:text-text-primary hover:shadow-[0_2px_8px_rgba(99,102,241,0.14)]"
     )}
   >
     {label}
     {badge !== undefined && badge > 0 && (
-      <span className="bg-accent text-white text-[10px] font-bold px-1.5 py-0 rounded-full leading-4">{badge}</span>
+      <span className={cn(
+        "text-[10px] font-bold px-1.5 py-0 rounded-full leading-4",
+        isActive ? "bg-white/25 text-white" : "bg-accent text-white"
+      )}>{badge}</span>
     )}
     <span className={cn("text-[10px] transition-transform", isOpen && "rotate-180")}>▾</span>
   </button>
@@ -1296,7 +1303,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
             <div className="w-px h-5 bg-border-subtle mx-1" />
             <button
               onClick={() => setSavePresetOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-lg border bg-accent/15 border-accent/40 text-accent hover:bg-accent/25 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold rounded-full border bg-accent border-accent text-white hover:bg-accent-hover shadow-[0_4px_14px_rgba(99,102,241,0.32)] transition-all whitespace-nowrap"
             >
               💾 Save view
             </button>
@@ -1336,7 +1343,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
       <div
         ref={tableScrollRef}
         data-testid="companies-table-scroll"
-        className="overflow-auto max-h-[75vh] bg-bg-secondary border border-border-subtle rounded-2xl shadow-lg"
+        className="overflow-auto max-h-[75vh] bg-bg-secondary border border-border-subtle rounded-[22px] shadow-card"
       >
         <table className="min-w-full">
           <thead className="bg-bg-tertiary sticky top-0 z-40 border-b border-border-subtle">
@@ -1358,7 +1365,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                 className={cn(
                   "sticky left-0 z-50 px-4 py-3 text-left text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer transition-colors min-w-[242px] max-w-[242px] shadow-[8px_0_12px_-12px_rgba(0,0,0,0.8)]",
                   isSortedColumn("name")
-                    ? "bg-[#d1fae5] hover:bg-[#bbf7d0]"
+                    ? "bg-[#e0e7ff] hover:bg-[#c7d2fe]"
                     : "bg-bg-tertiary hover:bg-bg-hover"
                 )}
               >
@@ -1615,28 +1622,33 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   "px-4 py-3.5 whitespace-nowrap",
                   isSortedColumn("rank") && "sorted-column-cell"
                 )}>
-                  <span className="text-sm text-text-primary tabular-nums">{company.rank}</span>
+                  {company.rank >= 1 && company.rank <= 3 ? (
+                    <span className={cn("rank-medal", `rank-medal-${company.rank}`)}>{company.rank}</span>
+                  ) : (
+                    <span className="text-sm text-text-primary tabular-nums">{company.rank}</span>
+                  )}
                 </td>
                 )}
                 {isColumnVisible("name") && (
                 <td className={cn(
                   "sticky left-0 z-20 px-4 py-3.5 whitespace-nowrap min-w-[242px] max-w-[242px] shadow-[8px_0_12px_-12px_rgba(0,0,0,0.8)]",
                   isSortedColumn("name")
-                    ? "bg-[#ecfdf5] group-hover:bg-[#d1fae5]"
+                    ? "bg-[#eef2ff] group-hover:bg-[#e0e7ff]"
                     : index % 2 === 0
                       ? "bg-bg-secondary group-hover:bg-bg-hover"
                       : "bg-[#fcfdfe] group-hover:bg-bg-hover"
                 )}>
                   <div className="flex items-center gap-2">
-                    <CompanyLogo symbol={company.symbol} name={company.name} />
+                    <CompanyLogo symbol={company.symbol} name={cleanCompanyName(company.name)} />
                     <div className="min-w-0 overflow-hidden">
                       <a
                           href={`https://finance.yahoo.com/quote/${company.symbol}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          title={company.name}
                           className="text-base font-medium text-text-primary truncate block group-hover:text-accent transition-colors hover:underline"
                         >
-                          {company.name}
+                          {cleanCompanyName(company.name)}
                         </a>
                       <div className="text-sm text-text-muted">{company.symbol}</div>
                     </div>

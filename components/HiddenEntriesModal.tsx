@@ -7,6 +7,7 @@ import {
   type DataQualityIssueCode,
 } from "@/lib/data-quality";
 import { formatCountry } from "@/lib/countries";
+import { cleanCompanyName } from "@/lib/company-name";
 import { formatMarketCap, formatPrice } from "@/lib/utils";
 
 interface HiddenEntriesModalProps {
@@ -66,7 +67,7 @@ export default function HiddenEntriesModal({ entries, onClose }: HiddenEntriesMo
             <div key={company.symbol} className="py-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-[13px] font-semibold text-text-primary shrink-0">{company.symbol}</span>
-                <span className="text-[13px] text-text-secondary min-w-0 truncate">{company.name}</span>
+                <span className="text-[13px] text-text-secondary min-w-0 truncate" title={company.name}>{cleanCompanyName(company.name)}</span>
                 <span className="text-[11px] text-text-muted shrink-0 tabular-nums ml-auto whitespace-nowrap">
                   {formatMarketCap(company.marketCap)}
                   {company.country ? ` · ${formatCountry(company.country)}` : ""}

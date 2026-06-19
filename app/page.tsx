@@ -127,15 +127,15 @@ export default async function Home({ searchParams }: HomeProps) {
   return (
     <main className="min-h-screen bg-bg-primary">
       {/* Header */}
-      <div className="relative border-b border-border-subtle bg-bg-secondary py-4 px-0 overflow-hidden">
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-50" />
+      <div className="relative border-b border-border-subtle bg-bg-secondary py-5 px-0 overflow-hidden">
+        {/* Soft pastel aurora overlay */}
+        <div className="absolute inset-0 header-aurora pointer-events-none" />
 
         <div className="relative w-[95vw] mx-auto">
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="flex-shrink-0 p-2 rounded-xl bg-bg-tertiary/50 hover:bg-bg-tertiary transition-all duration-300 hover:shadow-glow-sm group"
+              className="flex-shrink-0 p-2 rounded-2xl bg-bg-secondary border border-border-subtle shadow-[0_6px_18px_rgba(99,102,241,0.14)] hover:shadow-[0_10px_26px_rgba(99,102,241,0.22)] transition-all duration-300 group"
             >
               <Image
                 src="/icon.svg"
@@ -146,7 +146,7 @@ export default async function Home({ searchParams }: HomeProps) {
               />
             </Link>
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold gradient-text">
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight gradient-text">
                 US Stock Screener
               </h1>
               <p className="text-base text-text-secondary mt-1">
