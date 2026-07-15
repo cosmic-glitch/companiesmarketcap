@@ -164,6 +164,12 @@ let rateLimitCooldownUntil = 0;
 // but all other FMP data endpoints (quote, profile, income, ratios, growth, estimates) work for.
 // Format: symbol, // #rank Name ($marketCap, Country)
 const SUPPLEMENTAL_SYMBOLS: string[] = [
+  // SKHY exception: the real NASDAQ ADR line (IPO'd 2026-07-10). quote+profile
+  // resolve, but fundamentals endpoints all return [] for now, so this row ships
+  // with null financials until FMP backfills. The screener returns the
+  // when-issued SKHYV line instead (see EXCLUDED_SYMBOLS), so we add SKHY here
+  // and drop SKHYV to avoid a duplicate, mis-tickered SK hynix row.
+  "SKHY",     // SK hynix ($1289.3B, South Korea)
   "TCEHY",    // Tencent ($613.6B, China)
   "XIACF",    // Xiaomi ($125.0B, China)
   "GMBXF",    // Grupo México ($93.4B, Mexico)
@@ -293,6 +299,14 @@ const SUPPLEMENTAL_SYMBOLS: string[] = [
   "JBGS",     // JBG SMITH ($1.0B, US)
   "CDNA",     // CareDx ($1.0B, US)
 ];
+
+// Symbols returned by the company-screener that we do NOT want in the dataset.
+// SKHYV is SK hynix's when-issued NASDAQ line (zero volume, understated market
+// cap); the real regular-way ADR is SKHY, added via SUPPLEMENTAL_SYMBOLS. Drop
+// SKHYV so SK hynix appears once, under the correct ticker.
+const EXCLUDED_SYMBOLS = new Set<string>([
+  "SKHYV",    // SK hynix when-issued line — superseded by SKHY
+]);
 
 // FMP API response types
 interface FMPScreenerResult {
@@ -576,7 +590,9 @@ async function fetchGlobalStocks(): Promise<string[]> {
       break;
     }
 
-    const symbols = response.data.map((stock: any) => stock.symbol);
+    const symbols = response.data
+      .map((stock: any) => stock.symbol)
+      .filter((s: string) => !EXCLUDED_SYMBOLS.has(s));
     allSymbols.push(...symbols);
     console.log(`  Page ${page}: fetched ${symbols.length} symbols (total: ${allSymbols.length})`);
 
