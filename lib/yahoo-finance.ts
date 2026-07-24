@@ -32,23 +32,41 @@ export interface QuoteResult {
   fiftyTwoWeekHigh?: number;
 }
 
+// Yahoo throttles large single requests from shared datacenter IPs, so the
+// full ~2,600-symbol universe goes out in chunks. Each chunk fails
+// independently: one throttled/timed-out response drops only its own symbols
+// instead of blanking every live quote on the page.
+const QUOTE_BATCH_SIZE = 250;
+
+async function fetchQuoteBatch(symbols: string[]): Promise<QuoteResult[]> {
+  const results = await yf.quote(symbols, {
+    fields: ["regularMarketPrice", "regularMarketChangePercent", "marketCap", "fiftyTwoWeekHigh"],
+  }, {
+    fetchOptions: { signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS) },
+  });
+
+  // Handle both single result and array of results
+  return (Array.isArray(results) ? results : [results]) as QuoteResult[];
+}
+
 export async function fetchQuotes(symbols: string[]): Promise<QuoteResult[]> {
   if (symbols.length === 0) return [];
 
   const mappedSymbols = symbols.map(mapSymbol);
-
-  try {
-    const results = await yf.quote(mappedSymbols, {
-      fields: ["regularMarketPrice", "regularMarketChangePercent", "marketCap", "fiftyTwoWeekHigh"],
-    }, {
-      fetchOptions: { signal: AbortSignal.timeout(QUOTE_TIMEOUT_MS) },
-    });
-
-    // Handle both single result and array of results
-    const resultsArray = Array.isArray(results) ? results : [results];
-    return resultsArray as QuoteResult[];
-  } catch (error) {
-    console.error("Error fetching quotes from Yahoo Finance:", error);
-    return [];
+  const batches: string[][] = [];
+  for (let i = 0; i < mappedSymbols.length; i += QUOTE_BATCH_SIZE) {
+    batches.push(mappedSymbols.slice(i, i + QUOTE_BATCH_SIZE));
   }
+
+  const settled = await Promise.allSettled(batches.map(fetchQuoteBatch));
+
+  const results: QuoteResult[] = [];
+  for (const outcome of settled) {
+    if (outcome.status === "fulfilled") {
+      results.push(...outcome.value);
+    } else {
+      console.error("Error fetching quotes from Yahoo Finance:", outcome.reason);
+    }
+  }
+  return results;
 }
