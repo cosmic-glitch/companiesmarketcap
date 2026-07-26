@@ -27,9 +27,16 @@ export interface Company {
   epsAnnual: { year: number; eps: number }[] | null;
   peRatio: number | null;
   ttmEPS: number | null;  // TTM earnings per share (derived from FMP P/E ratio)
+  // Ongoing fiscal year: analyst estimate for the FY currently in progress.
+  // Blends reported quarters with projections, so one-time items (e.g. a
+  // mark-to-market investment gain) can distort it — see forwardPENext.
   forwardPE: number | null;
   forwardEPS: number | null;      // Raw EPS estimate
   forwardEPSDate: string | null;  // Fiscal year end date (e.g., "2026-12-31")
+  // Next fiscal year: pure projection, no reported quarters mixed in.
+  forwardPENext: number | null;
+  forwardEPSNext: number | null;
+  forwardEPSNextDate: string | null;
   // Currency basis of the forward EPS figure. "usd" means FMP's estimate was
   // already USD-denominated so no FX conversion was applied (see resolveForwardEps
   // in the scraper). Null on rows scraped before this field existed.
@@ -65,6 +72,8 @@ export interface CompaniesQueryParams {
   maxPERatio?: number;
   minForwardPE?: number;
   maxForwardPE?: number;
+  minForwardPENext?: number;
+  maxForwardPENext?: number;
   minForwardEPSGrowth?: number;
   maxForwardEPSGrowth?: number;
   minDividend?: number;
@@ -138,6 +147,11 @@ export interface DatabaseCompany {
   forward_eps: number | null;
   forward_eps_date: string | null;
   forward_eps_basis?: "reported" | "usd" | null; // optional for backward compat
+  // Next-FY estimate; optional for backward compat with rows scraped before
+  // the field existed. Shares forward_eps_basis with the current-FY figure.
+  forward_pe_next?: number | null;
+  forward_eps_next?: number | null;
+  forward_eps_next_date?: string | null;
   dividend_percent: number | null;
   operating_margin: number | null;
   revenue_growth_5y: number | null;

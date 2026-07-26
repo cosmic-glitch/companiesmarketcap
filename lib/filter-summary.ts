@@ -17,6 +17,7 @@ export const SORT_LABELS: Record<string, string> = {
   revenue: "revenue",
   peRatio: "P/E ratio",
   forwardPE: "Fwd PE",
+  forwardPENext: "Fwd PE Next FY",
   forwardEPSGrowth: "Fwd EPS Growth",
   dividendPercent: "Div Yield",
   operatingMargin: "Op Margin",
@@ -70,6 +71,7 @@ export function buildFilterDescriptions(getRaw: Getter): string[] {
   }
 
   addFilter("Fwd PE", get("minForwardPE"), get("maxForwardPE"));
+  addFilter("Fwd PE Next FY", get("minForwardPENext"), get("maxForwardPENext"));
   addFilter("Fwd EPS Growth", get("minForwardEPSGrowth"), get("maxForwardEPSGrowth"), "%");
   addFilter("P/E", get("minPERatio"), get("maxPERatio"));
   addFilter("Div Yield", get("minDividend"), get("maxDividend"), "%");

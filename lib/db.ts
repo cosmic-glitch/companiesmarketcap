@@ -59,6 +59,9 @@ function dbRowToCompany(row: DatabaseCompany): Company {
     forwardEPSDate: row.forward_eps_date ?? null,
     forwardEPSBasis: row.forward_eps_basis ?? null,
     forwardEPSGrowth: calculateForwardEPSGrowth(row.forward_eps ?? null, row.ttm_eps ?? null),
+    forwardPENext: row.forward_pe_next ?? null,
+    forwardEPSNext: row.forward_eps_next ?? null,
+    forwardEPSNextDate: row.forward_eps_next_date ?? null,
     dividendPercent: row.dividend_percent,
     operatingMargin: row.operating_margin,
     revenueGrowth5Y: row.revenue_growth_5y ?? null,
@@ -94,6 +97,11 @@ export function mergeLiveQuotes(
       dynamicForwardPE = livePrice / company.forwardEPS;
     }
 
+    let dynamicForwardPENext = company.forwardPENext;
+    if (livePrice && company.forwardEPSNext && company.forwardEPSNext > 0) {
+      dynamicForwardPENext = livePrice / company.forwardEPSNext;
+    }
+
     // Dynamically calculate peRatio using live price
     let dynamicPERatio = company.peRatio;
     if (livePrice && company.ttmEPS && company.ttmEPS > 0) {
@@ -121,6 +129,7 @@ export function mergeLiveQuotes(
       dailyChangePercent: quote.changePercent ?? company.dailyChangePercent,
       peRatio: dynamicPERatio,
       forwardPE: dynamicForwardPE,
+      forwardPENext: dynamicForwardPENext,
     };
   });
 
@@ -161,6 +170,9 @@ function companyToDbRow(company: Partial<Company> & { symbol: string }, lastUpda
     forward_eps: company.forwardEPS ?? null,
     forward_eps_date: company.forwardEPSDate ?? null,
     forward_eps_basis: company.forwardEPSBasis ?? null,
+    forward_pe_next: company.forwardPENext ?? null,
+    forward_eps_next: company.forwardEPSNext ?? null,
+    forward_eps_next_date: company.forwardEPSNextDate ?? null,
     dividend_percent: company.dividendPercent ?? null,
     operating_margin: company.operatingMargin ?? null,
     revenue_growth_5y: company.revenueGrowth5Y ?? null,
@@ -287,6 +299,8 @@ export async function getCompanies(
     maxPERatio,
     minForwardPE,
     maxForwardPE,
+    minForwardPENext,
+    maxForwardPENext,
     minForwardEPSGrowth,
     maxForwardEPSGrowth,
     minDividend,
@@ -419,6 +433,14 @@ export async function getCompanies(
   }
   if (maxForwardPE !== undefined) {
     companies = companies.filter((c) => c.forwardPE !== null && c.forwardPE <= maxForwardPE);
+  }
+
+  // Apply next-FY forward PE filters
+  if (minForwardPENext !== undefined) {
+    companies = companies.filter((c) => c.forwardPENext !== null && c.forwardPENext >= minForwardPENext);
+  }
+  if (maxForwardPENext !== undefined) {
+    companies = companies.filter((c) => c.forwardPENext !== null && c.forwardPENext <= maxForwardPENext);
   }
 
   // Apply forward EPS growth filters (values as decimals, e.g., 0.10 = 10%)

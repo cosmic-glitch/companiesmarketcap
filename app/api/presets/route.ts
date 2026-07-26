@@ -11,6 +11,7 @@ const ALLOWED_FILTER_KEYS = new Set([
   "minRevenue", "maxRevenue",
   "minPERatio", "maxPERatio",
   "minForwardPE", "maxForwardPE",
+  "minForwardPENext", "maxForwardPENext",
   "minForwardEPSGrowth", "maxForwardEPSGrowth",
   "minDividend", "maxDividend",
   "minOperatingMargin", "maxOperatingMargin",
@@ -29,7 +30,7 @@ const ALLOWED_FILTER_KEYS = new Set([
 const ALLOWED_SORT_KEYS = new Set([
   "rank", "name", "country", "marketCap", "price", "dailyChangePercent",
   "pctTo52WeekHigh", "earnings", "revenue", "freeCashFlow", "peRatio",
-  "forwardPE", "forwardEPSGrowth", "dividendPercent", "operatingMargin",
+  "forwardPE", "forwardPENext", "forwardEPSGrowth", "dividendPercent", "operatingMargin",
   "netDebt", "revenueGrowth5Y", "revenueGrowth3Y", "epsGrowth5Y", "epsGrowth3Y",
 ]);
 

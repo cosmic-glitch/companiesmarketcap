@@ -160,7 +160,8 @@ Each company includes:
 - `symbol`, `name`, `country`: Basic info from FMP profile
 - `market_cap`, `price`, `daily_change_percent`: From FMP quote
 - `pe_ratio`: Trailing P/E from FMP quote
-- `forward_pe`: Current price / analyst EPS estimate
+- `forward_pe`: Current price / analyst EPS estimate for the **ongoing** fiscal year (blends reported quarters with projections)
+- `forward_pe_next`: Current price / analyst EPS estimate for the **next** fiscal year (pure projection — immune to one-time items already reported this FY)
 - `earnings`, `revenue`: TTM values (sum of last 4 quarters)
 - `operating_margin`: TTM operating income / TTM revenue
 - `dividend_percent`: Dividend yield TTM from FMP ratios
