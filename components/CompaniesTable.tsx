@@ -1506,6 +1506,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("peRatio") && (
               <th
+                title="Trailing P/E on EPS reported over the last twelve months"
                 onClick={() => handleSort("peRatio")}
                 className={cn(
                   "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
@@ -1517,6 +1518,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("forwardPE") && (
               <th
+                title="Forward P/E on the ongoing fiscal year's EPS estimate (blends reported quarters with projections)"
                 onClick={() => handleSort("forwardPE")}
                 className={cn(
                   "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
