@@ -466,12 +466,12 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: true },
   { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: true },
   { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
-  { key: "earnings", label: "Earnings", defaultVisible: true },
-  { key: "revenue", label: "Revenue", defaultVisible: true },
-  { key: "freeCashFlow", label: "FCF", defaultVisible: false },
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
   { key: "forwardPENext", label: "Fwd P/E Next FY", defaultVisible: true },
+  { key: "earnings", label: "Earnings", defaultVisible: true },
+  { key: "revenue", label: "Revenue", defaultVisible: true },
+  { key: "freeCashFlow", label: "FCF", defaultVisible: false },
   { key: "forwardEPSGrowth", label: "Fwd EPS Growth", defaultVisible: true },
   { key: "dividendPercent", label: "Div Yld", defaultVisible: true },
   { key: "operatingMargin", label: "Op. Margin %", defaultVisible: true },
@@ -1471,39 +1471,6 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                 % 52W Hi <SortIndicator columnKey="pctTo52WeekHigh" />
               </th>
               )}
-              {isColumnVisible("earnings") && (
-              <th
-                onClick={() => handleSort("earnings")}
-                className={cn(
-                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("earnings") && "sorted-column-header"
-                )}
-              >
-                Earnings <SortIndicator columnKey="earnings" />
-              </th>
-              )}
-              {isColumnVisible("revenue") && (
-              <th
-                onClick={() => handleSort("revenue")}
-                className={cn(
-                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("revenue") && "sorted-column-header"
-                )}
-              >
-                Revenue <SortIndicator columnKey="revenue" />
-              </th>
-              )}
-              {isColumnVisible("freeCashFlow") && (
-              <th
-                onClick={() => handleSort("freeCashFlow")}
-                className={cn(
-                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
-                  isSortedColumn("freeCashFlow") && "sorted-column-header"
-                )}
-              >
-                FCF <SortIndicator columnKey="freeCashFlow" />
-              </th>
-              )}
               {isColumnVisible("peRatio") && (
               <th
                 title="Trailing P/E on EPS reported over the last twelve months"
@@ -1538,6 +1505,39 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                 )}
               >
                 Fwd P/E +1 <SortIndicator columnKey="forwardPENext" />
+              </th>
+              )}
+              {isColumnVisible("earnings") && (
+              <th
+                onClick={() => handleSort("earnings")}
+                className={cn(
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("earnings") && "sorted-column-header"
+                )}
+              >
+                Earnings <SortIndicator columnKey="earnings" />
+              </th>
+              )}
+              {isColumnVisible("revenue") && (
+              <th
+                onClick={() => handleSort("revenue")}
+                className={cn(
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("revenue") && "sorted-column-header"
+                )}
+              >
+                Revenue <SortIndicator columnKey="revenue" />
+              </th>
+              )}
+              {isColumnVisible("freeCashFlow") && (
+              <th
+                onClick={() => handleSort("freeCashFlow")}
+                className={cn(
+                  "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
+                  isSortedColumn("freeCashFlow") && "sorted-column-header"
+                )}
+              >
+                FCF <SortIndicator columnKey="freeCashFlow" />
               </th>
               )}
               {isColumnVisible("forwardEPSGrowth") && (
@@ -1747,30 +1747,6 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   {formatPercent(company.pctTo52WeekHigh, true)}
                 </td>
                 )}
-                {isColumnVisible("earnings") && (
-                <td className={cn(
-                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("earnings") && "sorted-column-cell"
-                )}>
-                  {formatMarketCap(company.earnings)}
-                </td>
-                )}
-                {isColumnVisible("revenue") && (
-                <td className={cn(
-                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("revenue") && "sorted-column-cell"
-                )}>
-                  {formatMarketCap(company.revenue)}
-                </td>
-                )}
-                {isColumnVisible("freeCashFlow") && (
-                <td className={cn(
-                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
-                  isSortedColumn("freeCashFlow") && "sorted-column-cell"
-                )}>
-                  {formatMarketCap(company.freeCashFlow)}
-                </td>
-                )}
                 {isColumnVisible("peRatio") && (
                 <td className={cn(
                   "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
@@ -1799,6 +1775,30 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   title={company.forwardEPSNextDate ? `FY ending ${company.forwardEPSNextDate}` : undefined}
                 >
                   {formatPERatio(company.forwardPENext)}
+                </td>
+                )}
+                {isColumnVisible("earnings") && (
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("earnings") && "sorted-column-cell"
+                )}>
+                  {formatMarketCap(company.earnings)}
+                </td>
+                )}
+                {isColumnVisible("revenue") && (
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("revenue") && "sorted-column-cell"
+                )}>
+                  {formatMarketCap(company.revenue)}
+                </td>
+                )}
+                {isColumnVisible("freeCashFlow") && (
+                <td className={cn(
+                  "px-4 py-3.5 whitespace-nowrap text-base text-right text-text-secondary",
+                  isSortedColumn("freeCashFlow") && "sorted-column-cell"
+                )}>
+                  {formatMarketCap(company.freeCashFlow)}
                 </td>
                 )}
                 {isColumnVisible("forwardEPSGrowth") && (
