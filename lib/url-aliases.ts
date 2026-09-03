@@ -27,6 +27,7 @@ const PARAM_TO_ALIAS: Record<string, string> = {
   country: "ctry",
   sector: "sec",
   industry: "ind",
+  search: "q",
   sortBy: "sb",
   sortOrder: "so",
 };

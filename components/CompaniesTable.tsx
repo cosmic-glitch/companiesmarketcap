@@ -9,6 +9,7 @@ import { formatCountry } from "@/lib/countries";
 import { cleanCompanyName } from "@/lib/company-name";
 import { formatPresetCriteria, formatPresetName, formatPresetSort } from "@/lib/preset-summary";
 import { buildFilterDescriptions, sortLabelFor } from "@/lib/filter-summary";
+import { DATA_QUALITY_ISSUE_LABELS, DataQualityIssueCode } from "@/lib/data-quality";
 import {
   applyUpdates,
   colKeyFromAlias,
@@ -926,6 +927,47 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
     return queryString ? `/?${queryString}` : "/";
   }, [searchParams]);
 
+  // Ticker / name search. The URL (`q=`) is the applied state; the input is
+  // a locally-buffered draft pushed on a short debounce (or Enter) so typing
+  // "MSFT" doesn't trigger a server round-trip per keystroke. `lastPushed`
+  // lets us tell our own pushes apart from external URL changes (back/forward,
+  // preset clicks, Clear all) so those re-sync the box without fighting the user.
+  const urlSearch = readAliased(searchParams, 'search') ?? '';
+  const hasSearch = urlSearch.trim() !== '';
+  const [searchInput, setSearchInput] = useState(urlSearch);
+  const lastPushedSearchRef = useRef(urlSearch);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (urlSearch !== lastPushedSearchRef.current) {
+      lastPushedSearchRef.current = urlSearch;
+      setSearchInput(urlSearch);
+    }
+  }, [urlSearch]);
+  useEffect(() => () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+  }, []);
+  const pushSearch = useCallback((raw: string) => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+    const value = raw.trim();
+    if (value === lastPushedSearchRef.current) return;
+    lastPushedSearchRef.current = value;
+    router.push(buildUrl({ search: value || undefined, page: undefined }));
+  }, [router, buildUrl]);
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => pushSearch(value), 350);
+  };
+  const clearSearch = () => {
+    setSearchInput('');
+    pushSearch('');
+    searchInputRef.current?.focus();
+  };
+
   // Handle sorting - clicking a column header
   const handleSort = (key: SortKey) => {
     const newOrder = sortBy === key && sortOrder === "asc" ? "desc" : "asc";
@@ -1031,6 +1073,10 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
     () => buildFilterDescriptions((key) => readAliased(searchParams, key)),
     [searchParams]
   );
+  const summaryDescriptions = useMemo(
+    () => (hasSearch ? [`Search “${urlSearch.trim()}”`, ...activeDescriptions] : activeDescriptions),
+    [hasSearch, urlSearch, activeDescriptions]
+  );
 
   // Apply filters and close dropdown
   const applyFiltersAndClose = () => {
@@ -1060,6 +1106,43 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
     <div className="w-full">
       {/* Dropdown Filter Bar */}
       <div className="mb-2 flex flex-wrap items-center gap-1.5 pb-1">
+        {/* Ticker / name search */}
+        <div className="relative">
+          <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-text-muted">🔍</span>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchInput}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') pushSearch(searchInput);
+              if (e.key === 'Escape') clearSearch();
+            }}
+            placeholder="Ticker or name — AAPL, MSFT"
+            aria-label="Search by ticker or company name"
+            autoComplete="off"
+            spellCheck={false}
+            data-testid="ticker-search"
+            className={cn(
+              "w-[250px] pl-8 pr-7 py-1.5 text-[13px] font-medium rounded-full border bg-bg-secondary text-text-primary placeholder:text-text-muted placeholder:font-normal shadow-sm transition-all",
+              "focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent focus:shadow-[0_2px_8px_rgba(99,102,241,0.14)]",
+              hasSearch ? "border-accent" : "border-border-strong hover:border-accent/50"
+            )}
+          />
+          {searchInput !== '' && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-[11px] leading-none text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        <div className="w-px h-5 bg-border-subtle mx-1" />
+
         {/* Presets Dropdown */}
         <div ref={presetsRef} className="relative">
           <DropdownButton
@@ -1328,24 +1411,25 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
           edited via the Custom Filters dropdown, not here, so they're styled as
           plain middot-separated text rather than chips that invite a click. */}
       <div className="mb-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
-        {hasActiveFilters && (
+        {(hasActiveFilters || hasSearch) && (
           <span className="font-semibold text-text-primary">
             {total.toLocaleString()} {total === 1 ? "match" : "matches"}
           </span>
         )}
-        {activeDescriptions.map((d, i) => (
+        {summaryDescriptions.map((d, i) => (
           <span key={d} className="whitespace-nowrap text-text-secondary">
-            {(i > 0 || hasActiveFilters) && (
+            {(i > 0 || hasActiveFilters || hasSearch) && (
               <span aria-hidden className="text-text-muted mr-1.5">·</span>
             )}
             {d}
           </span>
         ))}
         <span className="text-text-secondary">
-          {(hasActiveFilters || activeDescriptions.length > 0) && (
+          {(hasActiveFilters || hasSearch || summaryDescriptions.length > 0) && (
             <span aria-hidden className="text-text-muted mr-1.5">·</span>
           )}
           Sorted by {sortLabelFor(sortBy)} {sortOrder === "asc" ? "↑" : "↓"}
+          {hasSearch && <span className="text-text-muted">, exact tickers first</span>}
         </span>
       </div>
 
@@ -1670,7 +1754,19 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                         >
                           {cleanCompanyName(company.name, company.symbol)}
                         </a>
-                      <div className="text-sm text-text-muted">{company.symbol}</div>
+                      <div className="flex items-center gap-1.5 text-sm text-text-muted">
+                        <span>{company.symbol}</span>
+                        {company.dataQualityIssues.length > 0 && (
+                          <span
+                            title={`Hidden from the ranking by data quality checks:\n${(company.dataQualityIssues as DataQualityIssueCode[])
+                              .map((code) => `• ${DATA_QUALITY_ISSUE_LABELS[code] ?? code}`)
+                              .join("\n")}`}
+                            className="inline-flex items-center gap-0.5 px-1.5 py-px rounded-full text-[10px] font-semibold leading-4 bg-amber-50 text-amber-700 border border-amber-200 cursor-help"
+                          >
+                            ⚠ data issue
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -1884,8 +1980,20 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-lg font-medium text-text-primary">No companies found</p>
-          <p className="text-sm mt-1">Try adjusting your filters</p>
+          {hasSearch ? (
+            <>
+              <p className="text-lg font-medium text-text-primary">No match for “{urlSearch.trim()}”</p>
+              <p className="text-sm mt-1">
+                Only US-listed companies worth over $1B are included. Try the ticker symbol, or part of the company name.
+                {hasActiveFilters && " Active filters also apply — clear them to widen the search."}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-medium text-text-primary">No companies found</p>
+              <p className="text-sm mt-1">Try adjusting your filters</p>
+            </>
+          )}
         </div>
       )}
 

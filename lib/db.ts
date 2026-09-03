@@ -249,6 +249,42 @@ export function writeCompanies(
 }
 
 // Get all companies with filtering and sorting
+// Split a search string into lowercase terms. Commas separate terms so a
+// user can look up several tickers at once ("TSM, AMZN, MSFT"); spaces are
+// kept inside a term so multi-word names ("Berkshire Hathaway") still match
+// as a phrase.
+export function parseSearchTerms(search: string | undefined | null): string[] {
+  if (!search) return [];
+  const seen = new Set<string>();
+  for (const raw of search.split(",")) {
+    const term = raw.trim().toLowerCase();
+    if (term && !seen.has(term)) seen.add(term);
+  }
+  return Array.from(seen);
+}
+
+// A term matches at the start of the ticker or at the start of any word in
+// the name — so "TSM" finds TSMC but not Huntsman, "hath" finds Berkshire
+// Hathaway, and "berkshire hathaway" matches as a phrase.
+function matchesSearch(company: Company, terms: string[]): boolean {
+  const symbol = company.symbol.toLowerCase();
+  const name = company.name.toLowerCase();
+  return terms.some((term) => {
+    if (symbol.startsWith(term)) return true;
+    let idx = name.indexOf(term);
+    while (idx !== -1) {
+      if (idx === 0 || !/[a-z0-9]/.test(name[idx - 1])) return true;
+      idx = name.indexOf(term, idx + 1);
+    }
+    return false;
+  });
+}
+
+function isExactSymbolMatch(company: Company, terms: string[]): boolean {
+  const symbol = company.symbol.toLowerCase();
+  return terms.some((term) => term === symbol);
+}
+
 // Optional quotes parameter allows live price data to be used for sorting
 export async function getCompanies(
   params: CompaniesQueryParams = {},
@@ -271,11 +307,12 @@ export async function getCompanies(
 
   // Universe-level data quality filter, independent of user filters. The hidden
   // count is reported back to the UI so users see when corruption rates spike.
-  const hiddenEntries = companies
+  const universe = companies;
+  const hiddenEntries = universe
     .filter((c) => c.dataQualityIssues.length > 0)
     .sort((a, b) => (b.marketCap ?? 0) - (a.marketCap ?? 0));
   const hiddenForQuality = hiddenEntries.length;
-  companies = companies.filter((c) => c.dataQualityIssues.length === 0);
+  companies = universe.filter((c) => c.dataQualityIssues.length === 0);
 
   // Universe-level provenance note (independent of user filters, like the quality
   // filter above): companies whose forward EPS came from a USD-denominated FMP
@@ -328,14 +365,12 @@ export async function getCompanies(
     offset = 0,
   } = params;
 
-  // Apply search filter
-  if (search) {
-    const searchLower = search.toLowerCase();
-    companies = companies.filter(
-      (c) =>
-        c.name.toLowerCase().includes(searchLower) ||
-        c.symbol.toLowerCase().includes(searchLower)
-    );
+  // Apply search filter. An explicit lookup searches the whole universe,
+  // including rows the quality checks hide from the leaderboard — a user who
+  // types a ticker should see it (flagged in the UI) rather than nothing.
+  const searchTerms = parseSearchTerms(search);
+  if (searchTerms.length > 0) {
+    companies = universe.filter((c) => matchesSearch(c, searchTerms));
   }
 
   // Apply country filter
@@ -493,8 +528,16 @@ export async function getCompanies(
 
   const total = companies.length;
 
-  // Apply sorting
+  // Apply sorting. With a search active, exact ticker matches float to the
+  // top so "A" or "TSM" lead with Agilent / TSMC rather than whichever
+  // substring hit happens to sort first; the requested sort orders the rest.
   companies.sort((a, b) => {
+    if (searchTerms.length > 0) {
+      const aExact = isExactSymbolMatch(a, searchTerms) ? 0 : 1;
+      const bExact = isExactSymbolMatch(b, searchTerms) ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+    }
+
     const aVal = a[sortBy];
     const bVal = b[sortBy];
 
