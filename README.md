@@ -1,182 +1,222 @@
-# Companies Market Cap - US Stock Rankings
+# Companies Market Cap — Global Stock Screener
 
-A modern, unified web application that displays real-time rankings of US companies by market capitalization and other financial metrics. This is an improved clone of companiesmarketcap.com with a streamlined, single-page interface.
+A single-page stock screener that ranks ~2,600 publicly traded companies worldwide
+(market cap ≥ $1B) by market capitalization and lets you sort, filter and compare
+them across valuation, profitability and growth metrics.
+
+Fundamentals come from the [Financial Modeling Prep](https://financialmodelingprep.com/)
+(FMP) API and are refreshed daily; prices are overlaid live from Yahoo Finance.
 
 ## Features
 
-- **Unified Interface**: Single page displaying all US companies with sortable columns
-- **Scheduled Refreshes**: A cron job on the Hetzner VM runs the scraper daily at 23:00 UTC and uploads to Vercel Blob
-- **Sortable Columns**: Click any column header to sort by:
-  - Rank
-  - Company Name
-  - Ticker Symbol
-  - Market Cap
-  - Price
-  - Daily Change %
-  - Earnings
-  - Revenue
-  - P/E Ratio
-  - Dividend %
-  - Operating Margin
-- **Search Functionality**: Real-time search by company name or ticker symbol
-- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
-- **3,500+ Companies**: Comprehensive dataset of US public companies
+- **Sortable, configurable table** — click any header to sort; a column picker
+  shows/hides columns. Rank and name are always visible.
+- **Columns**: Market Cap, Price, Today (daily change %), 10Y Revenue Trend,
+  10Y EPS Trend, % to 52-Week High, P/E, Fwd P/E (current FY), Fwd P/E Next FY,
+  Earnings, Revenue, Fwd EPS Growth, Dividend Yield, Operating Margin,
+  Revenue CAGR 5Y/3Y, EPS CAGR 5Y/3Y, plus optional Country, Sector, Industry,
+  FCF and Net Debt.
+- **Min/max range filters** on every numeric metric, plus country and sector
+  filters. All state lives in the URL (short aliases like `mc.min`, `fpe.max`),
+  so any view can be shared as a link.
+- **Presets** — curated screens (Mega Cap Value, Great Price for Reasonable
+  Growth, Reliable Dividend Generators) plus user-saved presets.
+- **Search** by name or ticker, including multi-ticker lookup (`AAPL, MSFT, NVDA`).
+- **Live prices** — price, market cap and daily change are refreshed from
+  Yahoo Finance on request (1-minute server cache).
+- **Data-quality transparency** — rows with implausible data are hidden from the
+  leaderboard and listed in a "hidden entries" modal explaining why.
+- **Feature suggestions** — visitors can submit and browse public suggestions.
+- Pagination (100 rows per page) and responsive layout.
 
 ## Technology Stack
 
-- **Framework**: Next.js 15 with App Router
-- **Language**: TypeScript
-- **UI**: React 19 with Tailwind CSS
-- **Data**: JSON file storage
-- **Data Scraping**: axios + csv-parse
-- **Deployment**: Vercel-ready
+- **Framework**: Next.js 15 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS
+- **Data storage**: Vercel Blob (`companies.json`, presets, feedback)
+- **Data sources**: FMP stable API (via axios), open.er-api.com (FX rates),
+  Yahoo Finance via `yahoo-finance2` (live quotes)
+- **Hosting**: Vercel (app) + Hetzner VM (daily scrape via cron)
+- **Tests**: Playwright
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18.18+ and npm
 
 ### Installation
 
-1. Clone the repository (if not already):
 ```bash
-cd /Users/anuragved/code/companiesmarketcap
-```
-
-2. Install dependencies (already done):
-```bash
+git clone https://github.com/cosmic-glitch/companiesmarketcap.git
+cd companiesmarketcap
 npm install
 ```
 
-3. Run the scraper to populate the data:
+Create `.env.local`. The simplest setup points at the production data blob, so
+no scrape is needed:
+
 ```bash
-npm run scrape
+BLOB_URL=<public Vercel Blob URL of companies.json>
 ```
 
-4. Start the development server:
+Without `BLOB_URL`, the app falls back to a local `data/companies.json`, which
+you can generate with `npm run scrape` (requires `FMP_API_KEY`; a full scrape
+takes a long time).
+
 ```bash
-npm run dev
+npm run dev   # http://localhost:3000
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+### Environment Variables
+
+| Variable | Used by | Purpose |
+| --- | --- | --- |
+| `BLOB_URL` | App | Public URL of `companies.json` in Vercel Blob. Unset → read local `data/companies.json`. |
+| `BLOB_READ_WRITE_TOKEN` | Scraper, app, admin scripts | Upload data; read/write presets and feedback. |
+| `FMP_API_KEY` | Scraper | Financial Modeling Prep API key. |
+| `PRESETS_BLOB_URL` | App | Optional explicit URL for the user-presets blob (otherwise derived). |
+| `SCRAPER_SECRET` | `/api/scrape` | Token for the legacy manual scrape endpoint. |
 
 ## Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run scrape` - Run data scraper to update data
+```bash
+npm run dev            # Start dev server
+npm run build          # Production build
+npm start              # Start production server
+npm run lint           # ESLint
+npm run scrape         # Full FMP scrape → data/companies.json (+ Blob upload if token set)
+npm run download-icons # Download company logos into public/logos
+npm test               # Playwright tests (also test:ui, test:headed)
+```
 
-## Automated Data Refresh
+Partial scrapes update only some fields of the existing data:
 
-- Wrapper: `scripts/refresh.sh`
-- Host: Hetzner VM, triggered by user-level cron
-- Schedule: daily at 23:00 UTC (cron expression `0 23 * * *`); see `scripts/crontab`
-- Runtime: runs on the VM (not a Vercel Function), so long scrape duration is supported
-- Required secrets in `~/companiesmarketcap/.env.local`:
-  - `FMP_API_KEY`
-  - `BLOB_READ_WRITE_TOKEN`
-- Output: scraper writes `data/companies.json` and uploads `companies.json` to Vercel Blob
-- Production read path: app fetches Blob JSON via `BLOB_URL`
-- Logs: `scripts/refresh.log` on the VM
+```bash
+npm run scrape -- --only quotes         # price / market cap / daily change
+npm run scrape -- --only forward_pe     # forward P/E (current + next FY)
+npm run scrape -- --only financials     # revenue / earnings / margins / ratios
+npm run scrape -- --only growth         # growth metrics
+# also: pe_ratio, week_52_high, new_symbols, currency_fix, annual_revenue, annual_eps
+```
+
+Admin scripts (run with `npx tsx`, read `.env.local`):
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/upload-blob.ts` | Upload local `data/companies.json` to Blob |
+| `scripts/read-feedback.ts [--since 7d] [--json]` | List feature suggestions |
+| `scripts/respond-feedback.ts <id> "text"` | Post a public response (`--clear` to remove) |
+| `scripts/delete-feedback.ts <id>...` | Delete suggestions |
+| `scripts/delete-preset.ts <id>` | Delete a user-saved preset |
+
+## Data Pipeline
+
+### Scraper (`scripts/fmp-scraper.ts`)
+
+A full scrape runs these steps against `https://financialmodelingprep.com/stable`:
+
+1. **Universe** — `company-screener` for actively traded, non-ETF/fund stocks
+   with market cap > $1B, plus a small list of supplemental symbols.
+2. **Quotes** — price, market cap, trailing P/E, daily change, 52-week high.
+3. **Profiles** — name, country, sector, industry. Duplicate listings of the
+   same company are collapsed, keeping the largest by market cap.
+4. **FX rates** from open.er-api.com, used to convert non-USD financials to USD.
+5. **Per-symbol fundamentals**:
+   - Quarterly income statements → TTM revenue, earnings, operating margin
+   - Annual income statements → 10-year revenue and EPS series
+   - Ratios TTM → dividend yield
+   - Financial growth → 3Y/5Y revenue and EPS CAGR
+   - Analyst estimates → forward EPS / P/E for the current and next fiscal year
+   - Cash-flow statements → TTM free cash flow (annual fallback)
+   - Latest balance sheet → net debt
+6. **Rank** by market cap, tag each row with data-quality issue codes
+   (`lib/data-quality.ts`), write `data/companies.json`, and upload it to Vercel
+   Blob when `BLOB_READ_WRITE_TOKEN` is set.
+
+Requests are made one at a time with a short delay and automatic retry/backoff
+on rate limits and transient errors, so a full scrape is long-running.
+
+### Automated Daily Refresh
+
+- **Host**: Hetzner VM, user-level cron (not a Vercel Function, so run time is
+  not limited)
+- **Schedule**: daily at 23:00 UTC (`0 23 * * *`); canonical entry in
+  `scripts/crontab`, installed/merged with `scripts/install-cron.sh` (the VM
+  crontab is shared with other projects — don't `crontab scripts/crontab`)
+- **Wrapper**: `scripts/refresh.sh` — sources `.env.local`, runs
+  `git pull --ff-only origin main` (non-fatal), then `npm run scrape`
+- **Required secrets** in `~/companiesmarketcap/.env.local`: `FMP_API_KEY`,
+  `BLOB_READ_WRITE_TOKEN`
+- **Logs**: `scripts/refresh.log` on the VM
+
+`/api/scrape` still exists for manual runs but is not used by the schedule
+(its 5-minute function limit is too short for a full scrape).
+
+### Serving
+
+`lib/db.ts` reads `companies.json` from `BLOB_URL` (1-hour in-memory cache),
+then `app/page.tsx` / `app/api/companies` overlay live Yahoo quotes and apply
+search, filters, sort and pagination server-side. `data/companies.json` is
+gitignored; Blob is the source of truth.
+
+## API
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/companies` | Search, filter, sort and paginate companies |
+| `GET /api/company?symbols=AAPL,MSFT&fields=forwardPE,pctTo52WeekHigh` | Look up specific companies, optionally selecting fields |
+| `GET /api/quotes?symbols=...` | Live Yahoo quotes (max 100 symbols) |
+| `POST/DELETE /api/presets` | Save / delete a user preset |
+| `GET/POST /api/feedback` | List public suggestions / submit one |
+| `GET /api/scrape?token=...` | Legacy manual scrape |
 
 ## Project Structure
 
 ```
 companiesmarketcap/
-├── app/                      # Next.js app directory
-│   ├── api/                  # API routes
-│   │   └── companies/        # Companies API endpoint
-│   ├── layout.tsx            # Root layout
-│   ├── page.tsx              # Main page
-│   └── globals.css           # Global styles
-├── components/               # React components
-│   └── CompaniesTable.tsx    # Main table component
-├── lib/                      # Utilities and data access
-│   ├── db.ts                 # Data access functions
-│   ├── types.ts              # TypeScript types
-│   └── utils.ts              # Utility functions
-├── scripts/                  # Data scraping scripts
-│   ├── scraper.ts            # Main scraper
-│   ├── csv-downloader.ts     # CSV download logic
-│   └── data-merger.ts        # Data merging logic
-├── data/                     # Data storage
-│   └── companies.json        # Company data file
-└── public/                   # Static assets
+├── app/
+│   ├── api/{companies,company,quotes,presets,feedback,scrape}/route.ts
+│   ├── page.tsx              # Server component: loads data + quotes, renders table
+│   ├── layout.tsx, loading.tsx, globals.css
+├── components/
+│   ├── CompaniesTable.tsx    # Table, filters, column picker, presets, search
+│   ├── Pagination.tsx
+│   ├── FeedbackWidget.tsx    # "Suggest a feature" modal
+│   ├── SavePresetModal.tsx
+│   ├── HiddenEntriesModal.tsx
+│   └── UsdEstimateModal.tsx
+├── lib/
+│   ├── db.ts                 # Blob/local data access, querying, presets, feedback
+│   ├── types.ts              # Company (camelCase) / DatabaseCompany (snake_case)
+│   ├── quotes.ts, yahoo-finance.ts   # Live quote fetching + cache
+│   ├── data-quality.ts       # Data-quality issue detection
+│   ├── url-aliases.ts        # Short URL param aliases
+│   └── company-name.ts, countries.ts, filter-summary.ts, preset-summary.ts, utils.ts
+├── scripts/                  # Scraper, cron wrapper, admin scripts
+├── tests/                    # Playwright specs
+└── public/logos/             # Company logos
 ```
 
 ## Data Schema
 
-The `data/companies.json` file contains an array of company records with the following fields:
-- `symbol` - Stock ticker (unique identifier)
-- `name` - Company name
-- `rank` - Market cap rank
-- `market_cap` - Market capitalization
-- `price` - Current stock price
-- `daily_change_percent` - Daily price change percentage
-- `earnings` - Company earnings
-- `revenue` - Company revenue
-- `pe_ratio` - Price-to-earnings ratio
-- `dividend_percent` - Dividend yield percentage
-- `operating_margin` - Operating margin percentage
-- `country` - Country (always "United States")
-- `last_updated` - Last update timestamp
+`companies.json` has the shape `{ companies: DatabaseCompany[], lastUpdated, exportedAt }`.
+Key fields per company (see `lib/types.ts` for the full list):
 
-## Data Sources
-
-Data is scraped from the following CSV endpoints on companiesmarketcap.com:
-- US Companies by Market Cap
-- Most Profitable Companies (filtered for US)
-- Largest Companies by Revenue (filtered for US)
-- Top Companies by P/E Ratio (filtered for US)
-- Top Companies by Dividend Yield (filtered for US)
-- Top Companies by Operating Margin (filtered for US)
-
-## Key Improvements Over Original Site
-
-1. **Unified View**: All metrics on one page instead of separate ranking pages
-2. **Dynamic Sorting**: Sort by any column with a single click
-3. **Better UX**: Cleaner, more modern interface
-4. **Search**: Quick search to find specific companies
-5. **Performance**: Server-side rendering with Next.js
-
-## Current Limitations
-
-- Some CSV files have formatting issues, resulting in missing data for earnings, revenue, P/E ratio, dividend %, and operating margin
-- Daily change % calculation requires at least one previous day's data
-- Full scrape duration is long (~2 hours), so refreshes happen in background jobs rather than on-request API execution
-
-## Future Enhancements
-
-- Fix CSV parsing issues to populate all metrics
-- Historical price charts
-- Company detail pages
-- Dark mode
-- Advanced filtering (by sector, market cap range, etc.)
-- CSV export functionality
-- User watchlists
-
-## Development
-
-The application is built with:
-- Server-side rendering for fast initial page load
-- Client-side interactivity for sorting and searching
-- JSON file for simple data storage
-- Type-safe TypeScript throughout
-
-## Deployment
-
-To deploy to Vercel:
-
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Deploy
-4. On the Hetzner VM, populate `~/companiesmarketcap/.env.local` with:
-   - `FMP_API_KEY`
-   - `BLOB_READ_WRITE_TOKEN`
-5. Install the daily cron entry with `scripts/install-cron.sh` (canonical schedule lives in `scripts/crontab`); runs `scripts/refresh.sh` at 23:00 UTC daily
-6. In Vercel project settings, set `BLOB_URL` to the Blob URL for `companies.json`
+| Field | Description |
+| --- | --- |
+| `symbol`, `name`, `country`, `sector`, `industry` | Identity (country is an ISO code) |
+| `rank`, `market_cap`, `price`, `daily_change_percent`, `week_52_high` | From FMP quote |
+| `pe_ratio`, `ttm_eps` | Trailing P/E and EPS |
+| `forward_pe`, `forward_eps` | Current-FY analyst estimate (blends reported + projected quarters) |
+| `forward_pe_next`, `forward_eps_next` | Next-FY analyst estimate (pure projection) |
+| `earnings`, `revenue`, `operating_margin` | TTM, sum of last 4 quarters, in USD |
+| `free_cash_flow`, `net_debt` | TTM FCF; latest net debt |
+| `dividend_percent` | Dividend yield TTM |
+| `revenue_growth_5y/3y`, `eps_growth_5y/3y` | CAGRs |
+| `revenue_annual`, `eps_annual` | 10-year annual series |
+| `data_quality_issues` | Issue codes; flagged rows are hidden from rankings |
+| `last_updated` | Timestamp |
 
 ## License
 
@@ -184,4 +224,6 @@ MIT
 
 ## Data Attribution
 
-Data sourced from companiesmarketcap.com
+Fundamentals and estimates from [Financial Modeling Prep](https://financialmodelingprep.com/);
+live prices from Yahoo Finance; FX rates from [open.er-api.com](https://www.exchangerate-api.com/);
+company logos from companiesmarketcap.com.
