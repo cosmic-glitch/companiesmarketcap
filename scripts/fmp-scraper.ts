@@ -159,9 +159,12 @@ interface ForwardEstimates {
   forwardPENext: number | null;
   forwardEPSNext: number | null;
   forwardEPSNextDate: string | null;
+  forwardPENext2: number | null;
+  forwardEPSNext2: number | null;
+  forwardEPSNext2Date: string | null;
 }
 
-// Turn the current/next estimate pair into USD forward EPS + P/E figures.
+// Turn the current/next/FY+2 estimates into USD forward EPS + P/E figures.
 // The currency basis is resolved once per symbol — it's a property of the
 // symbol's estimates feed, not of an individual fiscal year — preferring the
 // current-FY record (its revenueAvg is closest to trailing revenue).
@@ -181,12 +184,15 @@ function computeForwardEstimates(
     forwardPENext: null,
     forwardEPSNext: null,
     forwardEPSNextDate: null,
+    forwardPENext2: null,
+    forwardEPSNext2: null,
+    forwardEPSNext2Date: null,
   };
   if (!pair) return out;
 
   const usable = (est: FMPAnalystEstimate | null): est is FMPAnalystEstimate =>
     !!est && !!est.epsAvg && est.epsAvg > 0;
-  const basisSource = usable(pair.current) ? pair.current : usable(pair.next) ? pair.next : null;
+  const basisSource = [pair.current, pair.next, pair.next2].find(usable) ?? null;
   if (!basisSource) return out;
 
   const { basis } = resolveForwardEps(
@@ -213,6 +219,13 @@ function computeForwardEstimates(
     out.forwardEPSNextDate = pair.next.date;
     if (price && out.forwardEPSNext > 0) {
       out.forwardPENext = price / out.forwardEPSNext;
+    }
+  }
+  if (usable(pair.next2)) {
+    out.forwardEPSNext2 = toUsdEps(pair.next2.epsAvg);
+    out.forwardEPSNext2Date = pair.next2.date;
+    if (price && out.forwardEPSNext2 > 0) {
+      out.forwardPENext2 = price / out.forwardEPSNext2;
     }
   }
   return out;
@@ -439,12 +452,13 @@ interface FMPAnalystEstimate {
   revenueAvg?: number;
 }
 
-// The two estimate records we keep per symbol: the fiscal year currently in
-// progress (blends reported quarters with projections) and the one after it
-// (pure projection). Either can be null when FMP doesn't publish it.
+// The estimate records we keep per symbol: the fiscal year currently in
+// progress (blends reported quarters with projections) and the two after it
+// (pure projections). Any can be null when FMP doesn't publish it.
 interface AnalystEstimatePair {
   current: FMPAnalystEstimate | null;
   next: FMPAnalystEstimate | null;
+  next2: FMPAnalystEstimate | null;
 }
 
 interface FMPCashFlowStatement {
@@ -487,6 +501,9 @@ interface CompanyData {
   forwardPENext: number | null;
   forwardEPSNext: number | null;
   forwardEPSNextDate: string | null;
+  forwardPENext2: number | null;
+  forwardEPSNext2: number | null;
+  forwardEPSNext2Date: string | null;
   revenueGrowth5Y: number | null;
   revenueGrowth3Y: number | null;
   epsGrowth5Y: number | null;
@@ -801,6 +818,7 @@ async function fetchAnalystEstimates(symbol: string): Promise<AnalystEstimatePai
     return {
       current: sorted[currentIndex] ?? null,
       next: sorted[currentIndex + 1] ?? null,
+      next2: sorted[currentIndex + 2] ?? null,
     };
   }
   return null;
@@ -1221,6 +1239,9 @@ async function runFMPScraper(): Promise<{
       forwardPENext: fwd.forwardPENext,
       forwardEPSNext: fwd.forwardEPSNext,
       forwardEPSNextDate: fwd.forwardEPSNextDate,
+      forwardPENext2: fwd.forwardPENext2,
+      forwardEPSNext2: fwd.forwardEPSNext2,
+      forwardEPSNext2Date: fwd.forwardEPSNext2Date,
       revenueGrowth5Y,
       revenueGrowth3Y,
       epsGrowth5Y,
@@ -1259,6 +1280,9 @@ async function runFMPScraper(): Promise<{
     forward_pe_next: c.forwardPENext,
     forward_eps_next: c.forwardEPSNext,
     forward_eps_next_date: c.forwardEPSNextDate,
+    forward_pe_next2: c.forwardPENext2,
+    forward_eps_next2: c.forwardEPSNext2,
+    forward_eps_next2_date: c.forwardEPSNext2Date,
     dividend_percent: c.dividendPercent,
     operating_margin: c.operatingMargin,
     revenue_growth_5y: c.revenueGrowth5Y,
@@ -1286,6 +1310,7 @@ async function runFMPScraper(): Promise<{
     withMargin: dbCompanies.filter((c) => c.operating_margin !== null).length,
     withForwardPE: dbCompanies.filter((c) => c.forward_pe !== null).length,
     withForwardPENext: dbCompanies.filter((c) => c.forward_pe_next != null).length,
+    withForwardPENext2: dbCompanies.filter((c) => c.forward_pe_next2 != null).length,
     usdEstimates: dbCompanies.filter((c) => c.forward_eps_basis === "usd"),
     withRevenueGrowth5Y: dbCompanies.filter((c) => c.revenue_growth_5y !== null).length,
     withRevenueGrowth3Y: dbCompanies.filter((c) => c.revenue_growth_3y !== null).length,
@@ -1308,6 +1333,7 @@ async function runFMPScraper(): Promise<{
   console.log(`With operating margin:  ${stats.withMargin} (${Math.round((stats.withMargin / stats.total) * 100)}%)`);
   console.log(`With forward PE:        ${stats.withForwardPE} (${Math.round((stats.withForwardPE / stats.total) * 100)}%)`);
   console.log(`With next-FY fwd PE:    ${stats.withForwardPENext} (${Math.round((stats.withForwardPENext / stats.total) * 100)}%)`);
+  console.log(`With FY+2 fwd PE:       ${stats.withForwardPENext2} (${Math.round((stats.withForwardPENext2 / stats.total) * 100)}%)`);
   console.log(`USD-denominated estimates (FX conversion skipped): ${stats.usdEstimates.length}`);
   if (stats.usdEstimates.length > 0) {
     console.log(`  ${stats.usdEstimates.map((c) => c.symbol).join(", ")}`);
@@ -1376,7 +1402,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
     const estimates = await processSymbolsBatch(symbols, fetchAnalystEstimates, "Analyst estimates");
     console.log(`  Got estimates for ${estimates.size} symbols\n`);
 
-    // Update current- and next-FY forward EPS/P/E for each company. The
+    // Update current-, next- and FY+2 forward EPS/P/E for each company. The
     // estimates' currency basis is inferred per symbol (see resolveForwardEps).
     let updated = 0;
     const usdEstimateSymbols: string[] = [];
@@ -1397,7 +1423,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         company.sector
       );
       // Only overwrite when we got a usable estimate; otherwise keep stored
-      // values (a fetch miss shouldn't wipe data). Next-FY fields follow the
+      // values (a fetch miss shouldn't wipe data). Next-FY/FY+2 fields follow the
       // same refresh so a vanished FY2 estimate clears the stale figure.
       if (fwd.forwardEPSBasis !== null) {
         company.forward_pe = fwd.forwardPE;
@@ -1407,6 +1433,9 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         company.forward_pe_next = fwd.forwardPENext;
         company.forward_eps_next = fwd.forwardEPSNext;
         company.forward_eps_next_date = fwd.forwardEPSNextDate;
+        company.forward_pe_next2 = fwd.forwardPENext2;
+        company.forward_eps_next2 = fwd.forwardEPSNext2;
+        company.forward_eps_next2_date = fwd.forwardEPSNext2Date;
         if (fwd.forwardEPSBasis === "usd") usdEstimateSymbols.push(symbol);
         updated++;
       }
@@ -1625,7 +1654,7 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
       }
 
       // Resolve forward EPS (inferred currency basis) and recalculate the
-      // current- and next-FY forward P/Es
+      // current-, next- and FY+2 forward P/Es
       const estimatePair = estimates.get(symbol) as AnalystEstimatePair | undefined;
       const fwd = computeForwardEstimates(
         estimatePair,
@@ -1643,6 +1672,9 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         company.forward_pe_next = fwd.forwardPENext;
         company.forward_eps_next = fwd.forwardEPSNext;
         company.forward_eps_next_date = fwd.forwardEPSNextDate;
+        company.forward_pe_next2 = fwd.forwardPENext2;
+        company.forward_eps_next2 = fwd.forwardEPSNext2;
+        company.forward_eps_next2_date = fwd.forwardEPSNext2Date;
         if (fwd.forwardEPSBasis === "usd") usdEstimateSymbols.push(symbol);
       }
 
@@ -1883,6 +1915,9 @@ async function runPartialUpdate(updateType: PartialUpdateType): Promise<{
         forward_pe_next: fwd.forwardPENext,
         forward_eps_next: fwd.forwardEPSNext,
         forward_eps_next_date: fwd.forwardEPSNextDate,
+        forward_pe_next2: fwd.forwardPENext2,
+        forward_eps_next2: fwd.forwardEPSNext2,
+        forward_eps_next2_date: fwd.forwardEPSNext2Date,
         dividend_percent: ratio?.dividendYieldTTM ?? null,
         operating_margin: ttmOperatingMargin,
         revenue_growth_5y: revenueGrowth5Y,

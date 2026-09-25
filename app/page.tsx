@@ -79,6 +79,8 @@ export default async function Home({ searchParams }: HomeProps) {
     maxForwardPE: parseNumber(get('maxForwardPE')),
     minForwardPENext: parseNumber(get('minForwardPENext')),
     maxForwardPENext: parseNumber(get('maxForwardPENext')),
+    minForwardPENext2: parseNumber(get('minForwardPENext2')),
+    maxForwardPENext2: parseNumber(get('maxForwardPENext2')),
     minForwardEPSGrowth: parseGrowthPercent(get('minForwardEPSGrowth')),
     maxForwardEPSGrowth: parseGrowthPercent(get('maxForwardEPSGrowth')),
     minDividend: parseGrowthPercent(get('minDividend')),

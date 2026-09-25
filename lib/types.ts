@@ -37,6 +37,10 @@ export interface Company {
   forwardPENext: number | null;
   forwardEPSNext: number | null;
   forwardEPSNextDate: string | null;
+  // Fiscal year after next (FY+2): also a pure projection, thinner coverage.
+  forwardPENext2: number | null;
+  forwardEPSNext2: number | null;
+  forwardEPSNext2Date: string | null;
   // Currency basis of the forward EPS figure. "usd" means FMP's estimate was
   // already USD-denominated so no FX conversion was applied (see resolveForwardEps
   // in the scraper). Null on rows scraped before this field existed.
@@ -74,6 +78,8 @@ export interface CompaniesQueryParams {
   maxForwardPE?: number;
   minForwardPENext?: number;
   maxForwardPENext?: number;
+  minForwardPENext2?: number;
+  maxForwardPENext2?: number;
   minForwardEPSGrowth?: number;
   maxForwardEPSGrowth?: number;
   minDividend?: number;
@@ -152,6 +158,9 @@ export interface DatabaseCompany {
   forward_pe_next?: number | null;
   forward_eps_next?: number | null;
   forward_eps_next_date?: string | null;
+  forward_pe_next2?: number | null;
+  forward_eps_next2?: number | null;
+  forward_eps_next2_date?: string | null;
   dividend_percent: number | null;
   operating_margin: number | null;
   revenue_growth_5y: number | null;
