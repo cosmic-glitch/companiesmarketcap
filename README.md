@@ -12,10 +12,10 @@ Fundamentals come from the [Financial Modeling Prep](https://financialmodelingpr
 - **Sortable, configurable table** — click any header to sort; a column picker
   shows/hides columns. Rank and name are always visible.
 - **Columns**: Market Cap, Price, Today (daily change %), 10Y Revenue Trend,
-  10Y EPS Trend, % to 52-Week High, P/E, Fwd P/E (current FY), Fwd P/E Next FY, Fwd P/E FY+2,
+  10Y EPS Trend, % to 52-Week High, P/E, Fwd P/E (current FY), Fwd P/E Next FY,
   Earnings, Revenue, Fwd EPS Growth, Dividend Yield, Operating Margin,
   Revenue CAGR 5Y/3Y, EPS CAGR 5Y/3Y, plus optional Country, Sector, Industry,
-  FCF and Net Debt.
+  FCF, Net Debt and Fwd P/E FY+2.
 - **Min/max range filters** on every numeric metric, plus country and sector
   filters. All state lives in the URL (short aliases like `mc.min`, `fpe.max`),
   so any view can be shared as a link.

@@ -459,8 +459,8 @@ const FilterGridInput = ({ label, minKey, maxKey, pendingFilters, updateFilter, 
 );
 
 const COLUMN_OPTIONS: readonly ColumnOption[] = [
-  // Every column defaults to visible except Country, Sector, Industry, FCF, and
-  // Net Debt.
+  // Every column defaults to visible except Country, Sector, Industry, FCF,
+  // Net Debt, and Fwd P/E FY+2.
   { key: "country", label: "Country", defaultVisible: false },
   { key: "sector", label: "Sector", defaultVisible: false },
   { key: "industry", label: "Industry", defaultVisible: false },
@@ -473,7 +473,7 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "peRatio", label: "P/E", defaultVisible: true },
   { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
   { key: "forwardPENext", label: "Fwd P/E Next FY", defaultVisible: true },
-  { key: "forwardPENext2", label: "Fwd P/E FY+2", defaultVisible: true },
+  { key: "forwardPENext2", label: "Fwd P/E FY+2", defaultVisible: false },
   { key: "earnings", label: "Earnings", defaultVisible: true },
   { key: "revenue", label: "Revenue", defaultVisible: true },
   { key: "freeCashFlow", label: "FCF", defaultVisible: false },
