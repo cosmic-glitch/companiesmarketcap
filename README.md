@@ -12,7 +12,7 @@ Fundamentals come from the [Financial Modeling Prep](https://financialmodelingpr
 - **Sortable, configurable table** — click any header to sort; a column picker
   shows/hides columns. Rank and name are always visible.
 - **Columns**: Market Cap, Price, Today (daily change %), 10Y Revenue Trend,
-  10Y EPS Trend, % to 52-Week High, P/E, Fwd P/E (current FY), Fwd P/E Next FY,
+  10Y EPS Trend, % to 52-Week High, P/E, Fwd P/E (current FY), Fwd P/E Next FY, Fwd P/E FY+2,
   Earnings, Revenue, Fwd EPS Growth, Dividend Yield, Operating Margin,
   Revenue CAGR 5Y/3Y, EPS CAGR 5Y/3Y, plus optional Country, Sector, Industry,
   FCF and Net Debt.
@@ -94,7 +94,7 @@ Partial scrapes update only some fields of the existing data:
 
 ```bash
 npm run scrape -- --only quotes         # price / market cap / daily change
-npm run scrape -- --only forward_pe     # forward P/E (current + next FY)
+npm run scrape -- --only forward_pe     # forward P/E (current FY, next FY, FY+2)
 npm run scrape -- --only financials     # revenue / earnings / margins / ratios
 npm run scrape -- --only growth         # growth metrics
 # also: pe_ratio, week_52_high, new_symbols, currency_fix, annual_revenue, annual_eps
@@ -127,7 +127,7 @@ A full scrape runs these steps against `https://financialmodelingprep.com/stable
    - Annual income statements → 10-year revenue and EPS series
    - Ratios TTM → dividend yield
    - Financial growth → 3Y/5Y revenue and EPS CAGR
-   - Analyst estimates → forward EPS / P/E for the current and next fiscal year
+   - Analyst estimates → forward EPS / P/E for the current, next and following (FY+2) fiscal years
    - Cash-flow statements → TTM free cash flow (annual fallback)
    - Latest balance sheet → net debt
 6. **Rank** by market cap, tag each row with data-quality issue codes
@@ -210,6 +210,7 @@ Key fields per company (see `lib/types.ts` for the full list):
 | `pe_ratio`, `ttm_eps` | Trailing P/E and EPS |
 | `forward_pe`, `forward_eps` | Current-FY analyst estimate (blends reported + projected quarters) |
 | `forward_pe_next`, `forward_eps_next` | Next-FY analyst estimate (pure projection) |
+| `forward_pe_next2`, `forward_eps_next2` | FY+2 analyst estimate (pure projection, thinner coverage) |
 | `earnings`, `revenue`, `operating_margin` | TTM, sum of last 4 quarters, in USD |
 | `free_cash_flow`, `net_debt` | TTM FCF; latest net debt |
 | `dividend_percent` | Dividend yield TTM |
