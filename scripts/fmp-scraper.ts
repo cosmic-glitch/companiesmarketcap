@@ -669,6 +669,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// The screener is a single request the whole run depends on, so retry transient
+// failures (e.g. a one-off 60s timeout) with a longer backoff than per-symbol fetches.
+async function getScreenerPageWithRetry(url: string, page: number, maxRetries: number = 5) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await axios.get<any[]>(url, { timeout: 60000 });
+    } catch (error: any) {
+      if (!isTransientError(error) || attempt >= maxRetries - 1) throw error;
+      const backoffMs = Math.min(5000 * Math.pow(2, attempt), 60000);
+      const reason = error.code || `HTTP ${error.response?.status}`;
+      console.log(`  ${reason} on screener page ${page}, waiting ${backoffMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+      await sleep(backoffMs);
+    }
+  }
+}
+
 // Fetch global stock symbols from company-screener endpoint ($1B+ market cap)
 async function fetchGlobalStocks(): Promise<string[]> {
   console.log("Fetching global stock list from company-screener...");
@@ -679,7 +695,7 @@ async function fetchGlobalStocks(): Promise<string[]> {
 
   while (true) {
     const url = `${BASE_URL}/company-screener?marketCapMoreThan=1000000000&isActivelyTrading=true&isEtf=false&isFund=false&limit=${limit}&page=${page}&apikey=${FMP_API_KEY}`;
-    const response = await axios.get<any[]>(url, { timeout: 60000 });
+    const response = await getScreenerPageWithRetry(url, page);
 
     if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
       break;
@@ -2063,7 +2079,13 @@ const isDirectRun = process.argv[1]?.includes('fmp-scraper');
 
 if (isMainModule || isDirectRun) {
   main().catch((error) => {
-    console.error("Fatal error:", error);
+    // Don't dump the whole AxiosError: it's ~170 lines and includes the API key in the URL.
+    if (axios.isAxiosError(error)) {
+      const url = (error.config?.url || "").replace(/apikey=[^&]+/, "apikey=***");
+      console.error(`Fatal error: ${error.message} (${error.code || error.response?.status}) ${url}`);
+    } else {
+      console.error("Fatal error:", error);
+    }
     process.exit(1);
   });
 }
