@@ -112,7 +112,7 @@ function DailyChange({ value }: { value: number | null }) {
 }
 
 // Forward P/E with the fiscal year it's based on as a small second line
-// ("FY Jan '27"). Fits within the row height the two-line company cell
+// ("FY Jan 27"). Fits within the row height the two-line company cell
 // already sets, so rows don't grow.
 function ForwardPEValue({ value, fiscalYearEnd }: { value: number | null; fiscalYearEnd: string | null }) {
   const label = value !== null ? formatFiscalYearEnd(fiscalYearEnd) : null;
