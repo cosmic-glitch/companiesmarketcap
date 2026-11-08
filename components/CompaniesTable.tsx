@@ -483,10 +483,10 @@ const COLUMN_OPTIONS: readonly ColumnOption[] = [
   { key: "revenueAnnual", label: "10Y Rev Trend", defaultVisible: true },
   { key: "epsAnnual", label: "10Y EPS Trend", defaultVisible: true },
   { key: "pctTo52WeekHigh", label: "% to 52W High", defaultVisible: true },
-  { key: "peRatio", label: "P/E", defaultVisible: true },
-  { key: "forwardPE", label: "Fwd P/E", defaultVisible: true },
-  { key: "forwardPENext", label: "Fwd P/E Next FY", defaultVisible: true },
-  { key: "forwardPENext2", label: "Fwd P/E FY+2", defaultVisible: false },
+  { key: "peRatio", label: "TTM PE", defaultVisible: true },
+  { key: "forwardPE", label: "Fwd PE", defaultVisible: true },
+  { key: "forwardPENext", label: "Fwd PE +1", defaultVisible: true },
+  { key: "forwardPENext2", label: "Fwd PE +2", defaultVisible: false },
   { key: "earnings", label: "Earnings", defaultVisible: true },
   { key: "revenue", label: "Revenue", defaultVisible: true },
   { key: "freeCashFlow", label: "FCF", defaultVisible: false },
@@ -1303,10 +1303,10 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
             <div className="absolute top-full left-0 mt-1 bg-bg-primary border border-border-subtle rounded-[13px] p-4 z-50 shadow-[0_12px_32px_rgba(15,23,42,0.12)] w-[680px]">
               <div className="grid grid-cols-4 gap-3">
                 <FilterGridInput label="Market Cap ($B)" minKey="minMarketCap" maxKey="maxMarketCap" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
-                <FilterGridInput label="P/E Ratio" minKey="minPERatio" maxKey="maxPERatio" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
-                <FilterGridInput label="Forward P/E" minKey="minForwardPE" maxKey="maxForwardPE" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
-                <FilterGridInput label="Fwd P/E Next FY" minKey="minForwardPENext" maxKey="maxForwardPENext" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
-                <FilterGridInput label="Fwd P/E FY+2" minKey="minForwardPENext2" maxKey="maxForwardPENext2" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="TTM PE" minKey="minPERatio" maxKey="maxPERatio" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Fwd PE" minKey="minForwardPE" maxKey="maxForwardPE" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Fwd PE +1" minKey="minForwardPENext" maxKey="maxForwardPENext" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
+                <FilterGridInput label="Fwd PE +2" minKey="minForwardPENext2" maxKey="maxForwardPENext2" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Fwd EPS Growth (%)" minKey="minForwardEPSGrowth" maxKey="maxForwardEPSGrowth" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Earnings TTM ($B)" minKey="minEarnings" maxKey="maxEarnings" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
                 <FilterGridInput label="Revenue TTM ($B)" minKey="minRevenue" maxKey="maxRevenue" pendingFilters={pendingFilters} updateFilter={updateFilter} applyFilters={applyFiltersAndClose} />
@@ -1587,7 +1587,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   isSortedColumn("peRatio") && "sorted-column-header"
                 )}
               >
-                P/E <SortIndicator columnKey="peRatio" />
+                TTM PE <SortIndicator columnKey="peRatio" />
               </th>
               )}
               {isColumnVisible("forwardPE") && (
@@ -1599,7 +1599,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   isSortedColumn("forwardPE") && "sorted-column-header"
                 )}
               >
-                Fwd P/E <SortIndicator columnKey="forwardPE" />
+                Fwd PE <SortIndicator columnKey="forwardPE" />
               </th>
               )}
               {isColumnVisible("forwardPENext") && (
@@ -1611,7 +1611,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   isSortedColumn("forwardPENext") && "sorted-column-header"
                 )}
               >
-                Fwd P/E +1 <SortIndicator columnKey="forwardPENext" />
+                Fwd PE +1 <SortIndicator columnKey="forwardPENext" />
               </th>
               )}
               {isColumnVisible("forwardPENext2") && (
@@ -1623,7 +1623,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   isSortedColumn("forwardPENext2") && "sorted-column-header"
                 )}
               >
-                Fwd P/E +2 <SortIndicator columnKey="forwardPENext2" />
+                Fwd PE +2 <SortIndicator columnKey="forwardPENext2" />
               </th>
               )}
               {isColumnVisible("earnings") && (

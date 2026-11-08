@@ -15,9 +15,9 @@ test.describe('Company Table with Pagination', () => {
     await expect(page.locator('label:has-text("Market Cap")')).toBeVisible();
     await expect(page.locator('label:has-text("Earnings (TTM)")')).toBeVisible();
     await expect(page.locator('label:has-text("Revenue (TTM)")')).toBeVisible();
-    await expect(page.locator('label:has-text("P/E Ratio")')).toBeVisible();
+    await expect(page.locator('label:has-text("TTM PE")')).toBeVisible();
     await expect(page.locator('label:has-text("Div. Yield %")')).toBeVisible();
-    await expect(page.locator('label:has-text("Fwd P/E")')).toBeVisible();
+    await expect(page.locator('label:has-text("Fwd PE")')).toBeVisible();
     await expect(page.locator('label:has-text("Op. Margin %")')).toBeVisible();
     await expect(page.locator('label:has-text("Rev CAGR 5Y")')).toBeVisible();
     await expect(page.locator('label:has-text("Rev CAGR 3Y")')).toBeVisible();
