@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Company, PresetConfig } from "@/lib/types";
-import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, cn } from "@/lib/utils";
+import { formatMarketCap, formatPrice, formatPercent, formatPERatio, formatCAGR, formatFiscalYearEnd, cn } from "@/lib/utils";
 import { formatCountry } from "@/lib/countries";
 import { cleanCompanyName } from "@/lib/company-name";
 import { formatPresetCriteria, formatPresetName, formatPresetSort } from "@/lib/preset-summary";
@@ -108,6 +108,19 @@ function DailyChange({ value }: { value: number | null }) {
       {isNegative && "▼ "}
       {formattedValue}
     </span>
+  );
+}
+
+// Forward P/E with the fiscal year it's based on as a small second line
+// ("FY Jan '27"). Fits within the row height the two-line company cell
+// already sets, so rows don't grow.
+function ForwardPEValue({ value, fiscalYearEnd }: { value: number | null; fiscalYearEnd: string | null }) {
+  const label = value !== null ? formatFiscalYearEnd(fiscalYearEnd) : null;
+  return (
+    <>
+      {formatPERatio(value)}
+      {label && <span className="block text-xs leading-4 text-text-muted">{label}</span>}
+    </>
   );
 }
 
@@ -1579,7 +1592,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("forwardPE") && (
               <th
-                title="Forward P/E on the ongoing fiscal year's EPS estimate (blends reported quarters with projections)"
+                title="Forward P/E on the ongoing fiscal year's EPS estimate (blends reported quarters with projections). The small label under each value is the month that fiscal year ends."
                 onClick={() => handleSort("forwardPE")}
                 className={cn(
                   "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
@@ -1591,7 +1604,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("forwardPENext") && (
               <th
-                title="Forward P/E on next fiscal year's EPS estimate (pure projection — no reported quarters mixed in)"
+                title="Forward P/E on next fiscal year's EPS estimate (pure projection — no reported quarters mixed in). The small label under each value is the month that fiscal year ends."
                 onClick={() => handleSort("forwardPENext")}
                 className={cn(
                   "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
@@ -1603,7 +1616,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
               )}
               {isColumnVisible("forwardPENext2") && (
               <th
-                title="Forward P/E on the EPS estimate for the fiscal year after next (pure projection — fewer analysts cover it)"
+                title="Forward P/E on the EPS estimate for the fiscal year after next (pure projection — fewer analysts cover it). The small label under each value is the month that fiscal year ends."
                 onClick={() => handleSort("forwardPENext2")}
                 className={cn(
                   "px-4 py-3 text-right text-[13px] font-semibold text-text-secondary uppercase tracking-normal whitespace-nowrap cursor-pointer hover:bg-bg-hover/50 transition-colors",
@@ -1881,7 +1894,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   )}
                   title={company.forwardEPSDate ? `FY ending ${company.forwardEPSDate}` : undefined}
                 >
-                  {formatPERatio(company.forwardPE)}
+                  <ForwardPEValue value={company.forwardPE} fiscalYearEnd={company.forwardEPSDate} />
                 </td>
                 )}
                 {isColumnVisible("forwardPENext") && (
@@ -1892,7 +1905,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   )}
                   title={company.forwardEPSNextDate ? `FY ending ${company.forwardEPSNextDate}` : undefined}
                 >
-                  {formatPERatio(company.forwardPENext)}
+                  <ForwardPEValue value={company.forwardPENext} fiscalYearEnd={company.forwardEPSNextDate} />
                 </td>
                 )}
                 {isColumnVisible("forwardPENext2") && (
@@ -1903,7 +1916,7 @@ export default function CompaniesTable({ companies, total, sortBy: sortByProp, s
                   )}
                   title={company.forwardEPSNext2Date ? `FY ending ${company.forwardEPSNext2Date}` : undefined}
                 >
-                  {formatPERatio(company.forwardPENext2)}
+                  <ForwardPEValue value={company.forwardPENext2} fiscalYearEnd={company.forwardEPSNext2Date} />
                 </td>
                 )}
                 {isColumnVisible("earnings") && (

@@ -77,6 +77,19 @@ export function formatPERatio(value: number | null | undefined): string {
   return value.toFixed(2);
 }
 
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Fiscal-year-end label for forward estimates: "2027-01-25" → "FY Jan '27".
+// Uses the month the fiscal year ends (not the company's "FY2027" naming,
+// which varies by company). Parsed from the string to avoid timezone shifts.
+export function formatFiscalYearEnd(date: string | null | undefined): string | null {
+  const match = date?.match(/^(\d{4})-(\d{2})/);
+  if (!match) return null;
+  const month = MONTH_ABBR[Number(match[2]) - 1];
+  if (!month) return null;
+  return `FY ${month} '${match[1].slice(2)}`;
+}
+
 // Format CAGR (Compound Annual Growth Rate) as percentage
 // Input is decimal (0.10 = 10%), output is "10.0%"
 export function formatCAGR(value: number | null | undefined): string {
